@@ -1,0 +1,311 @@
+================================================================
+ALCT Server - 개발 가이드
+================================================================
+
+[개요]
+PNG 이미지를 WebSocket으로 수신 → RapidOCR로 텍스트 추출 →
+LibreTranslate로 한국어 번역 → 결과 반환하는 FastAPI 서버.
+
+지원 언어: 영어, 중국어(간체), 일본어(히라가나·가타카나·한자)
+인식 제외: 사용자명(cyan 색상) 자동 마스킹
+
+----------------------------------------------------------------
+프로젝트 구조
+----------------------------------------------------------------
+
+alct-server/
+├── main.py                         # FastAPI 앱 진입점, uvicorn 설정
+├── pytest.ini                      # pytest 설정 (asyncio_mode=auto)
+├── requirements.txt
+├── CLAUDE.md                       # 프로젝트 명세
+├── GUIDE.txt                       # 이 파일
+├── models/                         # 자동 생성 — OCR 모델 캐시
+│   └── japan_rec_crnn.onnx         # 첫 실행 시 HuggingFace에서 자동 다운로드
+├── core/
+│   ├── ocr_service.py              # RapidOCR 래퍼 (CN+JP 이중 엔진, cyan 마스킹)
+│   ├── translation_service.py      # LibreTranslate REST 클라이언트
+│   └── session_manager.py          # 세션별 상태 (dedup 캐시)
+├── api/
+│   └── websocket_handler.py        # WebSocket 엔드포인트 + rate limiter
+├── tests/
+│   ├── conftest.py                  # PNG fixture 팩토리
+│   ├── capture_debug.png            # 실제 게임 캡처 (테스트용)
+│   ├── test_ocr_service.py
+│   ├── test_session_manager.py
+│   ├── test_translation_service.py
+│   └── test_websocket_handler.py
+└── test_connect.py                  # 수동 WebSocket 연결 테스트 스크립트
+
+----------------------------------------------------------------
+핵심 처리 흐름
+----------------------------------------------------------------
+
+클라이언트 PNG 전송
+        ↓
+[websocket_handler] rate limit 체크 (IP당 30회/분, 슬라이딩 윈도우)
+        ↓
+[ocr_service] cyan 마스킹 → CN 엔진 + JP 엔진 병렬 실행 → 결과 병합
+        ↓ 빈 문자열이면 → {"translatedText": ""} 반환
+        ↓
+[session_manager] isDuplicate 체크
+        ↓ 동일 텍스트면 → 캐시된 번역 즉시 반환 (cached: true)
+        ↓ 다른 텍스트면
+[translation_service] LibreTranslate POST /translate
+        ↓
+[session_manager] updateSession (텍스트 + 번역 캐시)
+        ↓
+{"translatedText": "...", "cached": false} 반환
+
+----------------------------------------------------------------
+각 모듈 설명
+----------------------------------------------------------------
+
+[core/ocr_service.py]
+
+  엔진 구성
+  - _engineCN : RapidOCR() 기본값 — 중국어 + 영어 모델 (PP-OCRv3, 서버 내장)
+  - _engineJP : RapidOCR(rec_model_path=...) — 일본어 모델 (PP-OCRv1, 자동 다운로드)
+    - 다운로드 URL: HuggingFace SWHL/RapidOCR → PP-OCRv1/japan_rec_crnn.onnx
+    - 로컬 캐시: models/japan_rec_crnn.onnx (3.6MB)
+    - rec_img_shape: [3, 32, 320] — PP-OCRv1은 48px가 아닌 32px 높이 사용
+
+  cyan 마스킹 (maskCyanText)
+  - 목적: 인게임 채팅의 "username: message" 형식에서 사용자명만 제거
+  - cyan 감지 조건: (G-R > 70) AND (B-R > 70) AND (G > 50)
+    - 이유: 게임의 cyan 색상(RGB 55,233,255)과 안티앨리어싱 엣지
+      (RGB 17,95,105)까지 포함하려면 R 절댓값이 아닌 G-R/B-R 차이로 판단해야 함
+  - 마스킹 전략: 픽셀 단위 교체가 아닌 행(row) 단위 열(column) 블록 소거
+    - cyan 픽셀 감지 행에서 x=0 ~ 마지막 cyan 픽셀 + 5px를 배경색으로 채움
+    - 이유: 픽셀만 교체하면 배경 미스매치로 잔상이 생겨 OCR이 여전히 읽음
+  - _CYAN_MASK_RIGHT_PADDING = 5  (값이 크면 메시지 시작 부분을 침범할 수 있음)
+
+  결과 병합 (_mergeOcrResults)
+  - 두 엔진이 같은 이미지를 처리 → bounding box y좌표로 같은 행 매칭
+  - 선택 기준:
+    1. JP 결과에 가나(히라가나/가타카나) 포함 → JP 결과 채택
+    2. 아니면 confidence 높은 쪽 채택
+  - 한쪽 엔진에만 감지된 행은 그 결과를 그대로 사용
+
+  주요 함수
+  - getEngineCN()          : CN 엔진 싱글톤 반환
+  - getEngineJP()          : JP 엔진 싱글톤 반환 (없으면 모델 다운로드 후 로드)
+  - maskCyanText(array)    : numpy 배열 → 마스킹된 numpy 배열
+  - extractText(bytes)     : PNG 바이트 → 추출 텍스트 문자열
+
+[core/translation_service.py]
+  - LIBRE_TRANSLATE_URL = "http://localhost:5000/translate"
+  - SOURCE_LANG = "auto" / TARGET_LANG = "ko"
+  - translateText(text) : async, httpx로 POST 호출
+    - HTTP 오류 시 raise_for_status()로 예외 전파
+
+[core/session_manager.py]
+  - SessionState: lastExtractedText, lastTranslatedText
+  - getSession(sessionId)                        : 없으면 생성
+  - isDuplicate(sessionId, text)                 : 이전 텍스트와 동일 여부
+  - updateSession(sessionId, text, translation)  : 상태 갱신
+  - getCachedTranslation(sessionId)              : 캐시된 번역 반환
+  - removeSession(sessionId)                     : 연결 종료 시 정리
+    ※ sessionId = 클라이언트 IP (X-Forwarded-For 헤더 우선)
+
+[api/websocket_handler.py]
+  엔드포인트
+  - WS /ws      : OCR + 번역 전체 흐름 (프로덕션용)
+  - WS /ws/ocr  : OCR 결과만 반환, 번역 없음 (클라이언트 연동 테스트용)
+    응답: {"extractedText": "..."} 또는 {"error": "rate limit exceeded"}
+
+  rate limiter
+  - 슬라이딩 윈도우: _requestTimestamps (IP → 타임스탬프 목록)
+  - RATE_LIMIT_MAX_REQUESTS  = 30
+  - RATE_LIMIT_WINDOW_SECONDS = 60
+  - 초과 시 {"error": "rate limit exceeded"} 반환 후 연결 유지
+    (slowapi는 WebSocket 메시지 레벨 제한이 불가능하여 직접 구현)
+
+[main.py]
+  - GET /health  : 헬스체크 ({"status": "ok"})
+  - WS  /ws      : 번역 포함 전체 흐름
+  - WS  /ws/ocr  : OCR 전용
+  - uvicorn ws="wsproto" — websockets v14+의 Origin 검증 우회 필수
+    (websockets v14+는 브라우저 외 클라이언트를 기본으로 거부, wsproto는 무관)
+  - uvicorn workers=3 (ARM 4코어 활용)
+
+----------------------------------------------------------------
+환경 설정 및 실행
+----------------------------------------------------------------
+
+# 패키지 설치
+pip install -r requirements.txt
+
+# 서버 실행 (단일 워커, 개발용)
+python main.py
+
+# 서버 실행 (멀티 워커, 프로덕션)
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 3 --ws wsproto
+
+# 헬스체크
+curl http://localhost:8000/health
+
+# 첫 실행 시 일본어 모델 다운로드 (3.6MB, 자동)
+# → 서버 기동 후 첫 이미지 수신 시 models/japan_rec_crnn.onnx 저장
+
+----------------------------------------------------------------
+테스트 실행
+----------------------------------------------------------------
+
+# 전체 테스트 (44개)
+python -m pytest tests/ -v
+
+# 특정 모듈만
+python -m pytest tests/test_ocr_service.py -v
+python -m pytest tests/test_session_manager.py -v
+python -m pytest tests/test_translation_service.py -v
+python -m pytest tests/test_websocket_handler.py -v
+
+# 테스트 구성 (44개)
+  test_ocr_service.py          22개  - 엔진 싱글톤, cyan 마스킹, 가나 감지,
+                                       결과 병합, extractText 통합
+  test_session_manager.py       9개  - 세션 CRUD, dedup, 캐시
+  test_translation_service.py   4개  - 번역 결과, 페이로드, URL, HTTP 오류
+  test_websocket_handler.py     9개  - 전체 흐름, 캐시, 빈OCR, rate limit, health
+
+  LibreTranslate 호출: pytest-mock으로 모킹 (실서버 불필요)
+  RapidOCR 호출: unittest.mock으로 모킹 (모델 로드/다운로드 불필요)
+
+----------------------------------------------------------------
+수동 WebSocket 테스트 (test_connect.py)
+----------------------------------------------------------------
+
+서버를 먼저 실행한 뒤, 별도 터미널에서 실행.
+--stub 추가 시 포트 5000에 LibreTranslate stub 서버 자동 기동.
+Windows 콘솔 한글/CJK 깨짐 방지: $env:PYTHONUTF8=1 설정 권장.
+
+  # 합성 이미지 (캐시·중복 흐름 검증)
+  python test_connect.py --stub
+
+  # 실제 게임 캡처 이미지 전송
+  python test_connect.py --image tests/capture_debug.png --stub
+
+  # 현재 화면 캡처 1회 전송
+  python test_connect.py --screenshot --stub
+
+  # 3초 간격 화면 캡처 반복 (Ctrl+C로 종료)
+  python test_connect.py --loop --stub
+
+  ※ --stub 없이 실행하면 실제 LibreTranslate(localhost:5000)를 호출함
+
+OCR 전용 테스트 (/ws/ocr 엔드포인트)
+  python -c "
+  import asyncio, websockets, io
+  from PIL import Image, ImageDraw
+
+  def makePng():
+      img = Image.new('RGB',(400,80),(255,255,255))
+      ImageDraw.Draw(img).text((10,25),'Hello',fill=(0,0,0))
+      buf = io.BytesIO(); img.save(buf,format='PNG')
+      return buf.getvalue()
+
+  async def test():
+      async with websockets.connect('ws://localhost:8000/ws/ocr') as ws:
+          await ws.send(makePng())
+          print(await ws.recv())  # {'extractedText': 'Hello'}
+
+  asyncio.run(test())
+  "
+
+----------------------------------------------------------------
+실제 클라이언트 연결
+----------------------------------------------------------------
+
+서버 엔드포인트:
+  ws://<서버_IP>:8000/ws/ocr    ← OCR만 (번역 없음, 연동 초기 테스트용)
+  ws://<서버_IP>:8000/ws        ← OCR + 번역 전체 (프로덕션)
+
+응답 형식:
+  /ws/ocr  → {"extractedText": "인식된 텍스트"}
+  /ws      → {"translatedText": "번역된 텍스트", "cached": true|false}
+             또는 {"error": "rate limit exceeded"}
+
+클라이언트: PNG 바이트를 binary WebSocket 메시지로 전송하면 됨.
+
+WebSocket 연결 시 주의: websockets 라이브러리 v14+를 클라이언트로 쓸 때
+  additional_headers={'Origin': '...'} 없어도 서버(wsproto)가 허용함.
+  HTTP 403이 발생하면 서버가 --ws websockets로 기동된 것이므로
+  main.py의 UVICORN_WS = "wsproto" 설정 확인.
+
+----------------------------------------------------------------
+프로덕션 배포 (Oracle Cloud ARM)
+----------------------------------------------------------------
+
+# RAM 여유 확인 (최소 4GB 필요, JP 모델 추가로 약 200MB 여유 더 필요)
+free -h
+
+# LibreTranslate 실행 (별도 포트 5000)
+libretranslate --host 0.0.0.0 --port 5000
+
+# ALCT 서버 실행 (wsproto 필수)
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 3 --ws wsproto
+
+# 또는 main.py 직접 실행 (UVICORN_WS = "wsproto" 하드코딩됨)
+python main.py
+
+# 서버 최초 기동 후 첫 요청 시 JP 모델 자동 다운로드
+# → Oracle Cloud 방화벽에서 outbound HTTPS 허용 필요
+
+----------------------------------------------------------------
+주요 상수 (수정이 필요한 경우)
+----------------------------------------------------------------
+
+core/ocr_service.py
+  _CYAN_GB_MINUS_R_THRESHOLD = 70  # cyan 감지 민감도 (낮추면 더 많이 마스킹)
+  _CYAN_MASK_RIGHT_PADDING   = 5   # cyan 우측 여백 (크면 메시지 침범 가능)
+  _JAPAN_MODEL_URL           = "..."  # JP 모델 다운로드 URL
+
+core/translation_service.py
+  LIBRE_TRANSLATE_URL      = "http://localhost:5000/translate"
+  SOURCE_LANG              = "auto"
+  TARGET_LANG              = "ko"
+  REQUEST_TIMEOUT_SECONDS  = 10
+
+api/websocket_handler.py
+  RATE_LIMIT_MAX_REQUESTS  = 30
+  RATE_LIMIT_WINDOW_SECONDS = 60
+
+main.py
+  UVICORN_HOST    = "0.0.0.0"
+  UVICORN_PORT    = 8000
+  UVICORN_WORKERS = 3
+  UVICORN_WS      = "wsproto"    # websockets v14+ Origin 검증 우회
+
+----------------------------------------------------------------
+의존 패키지
+----------------------------------------------------------------
+
+  fastapi>=0.111.0
+  uvicorn[standard]>=0.29.0
+  rapidocr-onnxruntime>=1.2.0    ※ 최신 공개 버전 1.2.3
+  httpx>=0.27.0
+  slowapi>=0.1.9                  ※ HTTP 엔드포인트용 (WebSocket rate limit은 직접 구현)
+  wsproto>=1.2.0                  ※ uvicorn WebSocket 백엔드 (websockets v14+ 대체)
+  pytest>=8.2.0
+  pytest-mock>=3.14.0
+  pytest-asyncio>=0.23.0
+  python-multipart>=0.0.9
+  pillow                          ※ conftest.py PNG fixture 생성용 (테스트 전용)
+
+----------------------------------------------------------------
+알려진 제약
+----------------------------------------------------------------
+
+  한국어 미지원
+    - CN 엔진: 중국어 + 영어 전용 (PP-OCRv3)
+    - JP 엔진: 일본어 전용 (PP-OCRv1)
+    - 한국어 인식을 추가하려면 별도 한국어 ONNX 모델 필요
+
+  JP 엔진 정확도
+    - PP-OCRv1 기반으로 PP-OCRv3보다 낮음
+    - 인게임 채팅 수준(선명한 폰트)에서는 실용적
+    - 개선이 필요하면 PP-OCRv3 JP 모델로 교체 (변환 필요)
+
+  첫 실행 지연
+    - JP 모델 다운로드(3.6MB)로 첫 요청이 수 초 지연될 수 있음
+    - 배포 전 서버에서 미리 다운로드 권장:
+      python -c "from core.ocr_service import getEngineJP; getEngineJP()"

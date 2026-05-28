@@ -1,0 +1,47 @@
+# ==================== CLIENT (C# / .NET) ====================
+client/**/bin/
+client/**/obj/
+client/**/*.user
+client/.vs/
+
+# 캡처 디버그 이미지
+client/bin/**/capture_debug*.png
+
+# ==================== SERVER (Python) ====================
+# 바이트코드 캐시
+__pycache__/
+*.pyc
+*.pyo
+
+# 테스트 캐시
+.pytest_cache/
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 로그
+server/server_out.log
+server/server_err.log
+*.log
+
+# ONNX 모델 (용량 큰 바이너리 — 별도 배포)
+server/models/*.onnx
+
+# 테스트용 임시 이미지
+server/tests/capture_debug*.png
+
+# ==================== 환경 설정 ====================
+.env
+.env.*
+*.key
+*.pem
+secrets.json
+
+# ==================== OS / 편집기 ====================
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
