@@ -1,0 +1,212 @@
+================================================================
+  ALCT Client - Java/Kotlin 개발자를 위한 코드 읽기 가이드
+================================================================
+
+
+[ 실행 명령어 ]
+
+  dotnet build                              # gradle build
+  dotnet run                                # gradle run (앱 시작)
+  dotnet test Tests/AlctClient.Tests.csproj # gradle test
+
+  주의: 앱이 실행 중인 상태에서 dotnet build 하면 파일 잠금 오류 발생.
+        빌드 전에 앱을 반드시 종료할 것.
+
+
+----------------------------------------------------------------
+  현재 구현된 파일 구조
+----------------------------------------------------------------
+
+  alct-client/
+  ├── App.xaml / App.xaml.cs          ← 앱 진입점 (Spring의 main과 동일)
+  ├── MainWindow.xaml / .xaml.cs      ← 단축키 등록 + 전체 흐름 연결
+  ├── Core/
+  │   ├── AppState.cs                 ← 전체 상태 불변 객체 (Java record)
+  │   ├── HotkeyManager.cs            ← 전역 단축키 (RegisterHotKey Windows API)
+  │   ├── ScreenCaptureService.cs     ← 화면 캡처 → PNG byte[]
+  │   ├── WebSocketClient.cs          ← WebSocket 클라이언트 (자동 재연결, JSON 파싱)
+  │   └── TranslationMockServer.cs    ← 미사용 (서버 안정화 후 삭제 예정)
+  ├── Overlay/
+  │   ├── TranslationOverlay.xaml     ← 번역 결과 오버레이 UI
+  │   └── TranslationOverlay.xaml.cs  ← 클릭통과 설정, 5초 자동 숨김
+  ├── Utils/
+  │   └── WindowsApiHelper.cs         ← 클릭통과 / 항상최상위 (Windows P/Invoke)
+  └── Tests/
+      ├── HotkeyManagerTests.cs       ← 쿨다운 로직 단위 테스트 (4개)
+      ├── ScreenCaptureServiceTests.cs ← 캡처 영역 + PNG 인코딩 테스트 (5개)
+      └── AppStateTests.cs            ← 불변 상태 변환 테스트 (4개)
+
+
+----------------------------------------------------------------
+  전체 실행 흐름
+----------------------------------------------------------------
+
+  1. 앱 시작
+     App.xaml StartupUri → MainWindow 생성 (화면 밖 1×1, 보이지 않음)
+
+  2. MainWindow.Loaded 이벤트
+     ├─ WebSocketClient.ConnectAsync() → ws://localhost:8000/ws/ocr 연결 (백그라운드)
+     ├─ wsClient.MessageReceived       → overlay.ShowTranslation() 구독
+     └─ HotkeyManager.Register()      → Ctrl+T 전역 단축키 등록
+
+  3. Ctrl+T 입력
+     ├─ ScreenCaptureService.CaptureRegionAsPng()
+     │    기본 영역: x=0, y=880, width=600, height=200 (1920×1080 기준)
+     ├─ capture_debug.png 저장 + 이미지 뷰어로 자동 오픈 (확인용)
+     └─ WebSocketClient.SendImageAsync(imageBytes) → 서버로 PNG 전송
+
+  4. 서버 응답 수신
+     JSON {"extractedText": "..."} → extractedText 파싱 → MessageReceived 이벤트
+
+  5. 오버레이 표시
+     TranslationOverlay.ShowTranslation(text)
+     → 화면 왼쪽 하단 (Left=0, Top=860) 에 5초 표시 후 자동 숨김
+
+
+----------------------------------------------------------------
+  서버 통신 프로토콜
+----------------------------------------------------------------
+
+  엔드포인트: ws://localhost:8000/ws/ocr
+
+  클라이언트 → 서버:
+    메시지 타입: Binary
+    내용:        PNG 이미지 byte[]
+
+  서버 → 클라이언트:
+    메시지 타입: Text
+    내용:        JSON 문자열
+    형식:        {"extractedText": "인식된 텍스트"}
+
+  파싱 실패 시 (JSON 형식 오류, 필드 누락 등):
+    오버레이 미표시 (조용히 무시)
+
+
+----------------------------------------------------------------
+  파일별 설명 (Java 비유 포함)
+----------------------------------------------------------------
+
+  App.xaml.cs
+  - Java의 public static void main() 에 해당
+  - StartupUri="MainWindow.xaml" → MainWindow를 자동 생성 + Show()
+  - 현재는 거의 비어 있음
+
+  Core/AppState.cs
+  - Java의 record (JDK 16+) 와 완전히 동일한 개념
+  - 앱 전체 상태를 하나의 불변 객체로 관리
+  - with 키워드로 새 인스턴스 생성 (Lombok 없이 언어 레벨 지원)
+
+    Java:   var next = state.withIsConnected(true);  // lombok 필요
+    C#:     var next = state with { IsConnected = true };
+
+  Core/HotkeyManager.cs
+  - 전역 단축키 등록 (RegisterHotKey Windows API)
+  - Java의 JNI 대신 C#은 P/Invoke 방식으로 OS API 직접 호출
+  - 1000ms 쿨다운 로직 포함
+  - WPF 창 핸들(HWND)이 필요 → Loaded 이후에 생성해야 함
+
+  Core/ScreenCaptureService.cs
+  - 화면 특정 영역을 캡처해서 PNG byte[] 로 반환
+  - 기본 캡처 영역: x=0, y=880, width=600, height=200 (1920×1080 기준)
+  - Java의 Robot.createScreenCapture() 와 같은 역할
+  - 캡처 영역이 맞지 않으면 DEFAULT_CAPTURE_REGION 상수만 수정
+
+  Core/WebSocketClient.cs
+  - 서버와 WebSocket 연결 유지, 끊기면 3초 후 자동 재연결
+  - Java의 jakarta.websocket 클라이언트와 역할 동일
+  - Send: PNG byte[] 전송 / Receive: JSON 수신 후 extractedText 파싱
+  - MessageReceived 이벤트로 추출 텍스트 구독 (Java의 @OnMessage)
+  - System.Text.Json 사용 → Java의 ObjectMapper.readTree() 에 해당
+
+    C#:   JsonDocument.Parse(json).RootElement.GetProperty("extractedText").GetString()
+    Java: objectMapper.readTree(json).get("extractedText").asText()
+
+  Overlay/TranslationOverlay.xaml.cs
+  - 투명 배경 오버레이 창 (WS_EX_TRANSPARENT + WS_EX_LAYERED)
+  - 클릭통과: 게임 마우스 입력에 영향 없음
+  - ShowTranslation(text) 호출 → 창 표시 + 5초 후 자동 숨김
+  - Dispatcher.Invoke(): 백그라운드 스레드에서 UI 변경 시 필수
+    (Java의 SwingUtilities.invokeLater / Platform.runLater 와 동일)
+
+  Utils/WindowsApiHelper.cs
+  - GetWindowLong / SetWindowLong: 창 스타일 읽기/쓰기 (Windows API)
+  - WS_EX_TRANSPARENT: 마우스 클릭 통과
+  - WS_EX_LAYERED: 투명도 지원 활성화
+  - Java에는 없는 Windows 전용 API
+
+
+----------------------------------------------------------------
+  Java vs C# 핵심 문법 차이
+----------------------------------------------------------------
+
+  Java                              C#
+  -------------------------------   ---------------------------
+  interface Closeable               IDisposable
+  try-with-resources                using 선언
+  @FunctionalInterface              delegate / Action / Func
+  Optional<T>                       T? (nullable reference)
+  record (JDK 16+)                  record (with 키워드 추가)
+  Stream.filter/map                 LINQ .Where()/.Select()
+  CompletableFuture                 Task / async-await
+  throws IOException                (checked exception 없음)
+  System.out.println                Console.WriteLine
+  SwingUtilities.invokeLater        Dispatcher.Invoke()
+  @OnMessage (WebSocket)            event Action<string> MessageReceived
+  ObjectMapper.readTree()           JsonDocument.Parse()
+
+
+----------------------------------------------------------------
+  캡처 영역 조정 방법
+----------------------------------------------------------------
+
+  ScreenCaptureService.cs 상단의 상수를 수정:
+
+    private static readonly Rectangle DEFAULT_CAPTURE_REGION
+        = new(x: 0, y: 880, width: 600, height: 200);
+
+  - x, y: 캡처 시작 좌표 (화면 좌상단 기준)
+  - width, height: 캡처 크기
+  - 현재값: 1920×1080 해상도 기준 Apex Legends 채팅 영역
+
+  Ctrl+T를 누르면 bin/Debug/net8.0-windows/capture_debug.png 가
+  자동으로 열림. 이 파일을 보면서 좌표를 조정할 것.
+
+
+----------------------------------------------------------------
+  서버 URL 변경 방법
+----------------------------------------------------------------
+
+  MainWindow.xaml.cs 상단의 상수만 수정:
+
+    private const string SERVER_URL = "ws://localhost:8000/ws/ocr";
+
+
+----------------------------------------------------------------
+  단축키 변경 방법
+----------------------------------------------------------------
+
+  MainWindow.xaml.cs 의 상수를 수정:
+
+    private const uint DEFAULT_HOTKEY_MODIFIERS = (uint)HotkeyModifiers.Ctrl;
+    private const uint DEFAULT_HOTKEY_VKEY = 0x54; // 'T' → 다른 키코드로 교체
+
+  가상 키코드 목록: https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes
+
+
+----------------------------------------------------------------
+  다음 구현 예정
+----------------------------------------------------------------
+
+  [x] Core/HotkeyManager.cs           - 완료
+  [x] Core/ScreenCaptureService.cs    - 완료
+  [x] Core/WebSocketClient.cs         - 완료 (JSON 파싱 포함)
+  [x] Overlay/TranslationOverlay.xaml - 완료
+  [x] MainWindow.xaml.cs 전체 흐름    - 완료
+  [x] 실제 서버 WebSocket 연동        - 완료 (ws://localhost:8000/ws/ocr)
+
+  [ ] Overlay/InputOverlay.xaml       - 채팅 입력 오버레이 (Feature 2)
+  [ ] 단축키 사용자 설정 기능
+  [ ] 캡처 영역 사용자 설정 기능
+  [ ] TranslationMockServer.cs 삭제   - 서버 안정화 후
+
+================================================================
