@@ -32,6 +32,9 @@ server/models/*.onnx
 # 테스트용 임시 이미지
 server/tests/capture_debug*.png
 
+# ==================== 문서 ====================
+server/GUIDE.txt
+
 # ==================== 환경 설정 ====================
 .env
 .env.*
