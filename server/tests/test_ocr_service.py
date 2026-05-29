@@ -49,7 +49,7 @@ class TestMaskCyanText:
         # Cyan is at x=0..60, white message is at x=80..160 — gap avoids padding spill
         img = self._makeImageWithCyan()
         result = maskCyanText(img)
-        # Cyan ends at x≈60, padding=15 → masked up to x≈75; white starts at x=80
+        # Cyan ends at x≈60, padding=5 → masked up to x≈65; white starts at x=80
         assert np.all(result[10:30, 90:160, :] == [255, 255, 255])
 
     def test_doesNotModifyOriginalArray(self):

@@ -64,6 +64,20 @@ class TestWebSocketFlow:
 
         assert response["translatedText"] == ""
 
+    def test_returnsErrorWhenTranslationFails(self, client, samplePngBytes):
+        with (
+            patch("core.ocr_service.extractText", return_value="Hello"),
+            patch(
+                "core.translation_service.translateText",
+                new=AsyncMock(side_effect=Exception("LibreTranslate down")),
+            ),
+        ):
+            with client.websocket_connect("/ws") as ws:
+                ws.send_bytes(samplePngBytes)
+                response = ws.receive_json()
+
+        assert response.get("error") == "translation failed"
+
     def test_returnsErrorWhenRateLimitExceeded(self, client, samplePngBytes):
         translateMock = AsyncMock(return_value="번역")
         with (

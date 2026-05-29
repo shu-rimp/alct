@@ -1,6 +1,7 @@
+import os
 import httpx
 
-LIBRE_TRANSLATE_URL = "http://localhost:5000/translate"
+LIBRE_TRANSLATE_URL = os.getenv("LIBRE_TRANSLATE_URL", "http://localhost:5000/translate")
 SOURCE_LANG = "auto"
 TARGET_LANG = "ko"
 REQUEST_TIMEOUT_SECONDS = 10

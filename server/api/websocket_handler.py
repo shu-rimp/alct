@@ -60,7 +60,12 @@ async def websocketEndpoint(websocket: WebSocket):
                 await websocket.send_json({"translatedText": cachedTranslation, "cached": True})
                 continue
 
-            translatedText = await translation_service.translateText(extractedText)
+            try:
+                translatedText = await translation_service.translateText(extractedText)
+            except Exception:
+                await websocket.send_json({"error": "translation failed"})
+                continue
+
             session_manager.updateSession(clientIp, extractedText, translatedText)
 
             await websocket.send_json({"translatedText": translatedText, "cached": False})

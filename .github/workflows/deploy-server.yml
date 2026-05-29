@@ -1,0 +1,65 @@
+name: Server CI/CD
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'server/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pillow
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to prod
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST_PROD }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd ~/alct/server
+            git pull
+            docker compose up --build -d
+            docker image prune -f
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev'
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to dev
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VM_HOST_DEV }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            cd ~/alct/server
+            git pull
+            docker compose -p alct-dev -f docker-compose.dev.yml up --build -d
+            docker image prune -f

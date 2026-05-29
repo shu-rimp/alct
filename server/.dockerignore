@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+tests/
+models/
+test_connect.py
+pytest.ini
+GUIDE.txt
+CLAUDE.md
