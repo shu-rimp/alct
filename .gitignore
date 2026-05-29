@@ -34,6 +34,7 @@ server/tests/capture_debug*.png
 
 # ==================== 문서 ====================
 server/GUIDE.txt
+client/GUIDE.txt
 
 # ==================== 환경 설정 ====================
 .env
@@ -41,6 +42,7 @@ server/GUIDE.txt
 *.key
 *.pem
 secrets.json
+client/appsettings.json
 
 # ==================== OS / 편집기 ====================
 .DS_Store
