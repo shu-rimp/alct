@@ -2,7 +2,7 @@ import time
 from collections import defaultdict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from core import ocr_service, translation_service, session_manager
+from core import ocr_service, translation_service, session_manager, text_normalizer
 
 RATE_LIMIT_MAX_REQUESTS = 30
 RATE_LIMIT_WINDOW_SECONDS = 60
@@ -50,6 +50,7 @@ async def websocketEndpoint(websocket: WebSocket):
                 continue
 
             extractedText = ocr_service.extractText(imageBytes)
+            extractedText = text_normalizer.normalizeText(extractedText)
 
             if not extractedText:
                 await websocket.send_json({"translatedText": ""})
