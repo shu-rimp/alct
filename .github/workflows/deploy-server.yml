@@ -42,7 +42,8 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             cd ~/alct/server
-            git pull
+            git checkout main
+            git pull origin main
             docker compose up --build -d
             docker image prune -f
 
@@ -60,6 +61,7 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             cd ~/alct/server
-            git pull
+            git checkout dev
+            git pull origin dev
             docker compose -p alct-dev -f docker-compose.dev.yml up --build -d
             docker image prune -f
