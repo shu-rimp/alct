@@ -2,6 +2,7 @@ using AlctClient.Core;
 using AlctClient.Overlay;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 
 namespace AlctClient;
@@ -10,7 +11,19 @@ public partial class MainWindow : Window
 {
     private const uint DEFAULT_HOTKEY_MODIFIERS = (uint)HotkeyModifiers.Ctrl;
     private const uint DEFAULT_HOTKEY_VKEY = 0x54; // T
-    private const string SERVER_URL = "ws://localhost:8000/ws/ocr";
+    private static readonly string SERVER_URL = LoadServerUrl();
+
+    private static string LoadServerUrl()
+    {
+        const string fallback = "ws://localhost:8000/ws";
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            return doc.RootElement.GetProperty("ServerUrl").GetString() ?? fallback;
+        }
+        catch { return fallback; }
+    }
 
     private HotkeyManager? _hotkeyManager;
     private readonly ScreenCaptureService _screenCapture = new();

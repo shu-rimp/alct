@@ -69,7 +69,7 @@ public sealed class WebSocketClient : IDisposable
 
             if (result.EndOfMessage)
             {
-                var text = ParseExtractedText(messageBuilder.ToString());
+                var text = ParseTranslatedText(messageBuilder.ToString());
                 if (text is not null)
                     MessageReceived?.Invoke(text);
                 messageBuilder.Clear();
@@ -77,12 +77,12 @@ public sealed class WebSocketClient : IDisposable
         }
     }
 
-    private static string? ParseExtractedText(string json)
+    private static string? ParseTranslatedText(string json)
     {
         try
         {
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("extractedText").GetString();
+            return doc.RootElement.GetProperty("translatedText").GetString();
         }
         catch
         {
