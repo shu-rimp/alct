@@ -6,7 +6,7 @@ services:
       - lt-data-dev:/home/libretranslate/.local
     command: --load-only en,zh,ja,ko
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/languages || exit 1"]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/languages\")'"]
       interval: 30s
       timeout: 10s
       retries: 10
