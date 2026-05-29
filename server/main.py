@@ -1,6 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from api.websocket_handler import router as websocketRouter
 
 UVICORN_HOST = "0.0.0.0"
