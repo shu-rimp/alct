@@ -1,29 +1,10 @@
 services:
-  libretranslate:
-    image: libretranslate/libretranslate
-    restart: unless-stopped
-    volumes:
-      - lt-data:/home/libretranslate/.local
-    command: --load-only en,zh,ja,ko
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/languages\")'"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 120s
-
   alct-server:
     build: .
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      - LIBRE_TRANSLATE_URL=http://libretranslate:5000/translate
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
     volumes:
       - ./models:/app/models
-    depends_on:
-      libretranslate:
-        condition: service_healthy
-
-volumes:
-  lt-data:
