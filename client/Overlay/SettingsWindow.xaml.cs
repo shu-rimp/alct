@@ -6,7 +6,9 @@ public partial class SettingsWindow : Window
 {
     public event Action<string>? SourceLangChanged;
 
-    public string SourceLang => RadioJA.IsChecked == true ? "JA" : "EN";
+    public string SourceLang => RadioJA.IsChecked == true ? "JA"
+                              : RadioZH.IsChecked == true ? "ZH"
+                              : "EN";
 
     public SettingsWindow()
     {
