@@ -2,84 +2,107 @@
 
 ## Overview
 Python translation server deployed on Oracle Cloud Free Tier (ARM, 4core/24GB).
-Receives PNG image from client via WebSocket → OCR → translate → return result.
+Receives PNG image from client via WebSocket → OCR → text normalization → translate → return result.
 
 ## Core Flow
 ```
-[Receive PNG image via WebSocket]
+[Text message: {"type":"settings","sourceLang":"JA"|"EN"}]
+        ↓ session_manager.updateSourceLang → wait for next message
+
+[Binary message: PNG bytes]
         ↓
-[RapidOCR → extract text]
+[rate limit check: 30 req/min per IP]
         ↓
-[Compare with session's last extracted text]
-        ↓ same → skip translation, return cached result
-        ↓ different → LibreTranslate → cache result
+[ocr_service] cyan masking → CN engine + JP engine → merge results
         ↓
-[Return translated text via WebSocket]
+[text_normalizer] alias substitution → wrap with <x>Korean</x>
+        ↓ empty → {"translatedText": ""} return
+        ↓
+[session_manager] isDuplicate check
+        ↓ same → return cached {"translatedText": ..., "cached": true}
+        ↓ different
+[translation_service] DeepL POST /v2/translate (source_lang from session)
+        ↓
+[session_manager] updateSession
+        ↓
+{"translatedText": "...", "cached": false} return
 ```
 
 ## Tech Stack
 - Language: Python 3.11+
-- Framework: FastAPI + uvicorn
-- OCR: RapidOCR (ONNX Runtime backend)
-- Translation: LibreTranslate (self-hosted, unmodified, REST API call)
-- Cache: in-memory dict per session (no Redis needed at this scale)
-- Deployment: Oracle Cloud Free Tier ARM VM
+- Framework: FastAPI + uvicorn (ws="wsproto")
+- OCR: RapidOCR (ONNX Runtime) — CN engine (PP-OCRv3) + JP engine (PP-OCRv1)
+- Normalization: text_normalizer.py — alias substitution from normalizer_data.json
+- Translation: DeepL Free API (월 50만 자)
+- Cache: in-memory dict per session
+- Deployment: Oracle Cloud Free Tier ARM VM, Docker
 
 ## Key Implementation Notes
 
 ### WebSocket Handler
-- One persistent WebSocket connection per client
-- Each session maintains `lastExtractedText` for dedup
+- Handles two message types: text (settings) and binary (PNG image)
+- Settings message updates sourceLang in session (no response sent)
+- Image message triggers full OCR → normalize → translate pipeline
 - On disconnect: clean up session state
 
 ### OCR (RapidOCR)
-- Load model once at startup, reuse across requests
-- Input: PNG bytes from client
-- Output: extracted text string
+- Dual engine: CN (PP-OCRv3, built-in) + JP (PP-OCRv1, auto-downloaded)
+- Cyan pixel masking removes usernames before OCR (row-level column block erase)
+- Merge strategy: JP result wins if kana detected, otherwise higher confidence wins
+- JP model: models/japan_rec_crnn.onnx (3.6MB, downloaded on first use)
+
+### Text Normalizer
+- Single-pass regex substitution from normalizer_data.json
+- ASCII aliases: word boundary (\b) + case-insensitive
+- Matches wrapped in <x>Korean</x> — DeepL ignore_tags=["x"] skips them
+- Covers: gaming slang (gg/ez/ff), Apex characters, weapons, romaji Japanese
+
+### Translation (DeepL)
+- source_lang: per-session setting ("JA" or "EN", default "JA")
+- target_lang: "KO"
+- tag_handling="xml", ignore_tags=["x"] preserves normalizer output
+- Multiline text split into array → per-line independent translation
 
 ### Translation Dedup
-- Per-session comparison: if `extractedText == session.lastExtractedText` → skip
-- Return cached translation immediately without calling LibreTranslate
-
-### LibreTranslate
-- Self-hosted on same Oracle VM, default port 5000
-- Used as-is (no modification) → AGPL-3.0 obligation does not apply to server code
-- Source lang: auto-detect
-- Target lang: Korean (ko), configurable
+- Per-session: if extractedText == lastExtractedText → return cached translation
+- No external cache needed at this scale
 
 ### Rate Limiting
-- Per-IP: 30 requests/minute (slowapi)
-- Prevents server abuse
+- Sliding window: 30 requests/minute per IP
+- Implemented manually (slowapi doesn't support WebSocket message-level limiting)
 
 ### Concurrency
 - FastAPI async WebSocket handlers
 - uvicorn multi-worker: `--workers 3` (utilizes ARM 4-core)
+- wsproto backend: avoids websockets v14+ Origin validation that rejects native clients
 
 ## Project Structure
 ```
 alct-server/
 ├── main.py
 ├── core/
-│   ├── ocr_service.py       # RapidOCR wrapper
-│   ├── translation_service.py # LibreTranslate client
-│   └── session_manager.py   # per-session state
+│   ├── ocr_service.py           # RapidOCR wrapper, cyan masking, dual engine merge
+│   ├── text_normalizer.py       # alias substitution, <x> tag wrapping
+│   ├── normalizer_data.json     # Korean → [EN/JP aliases] mapping
+│   ├── translation_service.py  # DeepL Free API client
+│   └── session_manager.py      # per-session state (dedup, sourceLang)
 ├── api/
-│   └── websocket_handler.py
+│   └── websocket_handler.py    # WebSocket endpoints, rate limiter
 ├── requirements.txt
 └── tests/
+    ├── conftest.py
     ├── test_ocr_service.py
+    ├── test_session_manager.py
     ├── test_translation_service.py
     └── test_websocket_handler.py
 ```
 
 ## Infrastructure
 - Platform: Oracle Cloud Free Tier ARM VM
-- LibreTranslate: self-hosted, same VM, port 5000
-- Check RAM before deploy: `free -h` (need ~4GB free)
-
-## Development Environment
-- IDE: VS Code (Python extension + Pylance)
-- Package manager: pip + requirements.txt
+- Docker Compose: alct-server only (no LibreTranslate)
+- Prod port: 8000 (docker-compose.yml)
+- Dev port: 8001 (docker-compose.dev.yml, project name: alct-dev)
+- DEEPL_API_KEY: injected via .env → docker-compose environment
 
 ## Code Style
 - Variables: camelCase / Constants: UPPER_SNAKE_CASE
@@ -89,14 +112,14 @@ alct-server/
 - Avoid raw loops; prefer lambdas and list comprehensions
 
 ## Testing
-- Framework: pytest
-- Tools: httpx (TestClient), pytest-mock
+- Framework: pytest + pytest-asyncio + pytest-mock
+- DeepL calls: mocked (no real API needed)
+- RapidOCR calls: mocked (no model download needed)
 
-### Strategy
-| Target | Tool | Method |
-|---|---|---|
-| RapidOCR text extraction | pytest | Sample PNG fixtures |
-| Translation dedup logic | pytest | Unit test with mock session |
-| LibreTranslate integration | pytest + pytest-mock | Mock HTTP calls |
-| WebSocket flow | pytest + httpx | Connect → send image → assert response |
-| Rate limiting | pytest | Simulate burst requests |
+### Test counts
+| File | Count |
+|---|---|
+| test_ocr_service.py | 22 |
+| test_session_manager.py | 9 |
+| test_translation_service.py | 6 |
+| test_websocket_handler.py | 9 |
