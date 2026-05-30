@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN python -c "from core.ocr_service import _getEngine; _getEngine()"
+
 EXPOSE 8000
 
 CMD ["python", "main.py"]
