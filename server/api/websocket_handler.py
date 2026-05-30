@@ -1,3 +1,4 @@
+import json
 import time
 from collections import defaultdict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -43,7 +44,17 @@ async def websocketEndpoint(websocket: WebSocket):
 
     try:
         while True:
-            imageBytes = await websocket.receive_bytes()
+            message = await websocket.receive()
+
+            if message.get("text"):
+                data = json.loads(message["text"])
+                if data.get("type") == "settings":
+                    session_manager.updateSourceLang(clientIp, data.get("sourceLang", "JA"))
+                continue
+
+            imageBytes = message.get("bytes")
+            if not imageBytes:
+                continue
 
             if _isRateLimited(clientIp):
                 await websocket.send_json({"error": "rate limit exceeded"})
@@ -62,7 +73,8 @@ async def websocketEndpoint(websocket: WebSocket):
                 continue
 
             try:
-                translatedText = await translation_service.translateText(extractedText)
+                sourceLang = session_manager.getSourceLang(clientIp)
+                translatedText = await translation_service.translateText(extractedText, sourceLang)
             except Exception:
                 await websocket.send_json({"error": "translation failed"})
                 continue

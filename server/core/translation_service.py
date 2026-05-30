@@ -11,10 +11,11 @@ TARGET_LANG = "KO"
 REQUEST_TIMEOUT_SECONDS = 10
 
 
-async def translateText(text: str) -> str:
+async def translateText(text: str, sourceLang: str = "JA") -> str:
     lines = text.split("\n")
     payload = {
         "text": lines,
+        "source_lang": sourceLang,
         "target_lang": TARGET_LANG,
         "tag_handling": "xml",
         "ignore_tags": ["x"],

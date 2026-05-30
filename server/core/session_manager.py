@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 class SessionState:
     lastExtractedText: str = ""
     lastTranslatedText: str = ""
+    sourceLang: str = "JA"
 
 
 _sessions: dict[str, SessionState] = {}
@@ -28,6 +29,14 @@ def updateSession(sessionId: str, extractedText: str, translatedText: str) -> No
 
 def getCachedTranslation(sessionId: str) -> str:
     return getSession(sessionId).lastTranslatedText
+
+
+def updateSourceLang(sessionId: str, sourceLang: str) -> None:
+    getSession(sessionId).sourceLang = sourceLang
+
+
+def getSourceLang(sessionId: str) -> str:
+    return getSession(sessionId).sourceLang
 
 
 def removeSession(sessionId: str) -> None:
