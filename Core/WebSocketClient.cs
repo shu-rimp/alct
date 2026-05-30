@@ -39,11 +39,11 @@ public sealed class WebSocketClient : IDisposable
             {
                 break;
             }
-            catch
-            {
-                ConnectionChanged?.Invoke(false);
-                await Task.Delay(RECONNECT_DELAY_MS, ct).ConfigureAwait(false);
-            }
+            catch { }
+
+            // delay before reconnect regardless of clean close or error
+            ConnectionChanged?.Invoke(false);
+            await Task.Delay(RECONNECT_DELAY_MS, ct).ConfigureAwait(false);
         }
     }
 
