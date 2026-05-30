@@ -1,125 +1,61 @@
 # ALCT Server
 
 ## Overview
-Python translation server deployed on Oracle Cloud Free Tier (ARM, 4core/24GB).
-Receives PNG image from client via WebSocket → OCR → text normalization → translate → return result.
+Python 번역 서버. WebSocket으로 PNG 수신 → OCR → 정규화 → 번역 → 결과 반환.
 
 ## Core Flow
 ```
-[Text message: {"type":"settings","sourceLang":"JA"|"EN"}]
-        ↓ session_manager.updateSourceLang → wait for next message
+[Text: {"type":"settings","sourceLang":"JA"|"ZH"|"EN"}]
+        → session_manager.updateSourceLang
 
-[Binary message: PNG bytes]
-        ↓
-[rate limit check: 30 req/min per IP]
-        ↓
-[ocr_service] cyan masking → CN engine + JP engine → merge results
-        ↓
-[text_normalizer] alias substitution → wrap with <x>Korean</x>
-        ↓ empty → {"translatedText": ""} return
-        ↓
-[session_manager] isDuplicate check
-        ↓ same → return cached {"translatedText": ..., "cached": true}
-        ↓ different
-[translation_service] DeepL POST /v2/translate (source_lang from session)
-        ↓
-[session_manager] updateSession
-        ↓
-{"translatedText": "...", "cached": false} return
+[Binary: PNG bytes]
+        → rate limit (30 req/min per IP)
+        → ocr_service (cyan masking → CN + JP 엔진 병합)
+        → text_normalizer (alias 치환 → <x>Korean</x> 래핑)
+        → session_manager.isDuplicate → 캐시 반환 or
+        → translation_service (DeepL) → session 업데이트 → 반환
 ```
 
 ## Tech Stack
-- Language: Python 3.11+
-- Framework: FastAPI + uvicorn (ws="wsproto")
-- OCR: RapidOCR (ONNX Runtime) — CN engine (PP-OCRv3) + JP engine (PP-OCRv1)
-- Normalization: text_normalizer.py — alias substitution from normalizer_data.json
-- Translation: DeepL Free API (월 50만 자)
-- Cache: in-memory dict per session
-- Deployment: Oracle Cloud Free Tier ARM VM, Docker
+- Python 3.11+, FastAPI + uvicorn (`ws="wsproto"`)
+- OCR: RapidOCR — CN (PP-OCRv3) + JP (PP-OCRv1)
+- Translation: DeepL Free API (월 100만 자)
+- Deployment: Oracle Cloud Free Tier ARM, Docker
 
-## Key Implementation Notes
+## Key Notes
 
-### WebSocket Handler
-- Handles two message types: text (settings) and binary (PNG image)
-- Settings message updates sourceLang in session (no response sent)
-- Image message triggers full OCR → normalize → translate pipeline
-- On disconnect: clean up session state
+### WebSocket
+- `websocket.receive()`는 disconnect 시 `{"type": "websocket.disconnect"}` dict 반환 → `message["type"] == "websocket.disconnect"` 체크 후 break (`WebSocketDisconnect` 예외는 항상 발생하지 않음)
+- 세션 정리는 `finally` 블록에서 처리
 
-### OCR (RapidOCR)
-- Dual engine: CN (PP-OCRv3, built-in) + JP (PP-OCRv1, auto-downloaded)
-- Cyan pixel masking removes usernames before OCR (row-level column block erase)
-- Merge strategy: JP result wins if kana detected, otherwise higher confidence wins
-- JP model: models/japan_rec_crnn.onnx (3.6MB, downloaded on first use)
+### OCR
+- Dual engine: 가나 감지 시 JP 결과 우선, 아니면 confidence 높은 쪽 선택
+- Cyan 픽셀 마스킹으로 유저명 제거 후 OCR
 
-### Text Normalizer
-- Single-pass regex substitution from normalizer_data.json
-- ASCII aliases: word boundary (\b) + case-insensitive
-- Matches wrapped in <x>Korean</x> — DeepL ignore_tags=["x"] skips them
-- Covers: gaming slang (gg/ez/ff), Apex characters, weapons, romaji Japanese
-
-### Translation (DeepL)
-- source_lang: per-session setting ("JA" or "EN", default "JA")
-- target_lang: "KO"
-- tag_handling="xml", ignore_tags=["x"] preserves normalizer output
-- Multiline text split into array → per-line independent translation
-
-### Translation Dedup
-- Per-session: if extractedText == lastExtractedText → return cached translation
-- No external cache needed at this scale
-
-### Rate Limiting
-- Sliding window: 30 requests/minute per IP
-- Implemented manually (slowapi doesn't support WebSocket message-level limiting)
+### Translation
+- `tag_handling="xml", ignore_tags=["x"]` → normalizer의 `<x>Korean</x>` 보존
+- source_lang: 세션별 설정, target_lang: 항상 "KO"
 
 ### Concurrency
-- FastAPI async WebSocket handlers
-- uvicorn multi-worker: `--workers 3` (utilizes ARM 4-core)
-- wsproto backend: avoids websockets v14+ Origin validation that rejects native clients
+- `wsproto` 백엔드: websockets v14+ Origin 검증 우회 (네이티브 클라이언트 접속 가능)
 
 ## Project Structure
 ```
 alct-server/
 ├── main.py
 ├── core/
-│   ├── ocr_service.py           # RapidOCR wrapper, cyan masking, dual engine merge
-│   ├── text_normalizer.py       # alias substitution, <x> tag wrapping
-│   ├── normalizer_data.json     # Korean → [EN/JP aliases] mapping
-│   ├── translation_service.py  # DeepL Free API client
-│   └── session_manager.py      # per-session state (dedup, sourceLang)
+│   ├── ocr_service.py
+│   ├── text_normalizer.py
+│   ├── normalizer_data.json
+│   ├── translation_service.py
+│   └── session_manager.py
 ├── api/
-│   └── websocket_handler.py    # WebSocket endpoints, rate limiter
+│   └── websocket_handler.py
 ├── requirements.txt
 └── tests/
-    ├── conftest.py
-    ├── test_ocr_service.py
-    ├── test_session_manager.py
-    ├── test_translation_service.py
-    └── test_websocket_handler.py
 ```
-
-## Infrastructure
-- Platform: Oracle Cloud Free Tier ARM VM
-- Docker Compose: alct-server only (no LibreTranslate)
-- Prod port: 8000 (docker-compose.yml)
-- Dev port: 8001 (docker-compose.dev.yml, project name: alct-dev)
-- DEEPL_API_KEY: injected via .env → docker-compose environment
 
 ## Code Style
 - Variables: camelCase / Constants: UPPER_SNAKE_CASE
-- No raw coding — abstract magic values and repeated logic
-- Function and variable names must clearly describe purpose
 - One function = one responsibility
-- Avoid raw loops; prefer lambdas and list comprehensions
-
-## Testing
-- Framework: pytest + pytest-asyncio + pytest-mock
-- DeepL calls: mocked (no real API needed)
-- RapidOCR calls: mocked (no model download needed)
-
-### Test counts
-| File | Count |
-|---|---|
-| test_ocr_service.py | 22 |
-| test_session_manager.py | 9 |
-| test_translation_service.py | 6 |
-| test_websocket_handler.py | 9 |
+- Prefer lambdas and list comprehensions
