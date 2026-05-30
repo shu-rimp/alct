@@ -17,6 +17,9 @@
                 <RadioButton x:Name="RadioJA" Content="日本語" IsChecked="True"
                              Foreground="White" FontFamily="Malgun Gothic" FontSize="13"
                              Margin="0,0,14,0" Checked="OnLanguageChanged"/>
+                <RadioButton x:Name="RadioZH" Content="中文"
+                             Foreground="White" FontFamily="Malgun Gothic" FontSize="13"
+                             Margin="0,0,14,0" Checked="OnLanguageChanged"/>
                 <RadioButton x:Name="RadioEN" Content="English"
                              Foreground="White" FontFamily="Malgun Gothic" FontSize="13"
                              Checked="OnLanguageChanged"/>

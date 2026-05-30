@@ -48,7 +48,11 @@ public partial class MainWindow : Window
         _wsClient.ConnectionChanged += connected =>
         {
             if (connected)
-                _ = _wsClient.SendSettingsAsync(_settings.SourceLang);
+            {
+                // _settings.SourceLang accesses WPF controls — must be read on UI thread
+                var lang = Dispatcher.Invoke(() => _settings.SourceLang);
+                _ = _wsClient.SendSettingsAsync(lang);
+            }
         };
         _ = _wsClient.ConnectAsync(_wsCts.Token);
 
