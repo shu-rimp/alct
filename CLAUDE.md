@@ -51,8 +51,10 @@ Displays translated result as transparent overlay on top of the game.
 
 ### WebSocket
 - Persistent connection (reconnect on disconnect)
-- Send: PNG image bytes
-- Receive: translated text string
+- On connect: send settings message with current sourceLang
+- Send (settings): `{"type":"settings","sourceLang":"JA"|"EN"}` as text message
+- Send (image): PNG bytes as binary message
+- Receive: `{"translatedText": "...", "cached": bool}` JSON
 
 ### Input Box (Feature 2)
 - Separate overlay input window
@@ -66,14 +68,16 @@ Displays translated result as transparent overlay on top of the game.
 ```
 alct-client/
 ├── App.xaml
+├── MainWindow.xaml(.cs)         # hidden 1x1 window, app entry point
+├── appsettings.json             # gitignored — ServerUrl 설정
+├── appsettings.example.json     # 템플릿
 ├── Core/
-│   ├── AppState.cs
 │   ├── HotkeyManager.cs
 │   ├── ScreenCaptureService.cs
-│   └── WebSocketClient.cs
+│   └── WebSocketClient.cs       # SendImageAsync + SendSettingsAsync
 ├── Overlay/
-│   ├── TranslationOverlay.xaml
-│   └── InputOverlay.xaml
+│   ├── TranslationOverlay.xaml  # 번역 결과 오버레이 (좌하단, 5초 자동 숨김)
+│   └── SettingsWindow.xaml      # 언어 선택 패널 (좌상단, 앱 시작 시 표시)
 └── Utils/
     └── WindowsApiHelper.cs
 ```

@@ -35,6 +35,7 @@ server/tests/capture_debug*.png
 # ==================== 문서 ====================
 server/GUIDE.txt
 client/GUIDE.txt
+client/UI_SPEC.md
 
 # ==================== 환경 설정 ====================
 .env
