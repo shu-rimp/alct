@@ -64,6 +64,7 @@ async def websocketEndpoint(websocket: WebSocket):
                 continue
 
             extractedText = ocr_service.extractText(imageBytes)
+            sourceLang = session_manager.getSourceLang(clientIp)
             extractedText = text_normalizer.normalizeText(extractedText)
 
             if not extractedText:
@@ -76,7 +77,6 @@ async def websocketEndpoint(websocket: WebSocket):
                 continue
 
             try:
-                sourceLang = session_manager.getSourceLang(clientIp)
                 translatedText = await translation_service.translateText(extractedText, sourceLang)
             except Exception:
                 await websocket.send_json({"error": "translation failed"})
