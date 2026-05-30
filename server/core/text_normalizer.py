@@ -14,7 +14,7 @@ _ALIAS_MAP: dict[str, str] = {
 
 def _buildAliasEntry(alias: str) -> str:
     if alias.isascii():
-        return r"\b" + re.escape(alias) + r"\b"
+        return r"(?:\b|(?<=[a-z]))" + re.escape(alias) + r"(?:\b|(?=[a-z]))"
     return re.escape(alias)
 
 

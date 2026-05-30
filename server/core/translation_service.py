@@ -4,6 +4,7 @@ from html import unescape
 import httpx
 
 _KEEP_TAG_RE = re.compile(r"</?x>")
+_TAG_CONTENT_RE = re.compile(r"<x>[^<]*</x>")
 
 DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
 DEEPL_URL = "https://api-free.deepl.com/v2/translate"
@@ -13,8 +14,19 @@ REQUEST_TIMEOUT_SECONDS = 10
 
 async def translateText(text: str, sourceLang: str = "JA") -> str:
     lines = text.split("\n")
+
+    translateIndices = [
+        i for i, line in enumerate(lines)
+        if _TAG_CONTENT_RE.sub("", line).strip()
+    ]
+
+    results = [_KEEP_TAG_RE.sub("", line) for line in lines]
+
+    if not translateIndices:
+        return "\n".join(results)
+
     payload = {
-        "text": lines,
+        "text": [lines[i] for i in translateIndices],
         "source_lang": sourceLang,
         "target_lang": TARGET_LANG,
         "tag_handling": "xml",
@@ -29,4 +41,7 @@ async def translateText(text: str, sourceLang: str = "JA") -> str:
         response = await client.post(DEEPL_URL, json=payload, headers=headers)
         response.raise_for_status()
         translations = response.json()["translations"]
-        return "\n".join(unescape(_KEEP_TAG_RE.sub("", t["text"])) for t in translations)
+        for i, t in zip(translateIndices, translations):
+            results[i] = unescape(_KEEP_TAG_RE.sub("", t["text"]))
+
+    return "\n".join(results)
