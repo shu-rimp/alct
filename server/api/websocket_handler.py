@@ -46,6 +46,9 @@ async def websocketEndpoint(websocket: WebSocket):
         while True:
             message = await websocket.receive()
 
+            if message["type"] == "websocket.disconnect":
+                break
+
             if message.get("text"):
                 data = json.loads(message["text"])
                 if data.get("type") == "settings":
@@ -84,6 +87,8 @@ async def websocketEndpoint(websocket: WebSocket):
             await websocket.send_json({"translatedText": translatedText, "cached": False})
 
     except WebSocketDisconnect:
+        pass
+    finally:
         session_manager.removeSession(clientIp)
 
 

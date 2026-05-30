@@ -125,6 +125,34 @@ class TestRateLimiting:
         assert response.get("error") == "rate limit exceeded"
 
 
+class TestSessionCleanup:
+    def test_sessionRemovedOnDisconnect(self, client, samplePngBytes):
+        with (
+            patch("core.ocr_service.extractText", return_value="Hello"),
+            patch("core.translation_service.translateText", new=AsyncMock(return_value="안녕")),
+        ):
+            with client.websocket_connect("/ws") as ws:
+                ws.send_bytes(samplePngBytes)
+                ws.receive_json()
+
+        assert CLIENT_IP not in _sessions
+
+    def test_settingsMessageUpdatesSourceLang(self, client, samplePngBytes):
+        import json as _json
+        from core.session_manager import getSourceLang
+        with (
+            patch("core.ocr_service.extractText", return_value="Hello"),
+            patch("core.translation_service.translateText", new=AsyncMock(return_value="안녕")),
+        ):
+            with client.websocket_connect("/ws") as ws:
+                ws.send_text(_json.dumps({"type": "settings", "sourceLang": "EN"}))
+                ws.send_bytes(samplePngBytes)
+                ws.receive_json()
+                lang = getSourceLang(CLIENT_IP)
+
+        assert lang == "EN"
+
+
 class TestHealthCheck:
     def test_healthEndpointReturnsOk(self, client):
         response = client.get("/health")
