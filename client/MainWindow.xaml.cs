@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private HotkeyManager? _hotkeyManager;
     private readonly ScreenCaptureService _screenCapture = new();
     private readonly TranslationOverlay _overlay = new();
+    private readonly SettingsWindow _settings = new();
     private readonly WebSocketClient _wsClient = new(SERVER_URL);
     private readonly CancellationTokenSource _wsCts = new();
 
@@ -40,7 +41,15 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _settings.SourceLangChanged += lang => _ = _wsClient.SendSettingsAsync(lang);
+        _settings.Show();
+
         _wsClient.MessageReceived += text => _overlay.ShowTranslation(text);
+        _wsClient.ConnectionChanged += connected =>
+        {
+            if (connected)
+                _ = _wsClient.SendSettingsAsync(_settings.SourceLang);
+        };
         _ = _wsClient.ConnectAsync(_wsCts.Token);
 
         _hotkeyManager = new HotkeyManager(this);
@@ -53,12 +62,12 @@ public partial class MainWindow : Window
         _ = Task.Run(async () =>
         {
             var imageBytes = _screenCapture.CaptureRegionAsPng();
-            SaveDebugCapture(imageBytes);
+            // SaveDebugCapture(imageBytes);
             await _wsClient.SendImageAsync(imageBytes);
         });
     }
 
-    private static void SaveDebugCapture(byte[] imageBytes)
+    private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용
     {
         var path = Path.Combine(AppContext.BaseDirectory, "capture_debug.png");
         File.WriteAllBytes(path, imageBytes);

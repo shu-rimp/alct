@@ -53,6 +53,14 @@ public sealed class WebSocketClient : IDisposable
         await _socket.SendAsync(imageBytes, WebSocketMessageType.Binary, endOfMessage: true, ct);
     }
 
+    public async Task SendSettingsAsync(string sourceLang, CancellationToken ct = default)
+    {
+        if (!IsConnected) return;
+        var json = JsonSerializer.Serialize(new { type = "settings", sourceLang });
+        var bytes = Encoding.UTF8.GetBytes(json);
+        await _socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
+    }
+
     private async Task ReceiveLoopAsync(CancellationToken ct)
     {
         var buffer = new byte[RECEIVE_BUFFER_SIZE];
