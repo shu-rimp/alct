@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private const uint DEFAULT_HOTKEY_VKEY = 0x54;        // T — 화면 캡처 번역
     private const uint DEFAULT_INPUT_HOTKEY_VKEY = 0x47;  // G — 선택 텍스트 번역
     private static readonly string SERVER_URL = LoadServerUrl();
+    private static readonly string CAPTION_SERVER_URL = SERVER_URL + "/caption";
 
     private static string LoadServerUrl()
     {
@@ -30,20 +31,33 @@ public partial class MainWindow : Window
     private HotkeyManager? _hotkeyManager;
     private readonly ScreenCaptureService _screenCapture = new();
     private readonly TranslationOverlay _overlay = new();
+    private readonly TranslationOverlay _captionOverlay = new();
     private readonly SettingsWindow _settings = new();
     private readonly WebSocketClient _wsClient = new(SERVER_URL);
+    private readonly WebSocketClient _captionWsClient = new(CAPTION_SERVER_URL);
     private readonly CancellationTokenSource _wsCts = new();
+    private readonly CancellationTokenSource _captionWsCts = new();
+    private readonly CaptionMonitorService _captionMonitor;
 
     public MainWindow()
     {
         InitializeComponent();
+        _captionMonitor = new CaptionMonitorService();
         Loaded += OnLoaded;
         Closed += OnClosed;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        WindowsApiHelper.SetLiveCaptionsVisible(true);
         _settings.SourceLangChanged += lang => _ = _wsClient.SendSettingsAsync(lang);
+        _settings.CaptionModeChanged += enabled =>
+        {
+            WindowsApiHelper.SetLiveCaptionsVisible(!enabled);
+            if (enabled) _captionMonitor.Start();
+            else _captionMonitor.Stop();
+        };
+        _captionMonitor.CaptionStabilized += text => _ = _captionWsClient.SendCaptionTextAsync(text);
         _settings.Show();
 
         _wsClient.MessageReceived += text => _overlay.ShowTranslation(text);
@@ -52,12 +66,14 @@ public partial class MainWindow : Window
         {
             if (connected)
             {
-                // _settings.SourceLang accesses WPF controls — must be read on UI thread
                 var lang = Dispatcher.Invoke(() => _settings.SourceLang);
                 _ = _wsClient.SendSettingsAsync(lang);
             }
         };
         _ = _wsClient.ConnectAsync(_wsCts.Token);
+
+        _captionWsClient.MessageReceived += text => _captionOverlay.ShowAtLiveCaptions(text);
+        _ = _captionWsClient.ConnectAsync(_captionWsCts.Token);
 
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
@@ -108,8 +124,12 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        WindowsApiHelper.SetLiveCaptionsVisible(true);
         _wsCts.Cancel();
+        _captionWsCts.Cancel();
         _wsClient.Dispose();
+        _captionWsClient.Dispose();
         _hotkeyManager?.Dispose();
+        _captionMonitor.Dispose();
     }
 }

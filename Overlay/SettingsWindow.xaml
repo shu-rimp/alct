@@ -24,6 +24,10 @@
                              Foreground="White" FontFamily="Malgun Gothic" FontSize="13"
                              Checked="OnLanguageChanged"/>
             </StackPanel>
+            <CheckBox x:Name="CaptionMonitorToggle" Content="라이브 캡션"
+                      Foreground="White" FontFamily="Malgun Gothic" FontSize="13"
+                      Margin="0,10,0,0"
+                      Checked="OnCaptionModeChanged" Unchecked="OnCaptionModeChanged"/>
         </StackPanel>
     </Border>
 </Window>

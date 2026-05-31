@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -10,8 +12,12 @@ public static class WindowsApiHelper
     private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int WS_EX_LAYERED = 0x00080000;
     private const int HWND_TOPMOST = -1;
-    private const uint SWP_NOMOVE = 0x0002;
-    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOMOVE     = 0x0002;
+    private const uint SWP_NOSIZE     = 0x0001;
+    private const uint SWP_NOZORDER   = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+
+    private static System.Drawing.Point? _liveCaptionsOriginalPos;
 
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
@@ -67,6 +73,82 @@ public static class WindowsApiHelper
 
     private static INPUT KeyUp(ushort vk) =>
         new() { type = INPUT_KEYBOARD, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk, dwFlags = KEYEVENTF_KEYUP } } };
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    private static IntPtr FindLiveCaptionsHandle(bool requireVisible = true)
+    {
+        var processes = Process.GetProcessesByName("LiveCaptions");
+        if (processes.Length == 0) return IntPtr.Zero;
+
+        var targetPid = (uint)processes[0].Id;
+        IntPtr found = IntPtr.Zero;
+
+        EnumWindows((hwnd, _) =>
+        {
+            GetWindowThreadProcessId(hwnd, out uint pid);
+            if (pid != targetPid) return true;
+            if (requireVisible && !IsWindowVisible(hwnd)) return true;
+            GetWindowRect(hwnd, out RECT rect);
+            if (rect.Right - rect.Left > 0 && rect.Bottom - rect.Top > 0)
+            {
+                found = hwnd;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return found;
+    }
+
+    public static void SetLiveCaptionsVisible(bool visible)
+    {
+        if (visible)
+        {
+            var hwnd = FindLiveCaptionsHandle(requireVisible: false);
+            if (hwnd == IntPtr.Zero) return;
+            var pos = _liveCaptionsOriginalPos ?? new System.Drawing.Point(0, 0);
+            SetWindowPos(hwnd, IntPtr.Zero, pos.X, pos.Y, 0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            _liveCaptionsOriginalPos = null;
+        }
+        else
+        {
+            var hwnd = FindLiveCaptionsHandle(requireVisible: true);
+            if (hwnd == IntPtr.Zero) return;
+            GetWindowRect(hwnd, out RECT rect);
+            if (rect.Left > -1000 && rect.Top > -1000)
+                _liveCaptionsOriginalPos = new System.Drawing.Point(rect.Left, rect.Top);
+            SetWindowPos(hwnd, IntPtr.Zero, -10000, -10000, 0, 0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
+
+    public static Rectangle? GetLiveCaptionsRegion()
+    {
+        var hwnd = FindLiveCaptionsHandle();
+        if (hwnd == IntPtr.Zero) return null;
+
+        GetWindowRect(hwnd, out RECT rect);
+        int w = rect.Right - rect.Left;
+        int h = rect.Bottom - rect.Top;
+        return w > 0 && h > 0 ? new Rectangle(rect.Left, rect.Top, w, h) : null;
+    }
 
     public static void EnableClickThrough(Window window)
     {
