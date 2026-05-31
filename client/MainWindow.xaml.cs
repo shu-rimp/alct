@@ -1,5 +1,6 @@
 using AlctClient.Core;
 using AlctClient.Overlay;
+using AlctClient.Utils;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -10,7 +11,8 @@ namespace AlctClient;
 public partial class MainWindow : Window
 {
     private const uint DEFAULT_HOTKEY_MODIFIERS = (uint)HotkeyModifiers.Ctrl;
-    private const uint DEFAULT_HOTKEY_VKEY = 0x54; // T
+    private const uint DEFAULT_HOTKEY_VKEY = 0x54;        // T — 화면 캡처 번역
+    private const uint DEFAULT_INPUT_HOTKEY_VKEY = 0x47;  // G — 선택 텍스트 번역
     private static readonly string SERVER_URL = LoadServerUrl();
 
     private static string LoadServerUrl()
@@ -45,6 +47,7 @@ public partial class MainWindow : Window
         _settings.Show();
 
         _wsClient.MessageReceived += text => _overlay.ShowTranslation(text);
+        _wsClient.InputTranslationReceived += OnInputTranslationReceived;
         _wsClient.ConnectionChanged += connected =>
         {
             if (connected)
@@ -58,7 +61,9 @@ public partial class MainWindow : Window
 
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
+        _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;
         _hotkeyManager.Register(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_HOTKEY_VKEY);
+        _hotkeyManager.RegisterInputTranslation(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_INPUT_HOTKEY_VKEY);
     }
 
     private void OnHotkeyPressed()
@@ -68,6 +73,29 @@ public partial class MainWindow : Window
             var imageBytes = _screenCapture.CaptureRegionAsPng();
             // SaveDebugCapture(imageBytes);
             await _wsClient.SendImageAsync(imageBytes);
+        });
+    }
+
+    private void OnInputTranslationHotkeyPressed()
+    {
+        WindowsApiHelper.SimulateCopy();
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(50);
+            var text = Dispatcher.Invoke(() =>
+                Clipboard.ContainsText() ? Clipboard.GetText() : null);
+            if (string.IsNullOrWhiteSpace(text)) return;
+            await _wsClient.SendInputTranslationRequestAsync(text);
+        });
+    }
+
+    private void OnInputTranslationReceived(string translatedText)
+    {
+        _ = Task.Run(async () =>
+        {
+            Dispatcher.Invoke(() => Clipboard.SetText(translatedText));
+            await Task.Delay(50);
+            WindowsApiHelper.SimulatePaste();
         });
     }
 

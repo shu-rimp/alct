@@ -14,6 +14,7 @@ public sealed class WebSocketClient : IDisposable
     private bool _disposed;
 
     public event Action<string>? MessageReceived;
+    public event Action<string>? InputTranslationReceived;
     public event Action<bool>? ConnectionChanged;
 
     public bool IsConnected => _socket.State == WebSocketState.Open;
@@ -53,6 +54,14 @@ public sealed class WebSocketClient : IDisposable
         await _socket.SendAsync(imageBytes, WebSocketMessageType.Binary, endOfMessage: true, ct);
     }
 
+    public async Task SendInputTranslationRequestAsync(string text, CancellationToken ct = default)
+    {
+        if (!IsConnected) return;
+        var json = JsonSerializer.Serialize(new { type = "translateInput", text });
+        var bytes = Encoding.UTF8.GetBytes(json);
+        await _socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
+    }
+
     public async Task SendSettingsAsync(string sourceLang, CancellationToken ct = default)
     {
         if (!IsConnected) return;
@@ -77,25 +86,26 @@ public sealed class WebSocketClient : IDisposable
 
             if (result.EndOfMessage)
             {
-                var text = ParseTranslatedText(messageBuilder.ToString());
-                if (text is not null)
-                    MessageReceived?.Invoke(text);
+                var json = messageBuilder.ToString();
                 messageBuilder.Clear();
+
+                var translated = ParseField(json, "translatedText");
+                if (translated is not null) MessageReceived?.Invoke(translated);
+
+                var translatedInput = ParseField(json, "translatedInputText");
+                if (translatedInput is not null) InputTranslationReceived?.Invoke(translatedInput);
             }
         }
     }
 
-    private static string? ParseTranslatedText(string json)
+    private static string? ParseField(string json, string key)
     {
         try
         {
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("translatedText").GetString();
+            return doc.RootElement.TryGetProperty(key, out var val) ? val.GetString() : null;
         }
-        catch
-        {
-            return null;
-        }
+        catch { return null; }
     }
 
     public void Dispose()

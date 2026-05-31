@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 class SessionState:
     lastExtractedText: str = ""
     lastTranslatedText: str = ""
+    lastInputText: str = ""
+    lastTranslatedInputText: str = ""
     sourceLang: str = "JA"
 
 
@@ -29,6 +31,20 @@ def updateSession(sessionId: str, extractedText: str, translatedText: str) -> No
 
 def getCachedTranslation(sessionId: str) -> str:
     return getSession(sessionId).lastTranslatedText
+
+
+def isDuplicateInput(sessionId: str, inputText: str) -> bool:
+    return getSession(sessionId).lastInputText == inputText
+
+
+def updateInputSession(sessionId: str, inputText: str, translatedText: str) -> None:
+    session = getSession(sessionId)
+    session.lastInputText = inputText
+    session.lastTranslatedInputText = translatedText
+
+
+def getCachedInputTranslation(sessionId: str) -> str:
+    return getSession(sessionId).lastTranslatedInputText
 
 
 def updateSourceLang(sessionId: str, sourceLang: str) -> None:

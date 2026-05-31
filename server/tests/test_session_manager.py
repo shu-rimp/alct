@@ -5,6 +5,9 @@ from core.session_manager import (
     isDuplicate,
     updateSession,
     getCachedTranslation,
+    isDuplicateInput,
+    updateInputSession,
+    getCachedInputTranslation,
     removeSession,
     _sessions,
 )
@@ -62,6 +65,26 @@ class TestGetCachedTranslation:
     def test_returnsCachedTranslation(self):
         updateSession(SESSION_ID, "text", "캐시된 번역")
         assert getCachedTranslation(SESSION_ID) == "캐시된 번역"
+
+
+class TestInputCache:
+    def test_isDuplicateInputReturnsFalseForNewSession(self):
+        assert isDuplicateInput(SESSION_ID, "안녕하세요") is False
+
+    def test_isDuplicateInputReturnsTrueForSameText(self):
+        updateInputSession(SESSION_ID, "안녕하세요", "こんにちは")
+        assert isDuplicateInput(SESSION_ID, "안녕하세요") is True
+
+    def test_isDuplicateInputReturnsFalseForDifferentText(self):
+        updateInputSession(SESSION_ID, "안녕하세요", "こんにちは")
+        assert isDuplicateInput(SESSION_ID, "감사합니다") is False
+
+    def test_getCachedInputTranslationReturnsEmptyForNewSession(self):
+        assert getCachedInputTranslation(SESSION_ID) == ""
+
+    def test_getCachedInputTranslationReturnsCachedResult(self):
+        updateInputSession(SESSION_ID, "안녕하세요", "こんにちは")
+        assert getCachedInputTranslation(SESSION_ID) == "こんにちは"
 
 
 class TestRemoveSession:

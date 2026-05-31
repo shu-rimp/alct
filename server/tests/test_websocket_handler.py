@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 from main import app
 from core.session_manager import _sessions
-from api.websocket_handler import _requestTimestamps
+from api.websocket_handlers import _requestTimestamps
 
 CLIENT_IP = "testclient"
 
@@ -83,7 +83,7 @@ class TestWebSocketFlow:
         with (
             patch("core.ocr_service.extractText", return_value="text"),
             patch("core.translation_service.translateText", new=translateMock),
-            patch("api.websocket_handler._isRateLimited", return_value=True),
+            patch("api.websocket_handlers._isRateLimited", return_value=True),
         ):
             with client.websocket_connect("/ws") as ws:
                 ws.send_bytes(samplePngBytes)
@@ -114,7 +114,7 @@ class TestRateLimiting:
         ):
             # Pre-fill timestamps to simulate hitting the limit
             import time
-            from api.websocket_handler import RATE_LIMIT_MAX_REQUESTS, _requestTimestamps
+            from api.websocket_handlers import RATE_LIMIT_MAX_REQUESTS, _requestTimestamps
             now = time.monotonic()
             _requestTimestamps[CLIENT_IP] = [now] * RATE_LIMIT_MAX_REQUESTS
 

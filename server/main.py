@@ -8,7 +8,7 @@ try:
 except ImportError:
     pass
 
-from api.websocket_handler import router as websocketRouter
+from api.websocket_router import router as websocketRouter
 from core import ocr_service
 
 UVICORN_HOST = "0.0.0.0"
