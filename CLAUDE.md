@@ -1,101 +1,51 @@
 # ALCT Client
 
 ## Overview
-C# desktop overlay application for Apex Legends chat translation.
-Captures screen region on hotkey press and sends image to translation server.
-Displays translated result as transparent overlay on top of the game.
-
-## Core Features
-1. Hotkey-triggered screen capture → send image to server
-2. Display translation result on always-on-top transparent overlay
-3. Overlay input box for outgoing chat translation
+C# WPF 오버레이. 핫키 → 화면 캡처 → PNG 서버 전송 → 번역 결과 표시.
 
 ## Architecture
 ```
-[Hotkey Listener]
-      ↓
-[Screen Capture - target region only]
-      ↓
-[Send image via WebSocket]
-      ↓
-[Receive translation result]
-      ↓
-[Overlay Display]
+[Hotkey] → [ScreenCaptureService] → [WebSocketClient.SendImageAsync] → [TranslationOverlay]
 ```
 
 ## Tech Stack
-- Language: C# (.NET 8)
-- UI: WPF (transparent overlay window)
-- Screen Capture: System.Drawing / Windows Graphics Capture API
-- Server Communication: WebSocket (System.Net.WebSockets)
-- OS API: Windows API via P/Invoke (click-through, always-on-top)
-- Hotkey: RegisterHotKey (Windows API)
+- C# .NET 8, WPF
+- Screen Capture: System.Drawing (`Graphics.CopyFromScreen`)
+- WebSocket: `System.Net.WebSockets.ClientWebSocket`
+- OS API: Windows P/Invoke (click-through, hotkey, always-on-top)
 
-## Key Implementation Notes
-
-### Overlay Window
-- Always-on-top: `Topmost = true`
-- Transparent background with click-through via P/Invoke:
-  `WS_EX_TRANSPARENT | WS_EX_LAYERED`
-- Must not intercept game mouse/keyboard input
-
-### Screen Capture
-- Capture fixed region only (Apex Legends chat area: bottom-left of screen)
-- Triggered by hotkey only — no polling
-- Send raw image bytes (PNG) over WebSocket
-
-### Hotkey
-- Register global hotkey via `RegisterHotKey` Windows API
-- Default: configurable by user
-- Cooldown: 1000ms to prevent spam
+## Key Notes
 
 ### WebSocket
-- Persistent connection (reconnect on disconnect)
-- Send: PNG image bytes
-- Receive: translated text string
+- Settings: `{"type":"settings","sourceLang":"JA"|"ZH"|"EN"}` (text message)
+- Image: PNG bytes (binary message)
+- Reconnect delay (`ConnectionChanged(false)` + `Task.Delay`)는 catch 블록 **바깥**에 위치 — 정상 종료/에러 모두 딜레이 적용
+- `ConnectionChanged`는 백그라운드 스레드에서 발생 → WPF 컨트롤 접근 시 `Dispatcher.Invoke` 필수 (없으면 `InvalidOperationException` → 무한 재연결 루프)
 
-### Input Box (Feature 2)
-- Separate overlay input window
-- User types → send text to server for translation → inject result via clipboard + SendKeys
+### Overlay
+- `Topmost = true` + `WS_EX_TRANSPARENT | WS_EX_LAYERED` (클릭 통과)
 
-### State Management
-- Centralize all state in a single `AppState` record
-- Drive UI reactively from state changes
+### Hotkey
+- `RegisterHotKey` Windows API, 1000ms 쿨다운
 
 ## Project Structure
 ```
 alct-client/
-├── App.xaml
+├── App.xaml / MainWindow.xaml(.cs)
+├── appsettings.json             # gitignored — ServerUrl
+├── appsettings.example.json
 ├── Core/
-│   ├── AppState.cs
 │   ├── HotkeyManager.cs
 │   ├── ScreenCaptureService.cs
 │   └── WebSocketClient.cs
 ├── Overlay/
 │   ├── TranslationOverlay.xaml
-│   └── InputOverlay.xaml
+│   └── SettingsWindow.xaml
 └── Utils/
     └── WindowsApiHelper.cs
 ```
 
-## Development Environment
-- IDE: VS Code (C# Dev Kit extension)
-- Target OS: Windows 10/11
-- Framework: .NET 8
-
 ## Code Style
 - Variables: camelCase / Constants: UPPER_SNAKE_CASE
-- No raw coding — abstract magic values and repeated logic
-- Function and variable names must clearly describe purpose
 - One function = one responsibility
-- Avoid raw loops; prefer LINQ and method chains
-
-## Testing
-- Framework: xUnit + Moq
-- Strategy:
-  | Target | Method |
-  |---|---|
-  | Hotkey cooldown logic | Unit test |
-  | WebSocket send/receive | Mock server |
-  | Capture region logic | Unit test with fixed rect |
-  | Overlay / Windows API | Manual verification only |
+- Prefer LINQ over raw loops

@@ -24,6 +24,12 @@ public class ScreenCaptureService
         return EncodeToPng(bitmap);
     }
 
+    public byte[] CaptureRegionAsPng(Rectangle region)
+    {
+        using var bitmap = CaptureRegion(region);
+        return EncodeToPng(bitmap);
+    }
+
     public Rectangle GetCaptureRegion() => _captureRegion;
 
     internal Bitmap CaptureRegion(Rectangle region)

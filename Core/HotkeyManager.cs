@@ -8,6 +8,7 @@ public sealed class HotkeyManager : IDisposable
 {
     private const int WM_HOTKEY = 0x0312;
     private const int HOTKEY_ID = 9000;
+    private const int INPUT_TRANSLATION_HOTKEY_ID = 9001;
     private const int COOLDOWN_MS = 1000;
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -21,6 +22,7 @@ public sealed class HotkeyManager : IDisposable
     private bool _disposed;
 
     public event Action? HotkeyPressed;
+    public event Action? InputTranslationHotkeyPressed;
 
     public HotkeyManager(Window window)
     {
@@ -28,26 +30,30 @@ public sealed class HotkeyManager : IDisposable
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
     }
 
-    public bool Register(uint modifiers, uint virtualKey)
-    {
-        return RegisterHotKey(_hwnd, HOTKEY_ID, modifiers, virtualKey);
-    }
+    public bool Register(uint modifiers, uint virtualKey) =>
+        RegisterHotKey(_hwnd, HOTKEY_ID, modifiers, virtualKey);
+
+    public bool RegisterInputTranslation(uint modifiers, uint virtualKey) =>
+        RegisterHotKey(_hwnd, INPUT_TRANSLATION_HOTKEY_ID, modifiers, virtualKey);
 
     public void Unregister()
     {
         UnregisterHotKey(_hwnd, HOTKEY_ID);
+        UnregisterHotKey(_hwnd, INPUT_TRANSLATION_HOTKEY_ID);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+        if (msg == WM_HOTKEY)
         {
-            if (IsCooldownElapsed())
+            var id = wParam.ToInt32();
+            if ((id == HOTKEY_ID || id == INPUT_TRANSLATION_HOTKEY_ID) && IsCooldownElapsed())
             {
                 _lastTriggerTime = DateTime.UtcNow;
-                HotkeyPressed?.Invoke();
+                if (id == HOTKEY_ID) HotkeyPressed?.Invoke();
+                else InputTranslationHotkeyPressed?.Invoke();
+                handled = true;
             }
-            handled = true;
         }
         return IntPtr.Zero;
     }

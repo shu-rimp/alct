@@ -25,6 +25,21 @@ public partial class TranslationOverlay : Window
         });
     }
 
+    public void ShowAtLiveCaptions(string text)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            TranslationText.TextWrapping = System.Windows.TextWrapping.NoWrap;
+            TranslationText.Text = text;
+            SizeToContent = SizeToContent.Height;
+            Left  = 0;
+            Top   = 0;
+            Width = SystemParameters.PrimaryScreenWidth;
+            Show();
+            ScheduleAutoHide();
+        });
+    }
+
     private void ScheduleAutoHide()
     {
         _hideTimer?.Cancel();
