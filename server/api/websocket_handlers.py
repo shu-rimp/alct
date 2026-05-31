@@ -3,6 +3,7 @@ from collections import defaultdict
 from dataclasses import asdict
 from fastapi import WebSocket
 
+from collections.abc import Callable
 from core import ocr_service, translation_service, session_manager, text_normalizer
 from api.websocket_responses import (
     ErrorResponse, TranslatedTextResponse, TranslatedInputResponse, OcrTextResponse
@@ -50,28 +51,34 @@ async def handleTextMessage(websocket: WebSocket, clientIp: str, data: dict):
             inputText = data.get("text", "").strip()
             if not inputText:
                 return
-            if await checkRateLimit(websocket, clientIp):
+            if session_manager.isDuplicateInput(clientIp, inputText):
+                cached = session_manager.getCachedInputTranslation(clientIp)
+                await send(websocket, TranslatedInputResponse(cached, cached=True))
                 return
             targetLang = session_manager.getSourceLang(clientIp)
             try:
                 result = await translation_service.translateInputText(inputText, targetLang)
-                await send(websocket, TranslatedInputResponse(result))
+                session_manager.updateInputSession(clientIp, inputText, result)
+                await send(websocket, TranslatedInputResponse(result, cached=False))
             except Exception:
                 await send(websocket, ErrorResponse("translation failed"))
 
 
-async def handleImageMessage(websocket: WebSocket, clientIp: str, imageBytes: bytes):
-    extractedText = ocr_service.extractText(imageBytes)
-    sourceLang = session_manager.getSourceLang(clientIp)
-    extractedText = text_normalizer.normalizeText(extractedText)
-
+async def _translateAndRespond(
+    websocket: WebSocket,
+    clientIp: str,
+    extractedText: str,
+    sourceLang: str,
+    isDuplicate: Callable[[str, str], bool],
+    getCached: Callable[[str], str],
+    updateSession: Callable[[str, str, str], None],
+):
     if not extractedText:
         await send(websocket, TranslatedTextResponse(translatedText="", cached=False))
         return
 
-    if session_manager.isDuplicate(clientIp, extractedText):
-        cachedTranslation = session_manager.getCachedTranslation(clientIp)
-        await send(websocket, TranslatedTextResponse(translatedText=cachedTranslation, cached=True))
+    if isDuplicate(clientIp, extractedText):
+        await send(websocket, TranslatedTextResponse(translatedText=getCached(clientIp), cached=True))
         return
 
     try:
@@ -80,8 +87,30 @@ async def handleImageMessage(websocket: WebSocket, clientIp: str, imageBytes: by
         await send(websocket, ErrorResponse("translation failed"))
         return
 
-    session_manager.updateSession(clientIp, extractedText, translatedText)
+    updateSession(clientIp, extractedText, translatedText)
     await send(websocket, TranslatedTextResponse(translatedText=translatedText, cached=False))
+
+
+async def handleCaptionTextMessage(websocket: WebSocket, clientIp: str, captionText: str):
+    sourceLang = session_manager.getSourceLang(clientIp)
+    await _translateAndRespond(
+        websocket, clientIp, captionText, sourceLang,
+        session_manager.isDuplicateCaption,
+        session_manager.getCachedCaptionTranslation,
+        session_manager.updateCaptionSession,
+    )
+
+
+async def handleImageMessage(websocket: WebSocket, clientIp: str, imageBytes: bytes):
+    extractedText = ocr_service.extractText(imageBytes)
+    sourceLang = session_manager.getSourceLang(clientIp)
+    extractedText = text_normalizer.normalizeText(extractedText)
+    await _translateAndRespond(
+        websocket, clientIp, extractedText, sourceLang,
+        session_manager.isDuplicateChat,
+        session_manager.getCachedChatTranslation,
+        session_manager.updateChatSession,
+    )
 
 
 async def handleOcrMessage(websocket: WebSocket, clientIp: str, imageBytes: bytes):

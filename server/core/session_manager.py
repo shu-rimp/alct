@@ -3,11 +3,13 @@ from dataclasses import dataclass, field
 
 @dataclass
 class SessionState:
-    lastExtractedText: str = ""
-    lastTranslatedText: str = ""
-    lastInputText: str = ""
-    lastTranslatedInputText: str = ""
     sourceLang: str = "JA"
+    lastChatText: str = ""
+    lastChatTranslation: str = ""
+    lastCaptionText: str = ""
+    lastCaptionTranslation: str = ""
+    lastInputText: str = ""
+    lastInputTranslation: str = ""
 
 
 _sessions: dict[str, SessionState] = {}
@@ -19,32 +21,46 @@ def getSession(sessionId: str) -> SessionState:
     return _sessions[sessionId]
 
 
-def isDuplicate(sessionId: str, extractedText: str) -> bool:
-    return getSession(sessionId).lastExtractedText == extractedText
+def isDuplicateChat(sessionId: str, text: str) -> bool:
+    return getSession(sessionId).lastChatText == text
 
 
-def updateSession(sessionId: str, extractedText: str, translatedText: str) -> None:
+def updateChatSession(sessionId: str, text: str, translation: str) -> None:
     session = getSession(sessionId)
-    session.lastExtractedText = extractedText
-    session.lastTranslatedText = translatedText
+    session.lastChatText = text
+    session.lastChatTranslation = translation
 
 
-def getCachedTranslation(sessionId: str) -> str:
-    return getSession(sessionId).lastTranslatedText
+def getCachedChatTranslation(sessionId: str) -> str:
+    return getSession(sessionId).lastChatTranslation
+
+
+def isDuplicateCaption(sessionId: str, text: str) -> bool:
+    return getSession(sessionId).lastCaptionText == text
+
+
+def updateCaptionSession(sessionId: str, text: str, translation: str) -> None:
+    session = getSession(sessionId)
+    session.lastCaptionText = text
+    session.lastCaptionTranslation = translation
+
+
+def getCachedCaptionTranslation(sessionId: str) -> str:
+    return getSession(sessionId).lastCaptionTranslation
 
 
 def isDuplicateInput(sessionId: str, inputText: str) -> bool:
     return getSession(sessionId).lastInputText == inputText
 
 
-def updateInputSession(sessionId: str, inputText: str, translatedText: str) -> None:
+def updateInputSession(sessionId: str, inputText: str, translation: str) -> None:
     session = getSession(sessionId)
     session.lastInputText = inputText
-    session.lastTranslatedInputText = translatedText
+    session.lastInputTranslation = translation
 
 
 def getCachedInputTranslation(sessionId: str) -> str:
-    return getSession(sessionId).lastTranslatedInputText
+    return getSession(sessionId).lastInputTranslation
 
 
 def updateSourceLang(sessionId: str, sourceLang: str) -> None:
