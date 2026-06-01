@@ -8,15 +8,12 @@ try:
 except ImportError:
     pass
 
-from api.websocket_router import router as websocketRouter
+from api.http_router import router as httpRouter
 from core import ocr_service
 
 UVICORN_HOST = "0.0.0.0"
 UVICORN_PORT = 8000
 UVICORN_WORKERS = 3
-# websockets v14+ enforces Origin validation and rejects non-browser clients.
-# wsproto has no such restriction, making it compatible with native app clients.
-UVICORN_WS = "wsproto"
 
 
 @asynccontextmanager
@@ -26,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ALCT Server", lifespan=lifespan)
-app.include_router(websocketRouter)
+app.include_router(httpRouter)
 
 
 @app.get("/health")
@@ -40,5 +37,4 @@ if __name__ == "__main__":
         host=UVICORN_HOST,
         port=UVICORN_PORT,
         workers=UVICORN_WORKERS,
-        ws=UVICORN_WS,
     )

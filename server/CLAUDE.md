@@ -1,43 +1,35 @@
 # ALCT Server
 
 ## Overview
-Python 번역 서버. WebSocket으로 PNG 수신 → OCR → 정규화 → 번역 → 결과 반환.
+Python OCR 서버. HTTP POST로 PNG 수신 → OCR → 정규화 → 결과 반환. 번역은 클라이언트 담당.
 
 ## Core Flow
 ```
-[Text: {"type":"settings","sourceLang":"JA"|"ZH"|"EN"}]
-        → session_manager.updateSourceLang
-
-[Binary: PNG bytes]
+POST /ocr (PNG bytes)
         → rate limit (30 req/min per IP)
         → ocr_service (cyan masking → CN + JP 엔진 병합)
         → text_normalizer (alias 치환 → <x>Korean</x> 래핑)
-        → session_manager.isDuplicate → 캐시 반환 or
-        → translation_service (DeepL) → session 업데이트 → 반환
+        → {"normalizedText": "..."} 반환
 ```
 
 ## Tech Stack
-- Python 3.11+, FastAPI + uvicorn (`ws="wsproto"`)
+- Python 3.11+, FastAPI + uvicorn
 - OCR: RapidOCR — CN (PP-OCRv3) + JP (PP-OCRv1)
-- Translation: DeepL Free API (월 100만 자)
 - Deployment: Oracle Cloud Free Tier ARM, Docker
 
 ## Key Notes
 
-### WebSocket
-- `websocket.receive()`는 disconnect 시 `{"type": "websocket.disconnect"}` dict 반환 → `message["type"] == "websocket.disconnect"` 체크 후 break (`WebSocketDisconnect` 예외는 항상 발생하지 않음)
-- 세션 정리는 `finally` 블록에서 처리
+### HTTP API
+- `POST /ocr`: raw PNG bytes body → `{"normalizedText": "..."}` 반환
+- Rate limit: IP당 30req/60s (커스텀 `_requestTimestamps` dict, x-forwarded-for 지원)
+- 빈 body → 400, rate limit 초과 → 429
 
 ### OCR
 - Dual engine: 가나 감지 시 JP 결과 우선, 아니면 confidence 높은 쪽 선택
 - Cyan 픽셀 마스킹으로 유저명 제거 후 OCR
 
-### Translation
-- `tag_handling="xml", ignore_tags=["x"]` → normalizer의 `<x>Korean</x>` 보존
-- source_lang: 세션별 설정, target_lang: 항상 "KO"
-
-### Concurrency
-- `wsproto` 백엔드: websockets v14+ Origin 검증 우회 (네이티브 클라이언트 접속 가능)
+### Tag Handling
+- normalizer가 `<x>Korean</x>` 태그로 감싼 별칭은 클라이언트 DeepL 호출 시 `ignore_tags=["x"]`로 보존됨
 
 ## Project Structure
 ```
@@ -46,11 +38,10 @@ alct-server/
 ├── core/
 │   ├── ocr_service.py
 │   ├── text_normalizer.py
-│   ├── normalizer_data.json
-│   ├── translation_service.py
-│   └── session_manager.py
+│   └── normalizer_data.json
 ├── api/
-│   └── websocket_handler.py
+│   ├── http_router.py
+│   └── http_responses.py
 ├── requirements.txt
 └── tests/
 ```
