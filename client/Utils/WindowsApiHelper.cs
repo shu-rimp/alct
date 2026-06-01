@@ -21,8 +21,10 @@ public static class WindowsApiHelper
 
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
+    private const ushort VK_LWIN    = 0x5B;
     private const ushort VK_CONTROL = 0x11;
     private const ushort VK_C = 0x43;
+    private const ushort VK_L = 0x4C;
     private const ushort VK_V = 0x56;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -172,4 +174,28 @@ public static class WindowsApiHelper
 
     private static IntPtr GetWindowHandle(Window window) =>
         new WindowInteropHelper(window).Handle;
+
+    public static async Task StartLiveCaptionsAsync()
+    {
+        if (Process.GetProcessesByName("LiveCaptions").Length > 0) return;
+        var inputs = new[]
+        {
+            KeyDown(VK_LWIN), KeyDown(VK_CONTROL), KeyDown(VK_L),
+            KeyUp(VK_L), KeyUp(VK_CONTROL), KeyUp(VK_LWIN),
+        };
+        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        for (int i = 0; i < 20; i++)
+        {
+            await Task.Delay(500);
+            if (Process.GetProcessesByName("LiveCaptions").Length > 0) break;
+        }
+    }
+
+    public static void StopLiveCaptions()
+    {
+        foreach (var p in Process.GetProcessesByName("LiveCaptions"))
+        {
+            try { p.Kill(); } catch { }
+        }
+    }
 }

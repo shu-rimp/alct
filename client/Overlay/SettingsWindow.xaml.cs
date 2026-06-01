@@ -19,10 +19,16 @@ public partial class SettingsWindow : Window
         InitializeComponent();
     }
 
-    public void SetDeepLApiKey(string key)
+    public void SetDeepLApiKey(string key) => DeepLApiKeyBox.Text = key;
+
+    public void SetSourceLang(string lang)
     {
-        DeepLApiKeyBox.Text = key;
+        if (lang == "ZH") RadioZH.IsChecked = true;
+        else if (lang == "EN") RadioEN.IsChecked = true;
+        else RadioJA.IsChecked = true;
     }
+
+    public void SetCaptionMode(bool enabled) => CaptionMonitorToggle.IsChecked = enabled;
 
     private void OnLanguageChanged(object sender, RoutedEventArgs e)
     {
