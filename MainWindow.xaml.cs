@@ -23,20 +23,26 @@ public partial class MainWindow : Window
     private readonly OcrHttpClient _ocrClient;
     private readonly CaptionMonitorService _captionMonitor;
     private ITranslationService _translationService;
+    private readonly UserSettings _userSettings;
 
     public MainWindow()
     {
         InitializeComponent();
-        var (serverUrl, deepLApiKey) = LoadSettings();
+        var (serverUrl, deepLApiKey) = LoadAppSettings();
+        _userSettings = UserSettingsService.Load();
         _ocrClient = new OcrHttpClient(serverUrl);
         _translationService = new DeepLTranslationService(deepLApiKey);
-        _settings.SetDeepLApiKey(deepLApiKey);
         _captionMonitor = new CaptionMonitorService();
+
+        _settings.SetDeepLApiKey(deepLApiKey);
+        _settings.SetSourceLang(_userSettings.SourceLang);
+        _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
+
         Loaded += OnLoaded;
         Closed += OnClosed;
     }
 
-    private static (string serverUrl, string deepLApiKey) LoadSettings()
+    private static (string serverUrl, string deepLApiKey) LoadAppSettings()
     {
         const string fallbackUrl = "http://localhost:8000";
         try
@@ -48,22 +54,46 @@ public partial class MainWindow : Window
             var key = doc.RootElement.TryGetProperty("DeepLApiKey", out var keyProp)
                 ? keyProp.GetString() ?? string.Empty : string.Empty;
             return (url, key);
-        } 
+        }
         catch { return (fallbackUrl, string.Empty); }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         WindowsApiHelper.SetLiveCaptionsVisible(true);
-
-        _settings.CaptionModeChanged += enabled =>
-        {
-            if (enabled) WindowsApiHelper.SetLiveCaptionsVisible(false);
-            if (enabled) _captionMonitor.Start();
-            else _captionMonitor.Stop();
-        };
-        _settings.DeepLApiKeyChanged += key => _translationService = new DeepLTranslationService(key);
         _settings.Show();
+
+        _settings.SourceLangChanged += lang =>
+        {
+            _userSettings.SourceLang = lang;
+            UserSettingsService.Save(_userSettings);
+        };
+
+        _settings.CaptionModeChanged += async enabled =>
+        {
+            try
+            {
+                if (enabled)
+                {
+                    await WindowsApiHelper.StartLiveCaptionsAsync();
+                    WindowsApiHelper.SetLiveCaptionsVisible(false);
+                    _captionMonitor.Start();
+                }
+                else
+                {
+                    _captionMonitor.Stop();
+                    WindowsApiHelper.StopLiveCaptions();
+                }
+                _userSettings.CaptionModeEnabled = enabled;
+                UserSettingsService.Save(_userSettings);
+            }
+            catch (Exception ex) { Logger.Error("CaptionMode", ex); }
+        };
+
+        _settings.DeepLApiKeyChanged += key => _translationService = new DeepLTranslationService(key);
+
+        if (_userSettings.CaptionModeEnabled)
+            _ = InitCaptionModeAsync();
 
         _ocrClient.OcrTextReceived += async normalizedText =>
         {
@@ -92,6 +122,17 @@ public partial class MainWindow : Window
         _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;
         _hotkeyManager.Register(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_HOTKEY_VKEY);
         _hotkeyManager.RegisterInputTranslation(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_INPUT_HOTKEY_VKEY);
+    }
+
+    private async Task InitCaptionModeAsync()
+    {
+        try
+        {
+            await WindowsApiHelper.StartLiveCaptionsAsync();
+            WindowsApiHelper.SetLiveCaptionsVisible(false);
+            _captionMonitor.Start();
+        }
+        catch (Exception ex) { Logger.Error("CaptionModeInit", ex); }
     }
 
     private void OnHotkeyPressed()
@@ -140,7 +181,8 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
-        WindowsApiHelper.SetLiveCaptionsVisible(true);
+        if (_userSettings.CaptionModeEnabled)
+            WindowsApiHelper.StopLiveCaptions();
         _hotkeyManager?.Dispose();
         _captionMonitor.Dispose();
     }
