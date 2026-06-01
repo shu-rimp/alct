@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Interop;
 
 namespace AlctClient.Overlay;
 
@@ -7,41 +9,188 @@ public partial class SettingsWindow : Window
     public event Action<string>? SourceLangChanged;
     public event Action<bool>? CaptionModeChanged;
     public event Action<string>? DeepLApiKeyChanged;
+    public event Action<bool>? TranslationEngineChanged;   // true = DeepL
+    public event Action<int>? MonitorIndexChanged;
+    public event Action<bool>? ShowLanguageOverlayChanged;
+    public event Action? ChangeCaptureHotkeyRequested;
+    public event Action? ChangeInputHotkeyRequested;
+    public event Action? SetCaptureRegionRequested;
 
-    public string SourceLang => RadioJA.IsChecked == true ? "JA"
-                              : RadioZH.IsChecked == true ? "ZH"
-                              : "EN";
+    public string SourceLang
+    {
+        get
+        {
+            var selected = SourceLangCombo.SelectedItem as ComboBoxItem;
+            return selected?.Tag as string ?? "JA";
+        }
+    }
 
-    public string DeepLApiKey => DeepLApiKeyBox.Text;
+    public string DeepLApiKey => DeepLApiKeyBox.Password;
+    public bool IsDeepLEnabled => RadioDeepL.IsChecked == true;
 
     public SettingsWindow()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
     }
 
-    public void SetDeepLApiKey(string key) => DeepLApiKeyBox.Text = key;
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        LoadMonitors();
+    }
+
+    private void LoadMonitors()
+    {
+        MonitorCombo.Items.Clear();
+        var screens = System.Windows.Forms.Screen.AllScreens;
+        for (int i = 0; i < screens.Length; i++)
+        {
+            var s = screens[i];
+            var label = $"모니터 {i + 1} ({s.Bounds.Width}×{s.Bounds.Height})" +
+                        (s.Primary ? " (기본)" : "");
+            MonitorCombo.Items.Add(new ComboBoxItem { Content = label });
+        }
+        if (MonitorCombo.Items.Count > 0)
+            MonitorCombo.SelectedIndex = 0;
+    }
+
+    // ── 외부에서 초기값 설정 ──
+
+    public void SetDeepLApiKey(string key)
+    {
+        DeepLApiKeyBox.Password = key;
+        ApiKeyPlaceholder.Visibility = string.IsNullOrEmpty(key)
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     public void SetSourceLang(string lang)
     {
-        if (lang == "ZH") RadioZH.IsChecked = true;
-        else if (lang == "EN") RadioEN.IsChecked = true;
-        else RadioJA.IsChecked = true;
+        foreach (ComboBoxItem item in SourceLangCombo.Items)
+        {
+            if (item.Tag as string == lang)
+            {
+                SourceLangCombo.SelectedItem = item;
+                return;
+            }
+        }
     }
 
     public void SetCaptionMode(bool enabled) => CaptionMonitorToggle.IsChecked = enabled;
 
-    private void OnLanguageChanged(object sender, RoutedEventArgs e)
+    public void SetTranslationEngine(bool isDeepL)
     {
-        SourceLangChanged?.Invoke(SourceLang);
+        if (isDeepL) RadioDeepL.IsChecked = true;
+        else RadioFree.IsChecked = true;
     }
+
+    // ── 탭 전환 ──
+
+    private void SetActiveTab(int index)
+    {
+        TabTranslationBtn.Style = (Style)Resources["TabButtonInactive"];
+        TabHotkeyBtn.Style     = (Style)Resources["TabButtonInactive"];
+        TabScreenBtn.Style     = (Style)Resources["TabButtonInactive"];
+        PanelTranslation.Visibility = Visibility.Collapsed;
+        PanelHotkey.Visibility      = Visibility.Collapsed;
+        PanelScreen.Visibility      = Visibility.Collapsed;
+
+        switch (index)
+        {
+            case 0:
+                TabTranslationBtn.Style = (Style)Resources["TabButtonActive"];
+                PanelTranslation.Visibility = Visibility.Visible;
+                break;
+            case 1:
+                TabHotkeyBtn.Style = (Style)Resources["TabButtonActive"];
+                PanelHotkey.Visibility = Visibility.Visible;
+                break;
+            case 2:
+                TabScreenBtn.Style = (Style)Resources["TabButtonActive"];
+                PanelScreen.Visibility = Visibility.Visible;
+                break;
+        }
+    }
+
+    private void OnTabTranslation(object sender, RoutedEventArgs e) => SetActiveTab(0);
+    private void OnTabHotkey(object sender, RoutedEventArgs e)      => SetActiveTab(1);
+    private void OnTabScreen(object sender, RoutedEventArgs e)      => SetActiveTab(2);
+
+    // ── 이벤트 핸들러 ──
+
+    private void OnLanguageModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (AutoDetectWarning is null) return;
+        AutoDetectWarning.Visibility = RadioAuto.IsChecked == true
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnSourceLangChanged(object sender, SelectionChangedEventArgs e)
+        => SourceLangChanged?.Invoke(SourceLang);
+
+    private void OnEngineChanged(object sender, RoutedEventArgs e)
+        => TranslationEngineChanged?.Invoke(RadioDeepL.IsChecked == true);
 
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
+        => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
+
+    private void OnDeepLKeyChanged(object sender, RoutedEventArgs e)
     {
-        CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
+        ApiKeyPlaceholder.Visibility = string.IsNullOrEmpty(DeepLApiKeyBox.Password)
+            ? Visibility.Visible : Visibility.Collapsed;
+        DeepLApiKeyChanged?.Invoke(DeepLApiKeyBox.Password);
     }
 
-    private void OnDeepLKeyChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private void OnMonitorChanged(object sender, SelectionChangedEventArgs e)
+        => MonitorIndexChanged?.Invoke(MonitorCombo.SelectedIndex);
+
+    private void OnShowLangOverlayChanged(object sender, RoutedEventArgs e)
+        => ShowLanguageOverlayChanged?.Invoke(ShowLangOverlayToggle.IsChecked == true);
+
+    private void OnChangeCaptureHotkey(object sender, RoutedEventArgs e)
+        => ChangeCaptureHotkeyRequested?.Invoke();
+
+    private void OnChangeInputHotkey(object sender, RoutedEventArgs e)
+        => ChangeInputHotkeyRequested?.Invoke();
+
+    private void OnSetCaptureRegion(object sender, RoutedEventArgs e)
+        => SetCaptureRegionRequested?.Invoke();
+
+    private void OnClose(object sender, RoutedEventArgs e) => Hide();
+
+    protected override void OnSourceInitialized(EventArgs e)
     {
-        DeepLApiKeyChanged?.Invoke(DeepLApiKeyBox.Text);
+        base.OnSourceInitialized(e);
+        HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(ResizeHook);
+    }
+
+    private IntPtr ResizeHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg != 0x0084) return IntPtr.Zero; // WM_NCHITTEST
+
+        var pos = PointFromScreen(new System.Windows.Point(
+            (short)(lParam.ToInt32() & 0xFFFF),
+            (short)((lParam.ToInt32() >> 16) & 0xFFFF)));
+
+        const int B = 8;
+        double w = ActualWidth, h = ActualHeight;
+        bool left = pos.X < B,  right = pos.X > w - B;
+        bool top  = pos.Y < B,  bottom = pos.Y > h - B;
+
+        if (top    && left)  { handled = true; return (IntPtr)13; } // HTTOPLEFT
+        if (top    && right) { handled = true; return (IntPtr)14; } // HTTOPRIGHT
+        if (bottom && left)  { handled = true; return (IntPtr)16; } // HTBOTTOMLEFT
+        if (bottom && right) { handled = true; return (IntPtr)17; } // HTBOTTOMRIGHT
+        if (left)            { handled = true; return (IntPtr)10; } // HTLEFT
+        if (right)           { handled = true; return (IntPtr)11; } // HTRIGHT
+        if (top)             { handled = true; return (IntPtr)12; } // HTTOP
+        if (bottom)          { handled = true; return (IntPtr)15; } // HTBOTTOM
+
+        return IntPtr.Zero;
+    }
+
+    private void OnHeaderDrag(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            DragMove();
     }
 }
