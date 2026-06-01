@@ -5,13 +5,25 @@ namespace AlctClient.Core;
 
 public sealed class CaptionMonitorService : IDisposable
 {
-    private const int POLL_INTERVAL_MS = 100;
-    private const int DEBOUNCE_MS = 1000;
+    private const int MIN_POLL_MS = 200;
+    private const int MAX_POLL_MS = 1000;
+    private const int POLL_STEP_MS = 100;
+    private const int DEBOUNCE_MS = 500;
+
+    private static readonly CacheRequest _nameCache = BuildCacheRequest();
+
+    private static CacheRequest BuildCacheRequest()
+    {
+        var req = new CacheRequest();
+        req.Add(AutomationElement.NameProperty);
+        return req;
+    }
 
     private string _lastText = "";
     private string _sentText = "";
     private DateTime _lastChangeTime = DateTime.MinValue;
     private bool _triggered;
+    private int _pollInterval = MIN_POLL_MS;
     private CancellationTokenSource? _cts;
     private bool _disposed;
 
@@ -26,22 +38,20 @@ public sealed class CaptionMonitorService : IDisposable
     public void Stop()
     {
         _cts?.Cancel();
-        _lastText = "";
-        _sentText = "";
+        _lastText = _sentText = "";
         _triggered = false;
+        _pollInterval = MIN_POLL_MS;
     }
 
     private async Task RunAsync(CancellationToken ct)
     {
-        var initial = GetLiveCaptionsText() ?? "";
-        _lastText = initial;
-        _sentText = initial;
+        _lastText = _sentText = GetLiveCaptionsText() ?? "";
 
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(POLL_INTERVAL_MS, ct);
+                await Task.Delay(_pollInterval, ct);
                 Poll();
             }
             catch (OperationCanceledException) { break; }
@@ -58,31 +68,39 @@ public sealed class CaptionMonitorService : IDisposable
             _lastText = text;
             _lastChangeTime = DateTime.UtcNow;
             _triggered = false;
+            _pollInterval = MIN_POLL_MS;
+            return;
         }
-        else if (!_triggered && !string.IsNullOrWhiteSpace(text) &&
-                 (DateTime.UtcNow - _lastChangeTime).TotalMilliseconds >= DEBOUNCE_MS)
+
+        var debounced = !string.IsNullOrWhiteSpace(text) &&
+                        (DateTime.UtcNow - _lastChangeTime).TotalMilliseconds >= DEBOUNCE_MS;
+
+        if (!_triggered && debounced)
+            FireStabilized(text);
+
+        if (_triggered || debounced)
+            _pollInterval = Math.Min(_pollInterval + POLL_STEP_MS, MAX_POLL_MS);
+    }
+
+    private void FireStabilized(string text)
+    {
+        _triggered = true;
+
+        if (_sentText.Length > 0 && !text.StartsWith(_sentText, StringComparison.Ordinal))
         {
-            _triggered = true;
-
-            bool prefixMatch = _sentText.Length > 0 && text.StartsWith(_sentText, StringComparison.Ordinal);
-
-            if (!prefixMatch && _sentText.Length > 0)
-            {
-                _sentText = text;
-                return;
-            }
-
-            var textToSend = prefixMatch ? text[_sentText.Length..].Trim() : text;
-
-            if (string.IsNullOrWhiteSpace(textToSend))
-            {
-                _sentText = text;
-                return;
-            }
-
             _sentText = text;
-            CaptionStabilized?.Invoke(textToSend);
+            return;
         }
+
+        var newText = text[_sentText.Length..].Trim();
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            _sentText = text;
+            return;
+        }
+
+        _sentText = text;
+        CaptionStabilized?.Invoke(newText);
     }
 
     private static string? GetLiveCaptionsText()
@@ -97,19 +115,16 @@ public sealed class CaptionMonitorService : IDisposable
                 new PropertyCondition(AutomationElement.ProcessIdProperty, processes[0].Id));
             if (window is null) return null;
 
-            var textElements = window.FindAll(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
-
-            var parts = new List<string>();
-            foreach (AutomationElement el in textElements)
+            using (_nameCache.Activate())
             {
-                var name = el.Current.Name;
-                if (!string.IsNullOrWhiteSpace(name))
-                    parts.Add(name);
-            }
+                var elements = window.FindAll(
+                    TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
 
-            return string.Join(" ", parts);
+                return string.Join(" ", elements.Cast<AutomationElement>()
+                    .Select(el => el.Cached.Name)
+                    .Where(name => !string.IsNullOrWhiteSpace(name)));
+            }
         }
         catch { return null; }
     }
