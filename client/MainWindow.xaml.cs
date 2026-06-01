@@ -2,6 +2,7 @@ using AlctClient.Core;
 using AlctClient.Overlay;
 using AlctClient.Utils;
 using System.Diagnostics;
+using System.Net.Http;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
@@ -13,67 +14,78 @@ public partial class MainWindow : Window
     private const uint DEFAULT_HOTKEY_MODIFIERS = (uint)HotkeyModifiers.Ctrl;
     private const uint DEFAULT_HOTKEY_VKEY = 0x54;        // T — 화면 캡처 번역
     private const uint DEFAULT_INPUT_HOTKEY_VKEY = 0x47;  // G — 선택 텍스트 번역
-    private static readonly string SERVER_URL = LoadServerUrl();
-    private static readonly string CAPTION_SERVER_URL = SERVER_URL + "/caption";
-
-    private static string LoadServerUrl()
-    {
-        const string fallback = "ws://localhost:8000/ws";
-        try
-        {
-            var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-            using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            return doc.RootElement.GetProperty("ServerUrl").GetString() ?? fallback;
-        }
-        catch { return fallback; }
-    }
 
     private HotkeyManager? _hotkeyManager;
     private readonly ScreenCaptureService _screenCapture = new();
     private readonly TranslationOverlay _overlay = new();
     private readonly TranslationOverlay _captionOverlay = new();
     private readonly SettingsWindow _settings = new();
-    private readonly WebSocketClient _wsClient = new(SERVER_URL);
-    private readonly WebSocketClient _captionWsClient = new(CAPTION_SERVER_URL);
-    private readonly CancellationTokenSource _wsCts = new();
-    private readonly CancellationTokenSource _captionWsCts = new();
+    private readonly OcrHttpClient _ocrClient;
     private readonly CaptionMonitorService _captionMonitor;
+    private ITranslationService _translationService;
 
     public MainWindow()
     {
         InitializeComponent();
+        var (serverUrl, deepLApiKey) = LoadSettings();
+        _ocrClient = new OcrHttpClient(serverUrl);
+        _translationService = new DeepLTranslationService(deepLApiKey);
+        _settings.SetDeepLApiKey(deepLApiKey);
         _captionMonitor = new CaptionMonitorService();
         Loaded += OnLoaded;
         Closed += OnClosed;
     }
 
+    private static (string serverUrl, string deepLApiKey) LoadSettings()
+    {
+        const string fallbackUrl = "http://localhost:8000";
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            var url = doc.RootElement.TryGetProperty("ServerUrl", out var urlProp)
+                ? urlProp.GetString() ?? fallbackUrl : fallbackUrl;
+            var key = doc.RootElement.TryGetProperty("DeepLApiKey", out var keyProp)
+                ? keyProp.GetString() ?? string.Empty : string.Empty;
+            return (url, key);
+        } 
+        catch { return (fallbackUrl, string.Empty); }
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         WindowsApiHelper.SetLiveCaptionsVisible(true);
-        _settings.SourceLangChanged += lang => _ = _wsClient.SendSettingsAsync(lang);
+
         _settings.CaptionModeChanged += enabled =>
         {
-            WindowsApiHelper.SetLiveCaptionsVisible(!enabled);
+            if (enabled) WindowsApiHelper.SetLiveCaptionsVisible(false);
             if (enabled) _captionMonitor.Start();
             else _captionMonitor.Stop();
         };
-        _captionMonitor.CaptionStabilized += text => _ = _captionWsClient.SendCaptionTextAsync(text);
+        _settings.DeepLApiKeyChanged += key => _translationService = new DeepLTranslationService(key);
         _settings.Show();
 
-        _wsClient.MessageReceived += text => _overlay.ShowTranslation(text);
-        _wsClient.InputTranslationReceived += OnInputTranslationReceived;
-        _wsClient.ConnectionChanged += connected =>
+        _ocrClient.OcrTextReceived += async normalizedText =>
         {
-            if (connected)
+            try
             {
-                var lang = Dispatcher.Invoke(() => _settings.SourceLang);
-                _ = _wsClient.SendSettingsAsync(lang);
+                var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
+                var translation = await _translationService.TranslateToKoreanAsync(normalizedText, sourceLang);
+                _overlay.ShowTranslation(translation);
             }
+            catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
         };
-        _ = _wsClient.ConnectAsync(_wsCts.Token);
 
-        _captionWsClient.MessageReceived += text => _captionOverlay.ShowAtLiveCaptions(text);
-        _ = _captionWsClient.ConnectAsync(_captionWsCts.Token);
+        _captionMonitor.CaptionStabilized += async text =>
+        {
+            try
+            {
+                var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
+                var translation = await _translationService.TranslateToKoreanAsync(text, sourceLang);
+                _captionOverlay.ShowAtLiveCaptions(translation);
+            }
+            catch (Exception ex) { Logger.Error("CaptionTranslation", ex); }
+        };
 
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
@@ -86,9 +98,14 @@ public partial class MainWindow : Window
     {
         _ = Task.Run(async () =>
         {
-            var imageBytes = _screenCapture.CaptureRegionAsPng();
-            // SaveDebugCapture(imageBytes);
-            await _wsClient.SendImageAsync(imageBytes);
+            try
+            {
+                var imageBytes = _screenCapture.CaptureRegionAsPng();
+                // SaveDebugCapture(imageBytes);
+                await _ocrClient.SendImageAsync(imageBytes);
+            }
+            catch (HttpRequestException ex) { Logger.Error("OcrRequest", ex); }
+            catch (Exception ex) { Logger.Error("OcrCapture", ex); }
         });
     }
 
@@ -97,21 +114,20 @@ public partial class MainWindow : Window
         WindowsApiHelper.SimulateCopy();
         _ = Task.Run(async () =>
         {
-            await Task.Delay(50);
-            var text = Dispatcher.Invoke(() =>
-                Clipboard.ContainsText() ? Clipboard.GetText() : null);
-            if (string.IsNullOrWhiteSpace(text)) return;
-            await _wsClient.SendInputTranslationRequestAsync(text);
-        });
-    }
+            try
+            {
+                await Task.Delay(50);
+                var (text, sourceLang) = Dispatcher.Invoke(() => (
+                    Clipboard.ContainsText() ? Clipboard.GetText() : null,
+                    _settings.SourceLang));
+                if (string.IsNullOrWhiteSpace(text)) return;
 
-    private void OnInputTranslationReceived(string translatedText)
-    {
-        _ = Task.Run(async () =>
-        {
-            Dispatcher.Invoke(() => Clipboard.SetText(translatedText));
-            await Task.Delay(50);
-            WindowsApiHelper.SimulatePaste();
+                var translation = await _translationService.TranslateFromKoreanAsync(text, sourceLang);
+                Dispatcher.Invoke(() => Clipboard.SetText(translation));
+                await Task.Delay(50);
+                WindowsApiHelper.SimulatePaste();
+            }
+            catch (Exception ex) { Logger.Error("InputTranslation", ex); }
         });
     }
 
@@ -125,10 +141,6 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         WindowsApiHelper.SetLiveCaptionsVisible(true);
-        _wsCts.Cancel();
-        _captionWsCts.Cancel();
-        _wsClient.Dispose();
-        _captionWsClient.Dispose();
         _hotkeyManager?.Dispose();
         _captionMonitor.Dispose();
     }

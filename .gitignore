@@ -36,6 +36,7 @@ server/tests/capture_debug*.png
 server/GUIDE.txt
 client/GUIDE.txt
 client/UI_SPEC.md
+plan.md
 
 # ==================== 환경 설정 ====================
 .env
