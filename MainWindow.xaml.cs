@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using Clipboard = System.Windows.Clipboard;
 
 namespace AlctClient;
 
