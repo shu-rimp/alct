@@ -30,7 +30,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        var (serverUrl, deepLApiKey) = LoadAppSettings();
+        var (serverUrl, deepLApiKey, translationEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
         _ocrClient = new OcrHttpClient(serverUrl);
         _translationService = new DeepLTranslationService(deepLApiKey);
@@ -39,12 +39,13 @@ public partial class MainWindow : Window
         _settings.SetDeepLApiKey(deepLApiKey);
         _settings.SetSourceLang(_userSettings.SourceLang);
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
+        _settings.SetTranslationEngine(translationEngine == "DeepL");
 
         Loaded += OnLoaded;
         Closed += OnClosed;
     }
 
-    private static (string serverUrl, string deepLApiKey) LoadAppSettings()
+    private static (string serverUrl, string deepLApiKey, string translationEngine) LoadAppSettings()
     {
         const string fallbackUrl = "http://localhost:8000";
         try
@@ -55,9 +56,27 @@ public partial class MainWindow : Window
                 ? urlProp.GetString() ?? fallbackUrl : fallbackUrl;
             var key = doc.RootElement.TryGetProperty("DeepLApiKey", out var keyProp)
                 ? keyProp.GetString() ?? string.Empty : string.Empty;
-            return (url, key);
+            var engine = doc.RootElement.TryGetProperty("TranslationEngine", out var engineProp)
+                ? engineProp.GetString() ?? "LibreTranslate" : "LibreTranslate";
+            return (url, key, engine);
         }
-        catch { return (fallbackUrl, string.Empty); }
+        catch { return (fallbackUrl, string.Empty, "LibreTranslate"); }
+    }
+
+    private static void SaveAppSetting(string settingKey, string value)
+    {
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            var existing = File.Exists(path) ? File.ReadAllText(path) : "{}";
+            using var doc = JsonDocument.Parse(existing);
+            var dict = new Dictionary<string, string?>();
+            foreach (var prop in doc.RootElement.EnumerateObject())
+                dict[prop.Name] = prop.Value.GetString();
+            dict[settingKey] = value;
+            File.WriteAllText(path, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception ex) { Logger.Error("SaveAppSettings", ex); }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -78,14 +97,13 @@ public partial class MainWindow : Window
             _userSettings.SourceLang = lang;
             UserSettingsService.Save(_userSettings);
 
-            var bcp47 = DeepLToBcp47(lang);
             if (Process.GetProcessesByName("LiveCaptions").Length > 0)
             {
                 try
                 {
                     _captionMonitor.Stop();
                     await WindowsApiHelper.StopLiveCaptionsAsync();
-                    WindowsApiHelper.SetLiveCaptionsLanguage(bcp47);
+                    WindowsApiHelper.SetLiveCaptionsLanguage(lang);
                     await WindowsApiHelper.StartLiveCaptionsAsync();
                     WindowsApiHelper.SetLiveCaptionsVisible(false);
                     _captionMonitor.Start();
@@ -107,7 +125,7 @@ public partial class MainWindow : Window
                 if (enabled)
                 {
                     var lang = Dispatcher.Invoke(() => _settings.SourceLang);
-                    WindowsApiHelper.SetLiveCaptionsLanguage(DeepLToBcp47(lang));
+                    WindowsApiHelper.SetLiveCaptionsLanguage(lang);
                     await WindowsApiHelper.StartLiveCaptionsAsync();
                     WindowsApiHelper.SetLiveCaptionsVisible(false);
                     _captionMonitor.Start();
@@ -121,7 +139,14 @@ public partial class MainWindow : Window
             catch (Exception ex) { Logger.Error("CaptionMode", ex); }
         };
 
-        _settings.DeepLApiKeyChanged += key => _translationService = new DeepLTranslationService(key);
+        _settings.DeepLApiKeyChanged += key =>
+        {
+            _translationService = new DeepLTranslationService(key);
+            SaveAppSetting("DeepLApiKey", key);
+        };
+
+        _settings.TranslationEngineChanged += isDeepL =>
+            SaveAppSetting("TranslationEngine", isDeepL ? "DeepL" : "LibreTranslate");
 
         if (_userSettings.CaptionModeEnabled)
             _ = InitCaptionModeAsync();
@@ -168,7 +193,7 @@ public partial class MainWindow : Window
             await Task.Delay(500); // 앱 초기화 완료 대기
             if (Process.GetProcessesByName("LiveCaptions").Length > 0)
                 await WindowsApiHelper.StopLiveCaptionsAsync();
-            WindowsApiHelper.SetLiveCaptionsLanguage(DeepLToBcp47(_userSettings.SourceLang));
+            WindowsApiHelper.SetLiveCaptionsLanguage(_userSettings.SourceLang);
             await WindowsApiHelper.StartLiveCaptionsAsync();
             WindowsApiHelper.SetLiveCaptionsVisible(false);
             _captionMonitor.Start();
@@ -212,14 +237,6 @@ public partial class MainWindow : Window
             catch (Exception ex) { Logger.Error("InputTranslation", ex); }
         });
     }
-
-    private static string DeepLToBcp47(string deepLCode) => deepLCode switch
-    {
-        "JA" => "ja-JP",
-        "ZH" => "zh-CN",
-        "EN" => "en-US",
-        _    => "en-US",
-    };
 
     private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용
     {

@@ -1,0 +1,55 @@
+<UserControl x:Class="AlctClient.Overlay.HintIcon"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Border x:Name="IconBorder"
+                Width="18" Height="18"
+                CornerRadius="9"
+                Background="{StaticResource InputBgBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                Cursor="Help"
+                MouseEnter="OnMouseEnter"
+                MouseLeave="OnIconMouseLeave">
+            <TextBlock Text="?"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       FontSize="11" FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Border>
+
+        <Popup x:Name="HintPopup"
+               PlacementTarget="{Binding ElementName=IconBorder}"
+               Placement="Bottom"
+               AllowsTransparency="True"
+               StaysOpen="True"
+               VerticalOffset="4">
+            <Border Background="{StaticResource CardBgBrush}"
+                    BorderBrush="{StaticResource CardBorderAccentBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardRadius}"
+                    MaxWidth="250"
+                    Padding="12,10"
+                    MouseLeave="OnPopupMouseLeave">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.4" Color="#000000"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock x:Name="GuideTextBlock"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+                    <TextBlock x:Name="LinkRow"
+                               Margin="0,6,0,0"
+                               Visibility="Collapsed">
+                        <Hyperlink x:Name="GuideHyperlink"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   RequestNavigate="OnRequestNavigate">
+                            <Run x:Name="LinkTextRun"/>
+                        </Hyperlink>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>
