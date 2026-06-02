@@ -1,3 +1,6 @@
+using AlctClient.Utils;
+using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -15,6 +18,8 @@ public partial class SettingsWindow : Window
     public event Action? ChangeCaptureHotkeyRequested;
     public event Action? ChangeInputHotkeyRequested;
     public event Action? SetCaptureRegionRequested;
+
+    private bool _allowClose;
 
     public string SourceLang
     {
@@ -36,7 +41,19 @@ public partial class SettingsWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        SetWindowIcon();
         LoadMonitors();
+    }
+
+    private void SetWindowIcon()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "assets", "alct.ico");
+        if (!File.Exists(path)) return;
+        using var icon = new System.Drawing.Icon(path, 32, 32);
+        Icon = Imaging.CreateBitmapSourceFromHIcon(
+            icon.Handle,
+            Int32Rect.Empty,
+            System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
     }
 
     private void LoadMonitors()
@@ -46,7 +63,7 @@ public partial class SettingsWindow : Window
         for (int i = 0; i < screens.Length; i++)
         {
             var s = screens[i];
-            var label = $"모니터 {i + 1} ({s.Bounds.Width}×{s.Bounds.Height})" +
+            var label = $"모니터{i + 1}: ({s.Bounds.Width}×{s.Bounds.Height})" +
                         (s.Primary ? " (기본)" : "");
             MonitorCombo.Items.Add(new ComboBoxItem { Content = label });
         }
@@ -82,6 +99,8 @@ public partial class SettingsWindow : Window
         if (isDeepL) RadioDeepL.IsChecked = true;
         else RadioFree.IsChecked = true;
     }
+
+    internal void AllowClose() => _allowClose = true;
 
     // ── 탭 전환 ──
 
@@ -155,7 +174,20 @@ public partial class SettingsWindow : Window
     private void OnSetCaptureRegion(object sender, RoutedEventArgs e)
         => SetCaptureRegionRequested?.Invoke();
 
+    // 커스텀 X 버튼: 트레이로 숨김
     private void OnClose(object sender, RoutedEventArgs e) => Hide();
+
+    // Alt+F4 등 OS 레벨 닫기: 앱 종료 중이 아니면 트레이로 숨김
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_allowClose)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+        base.OnClosing(e);
+    }
 
     protected override void OnSourceInitialized(EventArgs e)
     {

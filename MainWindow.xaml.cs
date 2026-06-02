@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private const uint DEFAULT_INPUT_HOTKEY_VKEY = 0x47;  // G — 선택 텍스트 번역
 
     private HotkeyManager? _hotkeyManager;
+    private TrayIconManager? _tray;
     private readonly ScreenCaptureService _screenCapture = new();
     private readonly TranslationOverlay _overlay = new();
     private readonly TranslationOverlay _captionOverlay = new();
@@ -64,18 +65,49 @@ public partial class MainWindow : Window
         WindowsApiHelper.SetLiveCaptionsVisible(true);
         _settings.Show();
 
-        _settings.SourceLangChanged += lang =>
+        _tray = new TrayIconManager();
+        _tray.OpenSettingsRequested += () => Dispatcher.Invoke(() =>
+        {
+            _settings.Show();
+            _settings.Activate();
+        });
+        _tray.ExitRequested += () => Dispatcher.Invoke(ShutdownApp);
+
+        _settings.SourceLangChanged += async lang =>
         {
             _userSettings.SourceLang = lang;
             UserSettingsService.Save(_userSettings);
+
+            var bcp47 = DeepLToBcp47(lang);
+            if (Process.GetProcessesByName("LiveCaptions").Length > 0)
+            {
+                try
+                {
+                    _captionMonitor.Stop();
+                    await WindowsApiHelper.StopLiveCaptionsAsync();
+                    WindowsApiHelper.SetLiveCaptionsLanguage(bcp47);
+                    await WindowsApiHelper.StartLiveCaptionsAsync();
+                    WindowsApiHelper.SetLiveCaptionsVisible(false);
+                    _captionMonitor.Start();
+                }
+                catch (Exception ex) { Logger.Error("CaptionLangChange", ex); }
+            }
+            else
+            {
+                WindowsApiHelper.SetLiveCaptionsLanguage(bcp47);
+            }
         };
 
         _settings.CaptionModeChanged += async enabled =>
         {
+            _userSettings.CaptionModeEnabled = enabled;
+            UserSettingsService.Save(_userSettings);
             try
             {
                 if (enabled)
                 {
+                    var lang = Dispatcher.Invoke(() => _settings.SourceLang);
+                    WindowsApiHelper.SetLiveCaptionsLanguage(DeepLToBcp47(lang));
                     await WindowsApiHelper.StartLiveCaptionsAsync();
                     WindowsApiHelper.SetLiveCaptionsVisible(false);
                     _captionMonitor.Start();
@@ -85,8 +117,6 @@ public partial class MainWindow : Window
                     _captionMonitor.Stop();
                     WindowsApiHelper.StopLiveCaptions();
                 }
-                _userSettings.CaptionModeEnabled = enabled;
-                UserSettingsService.Save(_userSettings);
             }
             catch (Exception ex) { Logger.Error("CaptionMode", ex); }
         };
@@ -125,10 +155,20 @@ public partial class MainWindow : Window
         _hotkeyManager.RegisterInputTranslation(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_INPUT_HOTKEY_VKEY);
     }
 
+    private void ShutdownApp()
+    {
+        _settings.AllowClose();
+        System.Windows.Application.Current.Shutdown();
+    }
+
     private async Task InitCaptionModeAsync()
     {
         try
         {
+            await Task.Delay(500); // 앱 초기화 완료 대기
+            if (Process.GetProcessesByName("LiveCaptions").Length > 0)
+                await WindowsApiHelper.StopLiveCaptionsAsync();
+            WindowsApiHelper.SetLiveCaptionsLanguage(DeepLToBcp47(_userSettings.SourceLang));
             await WindowsApiHelper.StartLiveCaptionsAsync();
             WindowsApiHelper.SetLiveCaptionsVisible(false);
             _captionMonitor.Start();
@@ -173,6 +213,14 @@ public partial class MainWindow : Window
         });
     }
 
+    private static string DeepLToBcp47(string deepLCode) => deepLCode switch
+    {
+        "JA" => "ja-JP",
+        "ZH" => "zh-CN",
+        "EN" => "en-US",
+        _    => "en-US",
+    };
+
     private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용
     {
         var path = Path.Combine(AppContext.BaseDirectory, "capture_debug.png");
@@ -182,9 +230,11 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        _settings.AllowClose();
         if (_userSettings.CaptionModeEnabled)
             WindowsApiHelper.StopLiveCaptions();
         _hotkeyManager?.Dispose();
         _captionMonitor.Dispose();
+        _tray?.Dispose();
     }
 }

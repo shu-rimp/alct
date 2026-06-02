@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -195,7 +196,31 @@ public static class WindowsApiHelper
     {
         foreach (var p in Process.GetProcessesByName("LiveCaptions"))
         {
-            try { p.Kill(); } catch { }
+            try { p.Kill(entireProcessTree: true); }
+            catch { try { p.Kill(); } catch { } }
+            finally { p.Dispose(); }
         }
+    }
+
+    public static async Task StopLiveCaptionsAsync()
+    {
+        foreach (var p in Process.GetProcessesByName("LiveCaptions"))
+        {
+            try { p.Kill(entireProcessTree: true); }
+            catch { try { p.Kill(); } catch { } }
+            finally { p.Dispose(); }
+        }
+        for (int i = 0; i < 25; i++)
+        {
+            await Task.Delay(200);
+            if (Process.GetProcessesByName("LiveCaptions").Length == 0) break;
+        }
+        await Task.Delay(500); // Windows 내부 정리 대기
+    }
+
+    public static void SetLiveCaptionsLanguage(string bcp47Tag)
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\LiveCaptions\UI", writable: true);
+        key?.SetValue("CaptionLanguage", bcp47Tag, RegistryValueKind.String);
     }
 }
