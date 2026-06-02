@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AlctClient.csproj" />
+    <ProjectReference Include="..\src\AlctClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

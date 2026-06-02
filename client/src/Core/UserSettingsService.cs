@@ -1,14 +1,14 @@
 using System.IO;
 using System.Text.Json;
-using AlctClient.Core;
 
-namespace AlctClient.Utils;
+namespace AlctClient.Core;
 
 public static class UserSettingsService
 {
     private static readonly string _path = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ALCT", "usersettings.json");
+    private static readonly object _saveLock = new();
 
     public static UserSettings Load()
     {
@@ -22,11 +22,14 @@ public static class UserSettingsService
 
     public static void Save(UserSettings settings)
     {
-        try
+        lock (_saveLock)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            File.WriteAllText(_path, JsonSerializer.Serialize(settings));
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+                File.WriteAllText(_path, JsonSerializer.Serialize(settings));
+            }
+            catch { }
         }
-        catch { }
     }
 }
