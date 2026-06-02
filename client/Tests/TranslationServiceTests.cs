@@ -121,8 +121,8 @@ public class OcrHttpClientTests
     {
         string? received = null;
         var client = new OcrHttpClient("http://localhost:8000",
-            MakeClient("""{"normalizedText":"정규화된 텍스트"}"""));
-        client.OcrTextReceived += text => received = text;
+            MakeClient("""{"normalizedText":"정규화된 텍스트","rawText":"원본"}"""));
+        client.OcrTextReceived += (normalized, _) => received = normalized;
 
         await client.SendImageAsync(new byte[] { 1, 2, 3 });
 
@@ -145,7 +145,7 @@ public class OcrHttpClientTests
         bool fired = false;
         var client = new OcrHttpClient("http://localhost:8000",
             MakeClient("""{"normalizedText":""}"""));
-        client.OcrTextReceived += _ => fired = true;
+        client.OcrTextReceived += (_, _) => fired = true;
 
         await client.SendImageAsync(new byte[] { 1 });
 

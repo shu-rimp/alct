@@ -42,4 +42,4 @@ async def ocrEndpoint(request: Request):
         return JSONResponse(ErrorResponse(error="no image data").model_dump(), status_code=400)
     extractedText = ocr_service.extractText(imageBytes)
     normalizedText = text_normalizer.normalizeText(extractedText)
-    return NormalizedTextResponse(normalizedText=normalizedText)
+    return NormalizedTextResponse(normalizedText=normalizedText, rawText=extractedText)
