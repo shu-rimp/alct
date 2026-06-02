@@ -24,11 +24,18 @@ public sealed class DeepLTranslationService : ITranslationService
     {
         _apiKey = apiKey;
         _http = http;
-        // free key suffix is ":fx", pro keys use api.deepl.com
         _baseUrl = apiKey.EndsWith(":fx")
             ? "https://api-free.deepl.com/v2/translate"
             : "https://api.deepl.com/v2/translate";
     }
+
+    private static string Bcp47ToDeepL(string bcp47) => bcp47 switch
+    {
+        "ja-JP" => "JA",
+        "zh-CN" => "ZH",
+        "en-US" => "EN",
+        _ => bcp47.Split('-')[0].ToUpperInvariant(),
+    };
 
     public async Task<string> TranslateToKoreanAsync(string text, string sourceLang)
     {
@@ -37,7 +44,7 @@ public sealed class DeepLTranslationService : ITranslationService
         var payload = new
         {
             text = new[] { text },
-            source_lang = sourceLang,
+            source_lang = Bcp47ToDeepL(sourceLang),
             target_lang = "KO",
             tag_handling = "xml",
             ignore_tags = new[] { "x" },
@@ -57,7 +64,7 @@ public sealed class DeepLTranslationService : ITranslationService
         {
             text = new[] { text },
             source_lang = "KO",
-            target_lang = targetLang,
+            target_lang = Bcp47ToDeepL(targetLang),
         };
         return await CallDeepLAsync(payload);
     }

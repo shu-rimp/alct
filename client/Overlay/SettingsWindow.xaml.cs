@@ -20,17 +20,18 @@ public partial class SettingsWindow : Window
     public event Action? SetCaptureRegionRequested;
 
     private bool _allowClose;
+    private string _deepLApiKey = string.Empty;
 
     public string SourceLang
     {
         get
         {
             var selected = SourceLangCombo.SelectedItem as ComboBoxItem;
-            return selected?.Tag as string ?? "JA";
+            return selected?.Tag as string ?? "ja-JP";
         }
     }
 
-    public string DeepLApiKey => DeepLApiKeyBox.Password;
+    public string DeepLApiKey => _deepLApiKey;
     public bool IsDeepLEnabled => RadioDeepL.IsChecked == true;
 
     public SettingsWindow()
@@ -73,12 +74,7 @@ public partial class SettingsWindow : Window
 
     // ── 외부에서 초기값 설정 ──
 
-    public void SetDeepLApiKey(string key)
-    {
-        DeepLApiKeyBox.Password = key;
-        ApiKeyPlaceholder.Visibility = string.IsNullOrEmpty(key)
-            ? Visibility.Visible : Visibility.Collapsed;
-    }
+    public void SetDeepLApiKey(string key) => _deepLApiKey = key;
 
     public void SetSourceLang(string lang)
     {
@@ -152,11 +148,14 @@ public partial class SettingsWindow : Window
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
         => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
 
-    private void OnDeepLKeyChanged(object sender, RoutedEventArgs e)
+    private void OnApiKeySettingClick(object sender, RoutedEventArgs e)
     {
-        ApiKeyPlaceholder.Visibility = string.IsNullOrEmpty(DeepLApiKeyBox.Password)
-            ? Visibility.Visible : Visibility.Collapsed;
-        DeepLApiKeyChanged?.Invoke(DeepLApiKeyBox.Password);
+        var dialog = new ApiKeyDialog("DeepL", _deepLApiKey) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            _deepLApiKey = dialog.ApiKey;
+            DeepLApiKeyChanged?.Invoke(_deepLApiKey);
+        }
     }
 
     private void OnMonitorChanged(object sender, SelectionChangedEventArgs e)

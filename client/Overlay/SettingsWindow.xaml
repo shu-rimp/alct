@@ -2,14 +2,15 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:local="clr-namespace:AlctClient.Overlay"
         Title="ALCT 설정"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
         ShowInTaskbar="True"
         ResizeMode="CanResize"
-        Width="480" Height="680"
-        MinWidth="400" MinHeight="480">
+        Width="560" Height="680"
+        MinWidth="560" MinHeight="480">
 
     <Window.Resources>
 
@@ -199,6 +200,12 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style TargetType="RadioButton">
@@ -299,10 +306,14 @@
                     <StackPanel x:Name="PanelTranslation" Visibility="Visible">
 
                         <!-- 번역 언어 -->
-                        <TextBlock Text="번역 언어"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   FontSize="12" FontWeight="SemiBold"
-                                   Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="번역 언어"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                            <local:HintIcon Margin="4,0,0,0" VerticalAlignment="Center"
+                                            Guide="한국어로 번역할 언어를 선택하세요."/>
+                        </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -332,7 +343,7 @@
                                            Visibility="Collapsed"
                                            Text="⚠ 자동 감지 설정 시 번역 품질이 낮아질 수 있습니다."
                                            Foreground="{StaticResource TextDangerBrush}"
-                                           FontSize="12" TextWrapping="Wrap"
+                                           FontSize="11" TextWrapping="Wrap"
                                            Margin="18,4,0,0"/>
                             </StackPanel>
                             <ComboBox x:Name="SourceLangCombo"
@@ -340,9 +351,9 @@
                                       Style="{StaticResource DarkComboBox}"
                                       VerticalAlignment="Top"
                                       SelectionChanged="OnSourceLangChanged">
-                                <ComboBoxItem Content="일본어" Tag="JA" IsSelected="True"/>
-                                <ComboBoxItem Content="중국어" Tag="ZH"/>
-                                <ComboBoxItem Content="영어"   Tag="EN"/>
+                                <ComboBoxItem Content="일본어" Tag="ja-JP" IsSelected="True"/>
+                                <ComboBoxItem Content="중국어" Tag="zh-CN"/>
+                                <ComboBoxItem Content="영어"   Tag="en-US"/>
                             </ComboBox>
                         </Grid>
 
@@ -354,64 +365,54 @@
                                    FontSize="12" FontWeight="SemiBold"
                                    Margin="0,16,0,10"/>
 
-                        <RadioButton x:Name="RadioFree" GroupName="Engine" IsChecked="True"
-                                     Checked="OnEngineChanged">
-                            <TextBlock Text="Google"
-                                       FontSize="14"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
-                        </RadioButton>
-
-                        <!-- DeepL 행: 라디오 + API키 입력 인라인 -->
-                        <Grid Margin="0,12,0,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
-                            <RadioButton x:Name="RadioDeepL"
-                                         GroupName="Engine"
-                                         Grid.Column="0"
-                                         VerticalAlignment="Center"
-                                         Checked="OnEngineChanged">
-                                <TextBlock Text="DeepL" FontSize="14"
-                                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </RadioButton>
-
-                            <Border Grid.Column="1" Margin="10,0,0,0"
-                                    BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{StaticResource ButtonRadius}">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
-                                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                                        <Setter Property="BorderThickness" Value="1"/>
-                                        <Setter Property="CornerRadius" Value="{StaticResource ButtonRadius}"/>
-                                        <Setter Property="Opacity" Value="1"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsChecked, ElementName=RadioDeepL}" Value="False">
-                                                <Setter Property="Opacity" Value="0.35"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid>
-                                    <TextBlock x:Name="ApiKeyPlaceholder"
-                                               Text="API 키를 입력하세요"
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               FontSize="13" Padding="10,7"
-                                               IsHitTestVisible="False"
-                                               VerticalAlignment="Center"/>
-                                    <PasswordBox x:Name="DeepLApiKeyBox"
-                                                 Background="Transparent"
-                                                 Foreground="{StaticResource TextPrimaryBrush}"
-                                                 CaretBrush="{StaticResource AccentBrush}"
-                                                 BorderThickness="0"
-                                                 FontSize="13" Padding="10,7"
-                                                 IsEnabled="{Binding IsChecked, ElementName=RadioDeepL}"
-                                                 PasswordChanged="OnDeepLKeyChanged"/>
-                                </Grid>
-                            </Border>
+                            <StackPanel Grid.Column="0">
+                                <RadioButton x:Name="RadioDeepL" GroupName="Engine"
+                                             Checked="OnEngineChanged">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="DeepL" FontSize="14"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Background="{StaticResource CardBgBrush}"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1" CornerRadius="4"
+                                                Padding="6,1" Margin="6,0,6,0">
+                                            <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
+                                        </Border>
+                                        <TextBlock Text="- 강력한 번역 성능을 제공합니다." FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="RadioFree" GroupName="Engine" Margin="0,12,0,0" IsChecked="True"
+                                             Checked="OnEngineChanged">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="LibreTranslate" FontSize="14"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,0,6,0"/>
+                                        <TextBlock Text="- 별도의 설정이 필요없지만 결과가 부정확할 수 있습니다." FontSize="11"
+                                            Foreground="{StaticResource TextSecondaryBrush}"
+                                            VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </RadioButton>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                        VerticalAlignment="Top">
+                                <Button Content="API 설정"
+                                        Style="{StaticResource SmallButton}"
+                                        IsEnabled="{Binding IsChecked, ElementName=RadioDeepL}"
+                                        Click="OnApiKeySettingClick"
+                                        Margin="0,0,6,0"/>
+                                <local:HintIcon
+                                        VerticalAlignment="Center"
+                                        Guide="DeepL 계정에서 발급받은 API 키를 입력하세요."
+                                        LinkText="API 키 발급 받기 →"
+                                        LinkUrl="https://www.deepl.com/ko/your-account/keys"/>
+                            </StackPanel>
                         </Grid>
 
                         <Separator/>
@@ -432,7 +433,7 @@
                                     <TextBlock Text="실시간 보이스 채팅 번역"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock Text="인게임 보이스를 실시간으로 번역합니다.(Windows11 필수)"
+                                    <TextBlock Text="인게임 보이스를 실시간으로 번역합니다. (Windows11 필수)"
                                                Foreground="{StaticResource TextMutedBrush}"
                                                FontSize="12" Margin="0,3,0,0"/>
                                 </StackPanel>
