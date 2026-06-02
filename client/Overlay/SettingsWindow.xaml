@@ -239,19 +239,9 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="{StaticResource CardBgBrush}"
-                            BorderBrush="{StaticResource AccentBrush}"
-                            BorderThickness="1" CornerRadius="6" Padding="8,4">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="AL" Foreground="{StaticResource TextPrimaryBrush}"
-                                       FontSize="16" FontWeight="Bold"/>
-                            <Border Width="1" Background="{StaticResource AccentBrush}" Margin="5,1"/>
-                            <TextBlock Text="CT" Foreground="{StaticResource AccentBrush}"
-                                       FontSize="16" FontWeight="Bold"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
+                <Image Source="/assets/alct-wordmark.png" Height="32"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       VerticalAlignment="Center" HorizontalAlignment="Left"/>
 
                 <Button Grid.Column="1" Content="✕"
                         Foreground="{StaticResource TextMutedBrush}"
@@ -366,7 +356,7 @@
 
                         <RadioButton x:Name="RadioFree" GroupName="Engine" IsChecked="True"
                                      Checked="OnEngineChanged">
-                            <TextBlock Text="무료 번역 (기본)"
+                            <TextBlock Text="Google"
                                        FontSize="14"
                                        Foreground="{StaticResource TextPrimaryBrush}"/>
                         </RadioButton>
@@ -534,7 +524,7 @@
                     <StackPanel x:Name="PanelScreen" Visibility="Collapsed">
 
                         <!-- 캡처 영역 -->
-                        <TextBlock Text="채팅창 캡처 영역"
+                        <TextBlock Text="채팅창 영역"
                                    Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="12" FontWeight="SemiBold"
                                    Margin="0,0,0,10"/>
@@ -567,7 +557,7 @@
                         <Separator/>
 
                         <!-- 오버레이 모니터 -->
-                        <TextBlock Text="오버레이를 표시할 모니터"
+                        <TextBlock Text="번역 오버레이를 표시할 모니터"
                                    Foreground="{StaticResource TextMutedBrush}"
                                    FontSize="12" FontWeight="SemiBold"
                                    Margin="0,16,0,10"/>
@@ -591,7 +581,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="빠른 언어 변경 메뉴 표시"
+                                    <TextBlock Text="빠른 언어 변경 오버레이"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                FontSize="14" FontWeight="SemiBold"/>
                                     <TextBlock Text="게임 내 화면에 번역 언어를 변경할 수 있는 버튼을 표시합니다."
