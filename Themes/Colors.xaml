@@ -39,6 +39,10 @@
     <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
     <SolidColorBrush x:Key="TransparentBrush" Color="Transparent"/>
 
+    <!-- Overlay (rgba(22,20,31,0.92)) -->
+    <Color x:Key="OverlayBgColor">#B316141F</Color>
+    <SolidColorBrush x:Key="OverlayBgBrush" Color="{StaticResource OverlayBgColor}"/>
+
     <!-- WPF-UI ToggleSwitch On 상태 오버라이드 -->
     <SolidColorBrush x:Key="ToggleSwitchFillOn"              Color="{StaticResource AccentColor}"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver"   Color="{StaticResource AccentHoverColor}"/>

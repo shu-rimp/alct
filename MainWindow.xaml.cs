@@ -21,11 +21,14 @@ public partial class MainWindow : Window
     private readonly ScreenCaptureService _screenCapture = new();
     private readonly TranslationOverlay _overlay = new();
     private readonly TranslationOverlay _captionOverlay = new();
+    private readonly LangOverlay _langOverlay = new();
     private readonly SettingsWindow _settings = new();
     private readonly OcrHttpClient _ocrClient;
     private readonly CaptionMonitorService _captionMonitor;
     private ITranslationService _translationService;
     private readonly UserSettings _userSettings;
+    private bool _updatingLang;
+    private bool _updatingCaption;
 
     public MainWindow()
     {
@@ -40,6 +43,8 @@ public partial class MainWindow : Window
         _settings.SetSourceLang(_userSettings.SourceLang);
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
         _settings.SetTranslationEngine(translationEngine == "DeepL");
+        _settings.SetOverlayOpacity(_userSettings.OverlayOpacity);
+        _settings.SetShowLanguageOverlay(_userSettings.ShowLanguageOverlay);
 
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -92,52 +97,54 @@ public partial class MainWindow : Window
         });
         _tray.ExitRequested += () => Dispatcher.Invoke(ShutdownApp);
 
+        // ── 언어 / 캡션 설정 ──
+
         _settings.SourceLangChanged += async lang =>
         {
-            _userSettings.SourceLang = lang;
-            UserSettingsService.Save(_userSettings);
-
-            if (Process.GetProcessesByName("LiveCaptions").Length > 0)
-            {
-                try
-                {
-                    _captionMonitor.Stop();
-                    await WindowsApiHelper.StopLiveCaptionsAsync();
-                    WindowsApiHelper.SetLiveCaptionsLanguage(lang);
-                    await WindowsApiHelper.StartLiveCaptionsAsync();
-                    WindowsApiHelper.SetLiveCaptionsVisible(false);
-                    _captionMonitor.Start();
-                }
-                catch (Exception ex) { Logger.Error("CaptionLangChange", ex); }
-            }
-            else
-            {
-                WindowsApiHelper.SetLiveCaptionsLanguage(bcp47);
-            }
+            _langOverlay.SetLanguage(lang);
+            if (_updatingLang) return;
+            await HandleSourceLangChangedAsync(lang);
         };
 
         _settings.CaptionModeChanged += async enabled =>
         {
-            _userSettings.CaptionModeEnabled = enabled;
-            UserSettingsService.Save(_userSettings);
-            try
-            {
-                if (enabled)
-                {
-                    var lang = Dispatcher.Invoke(() => _settings.SourceLang);
-                    WindowsApiHelper.SetLiveCaptionsLanguage(lang);
-                    await WindowsApiHelper.StartLiveCaptionsAsync();
-                    WindowsApiHelper.SetLiveCaptionsVisible(false);
-                    _captionMonitor.Start();
-                }
-                else
-                {
-                    _captionMonitor.Stop();
-                    WindowsApiHelper.StopLiveCaptions();
-                }
-            }
-            catch (Exception ex) { Logger.Error("CaptionMode", ex); }
+            _langOverlay.SetCaptionMode(enabled);
+            if (_updatingCaption) return;
+            await HandleCaptionModeChangedAsync(enabled);
         };
+
+        // ── 언어 오버레이 버튼 ──
+
+        _langOverlay.SetLanguage(_userSettings.SourceLang);
+        _langOverlay.SetCaptionMode(_userSettings.CaptionModeEnabled);
+        _langOverlay.SetOpacity(_userSettings.OverlayOpacity);
+        if (_userSettings.ShowLanguageOverlay) _langOverlay.Show();
+
+        _langOverlay.LanguageChanged += async lang =>
+        {
+            _updatingLang = true;
+            Dispatcher.Invoke(() => _settings.SetSourceLang(lang));
+            _updatingLang = false;
+            await HandleSourceLangChangedAsync(lang);
+        };
+
+        _langOverlay.CaptionModeChanged += async enabled =>
+        {
+            _updatingCaption = true;
+            Dispatcher.Invoke(() => _settings.SetCaptionMode(enabled));
+            _updatingCaption = false;
+            await HandleCaptionModeChangedAsync(enabled);
+        };
+
+        _settings.ShowLanguageOverlayChanged += show =>
+        {
+            if (show) _langOverlay.Show();
+            else _langOverlay.Hide();
+            _userSettings.ShowLanguageOverlay = show;
+            UserSettingsService.Save(_userSettings);
+        };
+
+        // ── 기타 설정 ──
 
         _settings.DeepLApiKeyChanged += key =>
         {
@@ -148,16 +155,27 @@ public partial class MainWindow : Window
         _settings.TranslationEngineChanged += isDeepL =>
             SaveAppSetting("TranslationEngine", isDeepL ? "DeepL" : "LibreTranslate");
 
+        _overlay.SetOpacity(_userSettings.OverlayOpacity);
+        _captionOverlay.SetOpacity(_userSettings.OverlayOpacity);
+        _settings.OverlayOpacityChanged += opacity =>
+        {
+            _overlay.SetOpacity(opacity);
+            _captionOverlay.SetOpacity(opacity);
+            _langOverlay.SetOpacity(opacity);
+            _userSettings.OverlayOpacity = opacity;
+            UserSettingsService.Save(_userSettings);
+        };
+
         if (_userSettings.CaptionModeEnabled)
             _ = InitCaptionModeAsync();
 
-        _ocrClient.OcrTextReceived += async normalizedText =>
+        _ocrClient.OcrTextReceived += async (normalizedText, rawText) =>
         {
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _translationService.TranslateToKoreanAsync(normalizedText, sourceLang);
-                _overlay.ShowTranslation(translation);
+                _overlay.ShowTranslation(translation, rawText);
             }
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
         };
@@ -168,7 +186,7 @@ public partial class MainWindow : Window
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _translationService.TranslateToKoreanAsync(text, sourceLang);
-                _captionOverlay.ShowAtLiveCaptions(translation);
+                _captionOverlay.ShowAtLiveCaptions(translation, text);
             }
             catch (Exception ex) { Logger.Error("CaptionTranslation", ex); }
         };
@@ -178,6 +196,53 @@ public partial class MainWindow : Window
         _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;
         _hotkeyManager.Register(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_HOTKEY_VKEY);
         _hotkeyManager.RegisterInputTranslation(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_INPUT_HOTKEY_VKEY);
+    }
+
+    private async Task HandleSourceLangChangedAsync(string lang)
+    {
+        _userSettings.SourceLang = lang;
+        UserSettingsService.Save(_userSettings);
+
+        if (Process.GetProcessesByName("LiveCaptions").Length > 0)
+        {
+            try
+            {
+                _captionMonitor.Stop();
+                await WindowsApiHelper.StopLiveCaptionsAsync();
+                WindowsApiHelper.SetLiveCaptionsLanguage(lang);
+                await WindowsApiHelper.StartLiveCaptionsAsync();
+                WindowsApiHelper.SetLiveCaptionsVisible(false);
+                _captionMonitor.Start();
+            }
+            catch (Exception ex) { Logger.Error("CaptionLangChange", ex); }
+        }
+        else
+        {
+            WindowsApiHelper.SetLiveCaptionsLanguage(lang);
+        }
+    }
+
+    private async Task HandleCaptionModeChangedAsync(bool enabled)
+    {
+        _userSettings.CaptionModeEnabled = enabled;
+        UserSettingsService.Save(_userSettings);
+        try
+        {
+            if (enabled)
+            {
+                var lang = Dispatcher.Invoke(() => _settings.SourceLang);
+                WindowsApiHelper.SetLiveCaptionsLanguage(lang);
+                await WindowsApiHelper.StartLiveCaptionsAsync();
+                WindowsApiHelper.SetLiveCaptionsVisible(false);
+                _captionMonitor.Start();
+            }
+            else
+            {
+                _captionMonitor.Stop();
+                WindowsApiHelper.StopLiveCaptions();
+            }
+        }
+        catch (Exception ex) { Logger.Error("CaptionMode", ex); }
     }
 
     private void ShutdownApp()
@@ -248,6 +313,7 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _settings.AllowClose();
+        _langOverlay.Close();
         if (_userSettings.CaptionModeEnabled)
             WindowsApiHelper.StopLiveCaptions();
         _hotkeyManager?.Dispose();

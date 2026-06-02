@@ -9,7 +9,7 @@ public sealed class OcrHttpClient
     private readonly HttpClient _http;
     private readonly string _ocrUrl;
 
-    public event Action<string>? OcrTextReceived;
+    public event Action<string, string>? OcrTextReceived;  // (normalizedText, rawText)
 
     public OcrHttpClient(string serverUrl) : this(serverUrl, _defaultHttp) { }
 
@@ -26,9 +26,11 @@ public sealed class OcrHttpClient
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-        var text = doc.RootElement.TryGetProperty("normalizedText", out var val)
-            ? val.GetString() : null;
-        if (!string.IsNullOrEmpty(text))
-            OcrTextReceived?.Invoke(text);
+        var normalized = doc.RootElement.TryGetProperty("normalizedText", out var nVal)
+            ? nVal.GetString() : null;
+        var raw = doc.RootElement.TryGetProperty("rawText", out var rVal)
+            ? rVal.GetString() ?? string.Empty : string.Empty;
+        if (!string.IsNullOrEmpty(normalized))
+            OcrTextReceived?.Invoke(normalized, raw);
     }
 }
