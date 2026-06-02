@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Navigation;
 using System.Windows.Threading;
 
-namespace AlctClient.Overlay;
+namespace AlctClient.Utils;
 
 public partial class HintIcon : System.Windows.Controls.UserControl
 {

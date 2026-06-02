@@ -1,0 +1,64 @@
+<Window x:Class="AlctClient.Views.Overlays.VoiceTranslationOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VoiceTranslationOverlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        SizeToContent="Height"
+        Width="500"
+        MinWidth="300" MaxWidth="700">
+
+    <Border x:Name="RootBorder"
+            Background="{StaticResource OverlayBgBrush}"
+            CornerRadius="{StaticResource CardRadius}"
+            BorderBrush="{StaticResource CardBorderAccentBrush}"
+            BorderThickness="1"
+            MouseLeftButtonDown="OnMouseLeftButtonDown">
+
+        <StackPanel>
+
+            <!-- Header -->
+            <StackPanel Orientation="Horizontal" Margin="12,9,12,9">
+                <Ellipse Width="7" Height="7"
+                         Fill="{StaticResource TextSuccessBrush}"
+                         VerticalAlignment="Center"
+                         Margin="0,0,7,0"/>
+                <TextBlock Text="음성 번역"
+                           Foreground="{StaticResource AccentBrush}"
+                           FontSize="11" FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Content -->
+            <Rectangle Height="1" Fill="{StaticResource BorderBrush}"/>
+            <StackPanel Margin="12,8,12,8">
+                <TextBlock x:Name="TranslatedText"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           FontSize="13"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="OriginalText"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="11"
+                           Margin="0,3,0,0"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- 편집 모드 안내 바 (기본 숨김) -->
+            <Border x:Name="EditModeBar"
+                    Visibility="Collapsed"
+                    Background="{StaticResource AccentBrush}"
+                    CornerRadius="0,0,8,8"
+                    Padding="0,5">
+                <TextBlock Text="← 좌우 가장자리를 드래그하여 너비 조절 · 나머지 영역을 드래그하여 이동"
+                           Foreground="White"
+                           FontSize="10"
+                           HorizontalAlignment="Center"/>
+            </Border>
+
+        </StackPanel>
+    </Border>
+</Window>

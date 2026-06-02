@@ -2,19 +2,19 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
 
-namespace AlctClient.Overlay;
+namespace AlctClient.Views.Overlays;
 
-public partial class LangOverlay : Window
+public partial class QuickSettingsOverlay : Window
 {
     public event Action<string>? LanguageChanged;
     public event Action<bool>? CaptionModeChanged;
 
-    private static readonly System.Windows.Media.Color BgColor = System.Windows.Media.Color.FromRgb(0x16, 0x14, 0x1F);
+    private static readonly WpfColor BgColor = WpfColor.FromRgb(0x16, 0x14, 0x1F);
     private double _opacity = 0.7;
     private bool _suppressEvents;
     private DispatcherTimer? _collapseTimer;
 
-    public LangOverlay()
+    public QuickSettingsOverlay()
     {
         InitializeComponent();
         Loaded += OnLoaded;
@@ -72,7 +72,7 @@ public partial class LangOverlay : Window
     }
 
     private void ApplyOpacity() =>
-        RootBorder.Background = new System.Windows.Media.SolidColorBrush(BgColor) { Opacity = _opacity };
+        RootBorder.Background = new WpfBrush(BgColor) { Opacity = _opacity };
 
     // ── 상태 초기화 ──
 

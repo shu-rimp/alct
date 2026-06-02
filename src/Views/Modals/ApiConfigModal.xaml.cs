@@ -1,12 +1,12 @@
 using System.Windows;
 
-namespace AlctClient.Overlay;
+namespace AlctClient.Views.Modals;
 
-public partial class ApiKeyDialog : Window
+public partial class ApiConfigModal : Window
 {
     public string ApiKey => ApiKeyBox.Password;
 
-    public ApiKeyDialog(string serviceName, string currentKey)
+    public ApiConfigModal(string serviceName, string currentKey)
     {
         InitializeComponent();
         DialogTitleText.Text = $"{serviceName} API 설정";

@@ -1,11 +1,11 @@
-using AlctClient.Utils;
+using AlctClient.Views.Modals;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 
-namespace AlctClient.Overlay;
+namespace AlctClient.Views.Windows;
 
 public partial class SettingsWindow : Window
 {
@@ -15,7 +15,7 @@ public partial class SettingsWindow : Window
     public event Action<bool>? TranslationEngineChanged;   // true = DeepL
     public event Action<int>? MonitorIndexChanged;
     public event Action<bool>? ShowLanguageOverlayChanged;
-    public event Action<double>? OverlayOpacityChanged;
+    public event Action? OverlayPositionEditRequested;
     public event Action? ChangeCaptureHotkeyRequested;
     public event Action? ChangeInputHotkeyRequested;
     public event Action? SetCaptureRegionRequested;
@@ -93,13 +93,6 @@ public partial class SettingsWindow : Window
 
     public void SetShowLanguageOverlay(bool show) => ShowLangOverlayToggle.IsChecked = show;
 
-    public void SetOverlayOpacity(double opacity)
-    {
-        var pct = (int)Math.Round(opacity * 100);
-        OpacitySlider.Value = pct;
-        OpacityValueText.Text = $"{pct}%";
-    }
-
     public void SetTranslationEngine(bool isDeepL)
     {
         if (isDeepL) RadioDeepL.IsChecked = true;
@@ -160,7 +153,7 @@ public partial class SettingsWindow : Window
 
     private void OnApiKeySettingClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new ApiKeyDialog("DeepL", _deepLApiKey) { Owner = this };
+        var dialog = new ApiConfigModal("DeepL", _deepLApiKey) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             _deepLApiKey = dialog.ApiKey;
@@ -174,12 +167,8 @@ public partial class SettingsWindow : Window
     private void OnShowLangOverlayChanged(object sender, RoutedEventArgs e)
         => ShowLanguageOverlayChanged?.Invoke(ShowLangOverlayToggle.IsChecked == true);
 
-    private void OnOverlayOpacityChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        var pct = (int)Math.Round(e.NewValue);
-        OpacityValueText.Text = $"{pct}%";
-        OverlayOpacityChanged?.Invoke(pct / 100.0);
-    }
+    private void OnOverlayEditRequested(object sender, RoutedEventArgs e)
+        => OverlayPositionEditRequested?.Invoke();
 
     private void OnChangeCaptureHotkey(object sender, RoutedEventArgs e)
         => ChangeCaptureHotkeyRequested?.Invoke();

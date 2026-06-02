@@ -40,20 +40,43 @@ C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 
 
 ## Project Structure
 ```
-alct-client/
-├── App.xaml / MainWindow.xaml(.cs)
-├── appsettings.json             # gitignored — ServerUrl, DeepLApiKey
-├── appsettings.example.json
-├── Core/
-│   ├── HotkeyManager.cs
-│   ├── ScreenCaptureService.cs
-│   ├── OcrHttpClient.cs
-│   └── TranslationService.cs   # ITranslationService + DeepLTranslationService
-├── Overlay/
-│   ├── TranslationOverlay.xaml
-│   └── SettingsWindow.xaml     # DeepL API 키 입력 포함
-└── Utils/
-    └── WindowsApiHelper.cs
+client/
+├── AlctClient.sln
+├── CLAUDE.md / README.md
+├── docs/                        # UI 스펙, 디자인 문서
+├── Tests/                       # xUnit 테스트
+├── src/                         # 소스 루트
+│   ├── AlctClient.csproj
+│   ├── App.xaml / MainWindow.xaml(.cs)
+│   ├── appsettings.json         # gitignored — ServerUrl, DeepLApiKey
+│   ├── appsettings.example.json
+│   ├── assets/                  # 아이콘, 이미지
+│   ├── Core/                    # 비즈니스 로직 + 도메인 모델
+│   │   ├── AppState.cs
+│   │   ├── CaptionMonitorService.cs
+│   │   ├── HotkeyManager.cs
+│   │   ├── OcrHttpClient.cs
+│   │   ├── ScreenCaptureService.cs
+│   │   ├── TranslationService.cs    # ITranslationService + DeepLTranslationService
+│   │   ├── UserSettings.cs          # 설정 모델
+│   │   └── UserSettingsService.cs   # 설정 저장/로드
+│   ├── Themes/
+│   │   └── Colors.xaml
+│   ├── Utils/                   # OS/플랫폼 헬퍼 + 재사용 UserControl
+│   │   ├── HintIcon.xaml
+│   │   ├── Logger.cs
+│   │   ├── TrayIconManager.cs
+│   │   └── WindowsApiHelper.cs
+│   └── Views/                   # WPF 창/오버레이/모달
+│       ├── Modals/              # 모달 창
+│       │   └── ApiConfigModal.xaml
+│       ├── Overlays/            # 화면 오버레이
+│       │   ├── ChatTranslationOverlay.xaml
+│       │   ├── EditPanelOverlay.xaml
+│       │   ├── QuickSettingsOverlay.xaml
+│       │   └── VoiceTranslationOverlay.xaml
+│       └── Windows/             # 일반 WPF 창
+│           └── SettingsWindow.xaml
 ```
 
 ## Code Style
