@@ -1,5 +1,6 @@
 using AlctClient.Core;
 using AlctClient.Utils;
+using AlctClient.Views.Modals;
 using System.Net.Http;
 using Clipboard = System.Windows.Clipboard;
 
@@ -23,8 +24,44 @@ public partial class MainWindow
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
         _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;
-        _hotkeyManager.Register(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_HOTKEY_VKEY);
-        _hotkeyManager.RegisterInputTranslation(DEFAULT_HOTKEY_MODIFIERS, DEFAULT_INPUT_HOTKEY_VKEY);
+        _hotkeyManager.Register(_userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey);
+        _hotkeyManager.RegisterInputTranslation(_userSettings.InputHotkeyModifiers, _userSettings.InputHotkeyVKey);
+
+        _settings.SetCaptureHotkeyLabel(HotkeyManager.FormatHotkey(_userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey));
+        _settings.SetInputHotkeyLabel(HotkeyManager.FormatHotkey(_userSettings.InputHotkeyModifiers, _userSettings.InputHotkeyVKey));
+    }
+
+    internal void RebindCaptureHotkey() => RebindHotkey(
+        "채팅창 번역",
+        _userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey,
+        _userSettings.InputHotkeyModifiers,   _userSettings.InputHotkeyVKey,
+        (mods, vkey) => { _userSettings.CaptureHotkeyModifiers = mods; _userSettings.CaptureHotkeyVKey = vkey; },
+        _settings.SetCaptureHotkeyLabel);
+
+    internal void RebindInputHotkey() => RebindHotkey(
+        "입력창 번역",
+        _userSettings.InputHotkeyModifiers,   _userSettings.InputHotkeyVKey,
+        _userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey,
+        (mods, vkey) => { _userSettings.InputHotkeyModifiers = mods; _userSettings.InputHotkeyVKey = vkey; },
+        _settings.SetInputHotkeyLabel);
+
+    private void RebindHotkey(
+        string title,
+        uint curMods, uint curVKey,
+        uint otherMods, uint otherVKey,
+        Action<uint, uint> applySettings,
+        Action<string> updateLabel)
+    {
+        _hotkeyManager?.Unregister();
+        var modal = new HotkeyRecorderModal(title, curMods, curVKey, otherMods, otherVKey) { Owner = _settings };
+        if (modal.ShowDialog() == true)
+        {
+            applySettings(modal.Modifiers, modal.VKey);
+            UserSettingsService.Save(_userSettings);
+            updateLabel(HotkeyManager.FormatHotkey(modal.Modifiers, modal.VKey));
+        }
+        _hotkeyManager?.Reregister(_userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey);
+        _hotkeyManager?.ReregisterInputTranslation(_userSettings.InputHotkeyModifiers, _userSettings.InputHotkeyVKey);
     }
 
     private void OnHotkeyPressed()

@@ -36,10 +36,43 @@ public sealed class HotkeyManager : IDisposable
     public bool RegisterInputTranslation(uint modifiers, uint virtualKey) =>
         RegisterHotKey(_hwnd, INPUT_TRANSLATION_HOTKEY_ID, modifiers, virtualKey);
 
+    public bool Reregister(uint modifiers, uint virtualKey)
+    {
+        UnregisterHotKey(_hwnd, HOTKEY_ID);
+        return RegisterHotKey(_hwnd, HOTKEY_ID, modifiers, virtualKey);
+    }
+
+    public bool ReregisterInputTranslation(uint modifiers, uint virtualKey)
+    {
+        UnregisterHotKey(_hwnd, INPUT_TRANSLATION_HOTKEY_ID);
+        return RegisterHotKey(_hwnd, INPUT_TRANSLATION_HOTKEY_ID, modifiers, virtualKey);
+    }
+
     public void Unregister()
     {
         UnregisterHotKey(_hwnd, HOTKEY_ID);
         UnregisterHotKey(_hwnd, INPUT_TRANSLATION_HOTKEY_ID);
+    }
+
+    public static string FormatHotkey(uint modifiers, uint vkey)
+    {
+        var parts = new List<string>();
+        if ((modifiers & (uint)HotkeyModifiers.Ctrl)  != 0) parts.Add("Ctrl");
+        if ((modifiers & (uint)HotkeyModifiers.Alt)   != 0) parts.Add("Alt");
+        if ((modifiers & (uint)HotkeyModifiers.Shift) != 0) parts.Add("Shift");
+        if ((modifiers & (uint)HotkeyModifiers.Win)   != 0) parts.Add("Win");
+        if (vkey != 0) parts.Add(VkeyToDisplayString(vkey));
+        return string.Join(" + ", parts);
+    }
+
+    private static string VkeyToDisplayString(uint vkey)
+    {
+        var key = (System.Windows.Forms.Keys)vkey;
+        var str = key.ToString();
+        // "D0"~"D9" → "0"~"9"
+        if (str.Length == 2 && str[0] == 'D' && char.IsDigit(str[1]))
+            return str[1..];
+        return str;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
