@@ -104,6 +104,7 @@ public partial class MainWindow : Window
         _voiceOverlay.Close();
         _editPanel.Close();
         _captureRegionOverlay.Close();
+        StopLiveCaptionsWatcher();
         if (_userSettings.CaptionModeEnabled)
             WindowsApiHelper.StopLiveCaptions();
         _hotkeyManager?.Dispose();

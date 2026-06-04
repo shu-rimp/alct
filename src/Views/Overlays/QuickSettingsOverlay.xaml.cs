@@ -10,6 +10,8 @@ public partial class QuickSettingsOverlay : Window
     public event Action<string>? LanguageChanged;
     public event Action<bool>? CaptionModeChanged;
 
+    private const double CollapsedSize = 38; // circle(28) + padding(4*2) + border(1*2)
+
     private static readonly WpfColor BgColor = WpfColor.FromRgb(0x16, 0x14, 0x1F);
     private double _opacity = 0.7;
     private bool _suppressEvents;
@@ -32,6 +34,15 @@ public partial class QuickSettingsOverlay : Window
         Left = screen.Bounds.Left + 20;
         Top  = screen.Bounds.Top  + 30;
         ApplyOpacity();
+        CollapsePanel();
+    }
+
+    private void CollapsePanel()
+    {
+        ExpandedPanel.Visibility = Visibility.Collapsed;
+        SizeToContent = SizeToContent.Manual;
+        Width  = CollapsedSize;
+        Height = CollapsedSize;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -56,6 +67,7 @@ public partial class QuickSettingsOverlay : Window
     {
         _collapseTimer?.Stop();
         ExpandedPanel.Visibility = Visibility.Visible;
+        SizeToContent = SizeToContent.WidthAndHeight;
     }
 
     private void OnMouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
@@ -64,8 +76,7 @@ public partial class QuickSettingsOverlay : Window
         _collapseTimer.Tick += (_, _) =>
         {
             _collapseTimer.Stop();
-            if (!IsMouseOver)
-                ExpandedPanel.Visibility = Visibility.Collapsed;
+            if (!IsMouseOver) CollapsePanel();
         };
         _collapseTimer.Start();
     }

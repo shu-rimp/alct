@@ -1,6 +1,7 @@
 using AlctClient.Core;
 using AlctClient.Utils;
 using System.Diagnostics;
+using System.Management;
 
 namespace AlctClient;
 
@@ -8,6 +9,7 @@ public partial class MainWindow
 {
     private readonly CaptionMonitorService _captionMonitor = new();
     private readonly SemaphoreSlim _captionLock = new(1, 1);
+    private ManagementEventWatcher? _liveCaptionsWatcher;
 
     private void InitOcrCaption()
     {
@@ -32,6 +34,48 @@ public partial class MainWindow
             }
             catch (Exception ex) { Logger.Error("CaptionTranslation", ex); }
         };
+    }
+
+    private void StartLiveCaptionsWatcher()
+    {
+        StopLiveCaptionsWatcher();
+        var query = new WqlEventQuery(
+            "SELECT * FROM __InstanceDeletionEvent WITHIN 1 " +
+            "WHERE TargetInstance ISA 'Win32_Process' " +
+            "AND TargetInstance.Name = 'LiveCaptions.exe'");
+        _liveCaptionsWatcher = new ManagementEventWatcher(query);
+        _liveCaptionsWatcher.EventArrived += OnLiveCaptionsProcessExited;
+        _liveCaptionsWatcher.Start();
+    }
+
+    internal void StopLiveCaptionsWatcher()
+    {
+        if (_liveCaptionsWatcher is null) return;
+        _liveCaptionsWatcher.Stop();
+        _liveCaptionsWatcher.Dispose();
+        _liveCaptionsWatcher = null;
+    }
+
+    private async void OnLiveCaptionsProcessExited(object sender, EventArrivedEventArgs e)
+    {
+        if (!_userSettings.CaptionModeEnabled) return;
+        if (!await _captionLock.WaitAsync(0)) return;
+        try
+        {
+            _captionMonitor.Stop();
+            WindowsApiHelper.SetLiveCaptionsLanguage(_userSettings.SourceLang);
+            await WindowsApiHelper.StartLiveCaptionsAsync();
+            await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();
+            if (!_userSettings.CaptionModeEnabled)
+            {
+                WindowsApiHelper.StopLiveCaptions();
+                return;
+            }
+            WindowsApiHelper.SetLiveCaptionsVisible(false);
+            _captionMonitor.Start();
+        }
+        catch (Exception ex) { Logger.Error("LiveCaptionsRestart", ex); }
+        finally { _captionLock.Release(); }
     }
 
     private async Task HandleSourceLangChangedAsync(string lang)
@@ -77,9 +121,11 @@ public partial class MainWindow
                 await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();
                 WindowsApiHelper.SetLiveCaptionsVisible(false);
                 _captionMonitor.Start();
+                StartLiveCaptionsWatcher();
             }
             else
             {
+                StopLiveCaptionsWatcher();
                 _captionMonitor.Stop();
                 WindowsApiHelper.StopLiveCaptions();
             }
@@ -101,6 +147,7 @@ public partial class MainWindow
             await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();
             WindowsApiHelper.SetLiveCaptionsVisible(false);
             _captionMonitor.Start();
+            StartLiveCaptionsWatcher();
         }
         catch (Exception ex) { Logger.Error("CaptionModeInit", ex); }
         finally { _captionLock.Release(); }
