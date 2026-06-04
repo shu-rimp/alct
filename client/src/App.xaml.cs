@@ -21,6 +21,7 @@ public partial class App : Application
         if (!createdNew)
         {
             _mutex.Dispose();
+            _mutex = null;
             Shutdown();
             return;
         }

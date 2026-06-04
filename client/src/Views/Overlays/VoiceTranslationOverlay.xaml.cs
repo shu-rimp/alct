@@ -1,3 +1,4 @@
+using AlctClient.Utils;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -24,6 +25,8 @@ public partial class VoiceTranslationOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        WindowsApiHelper.ExcludeFromCapture(this);
+        if (!_isEditMode) WindowsApiHelper.EnableClickThrough(this);
         ApplyOpacity();
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowHook);
     }
@@ -92,6 +95,7 @@ public partial class VoiceTranslationOverlay : Window
                 _isPlaceholder = true;
             }
             Show();
+            WindowsApiHelper.DisableClickThrough(this);
         }
         else
         {
@@ -101,6 +105,7 @@ public partial class VoiceTranslationOverlay : Window
                 OriginalText.Text   = string.Empty;
                 _isPlaceholder = false;
             }
+            WindowsApiHelper.EnableClickThrough(this);
             if (!_hasContent) Hide();
         }
     }

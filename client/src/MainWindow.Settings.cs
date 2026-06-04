@@ -61,6 +61,17 @@ public partial class MainWindow
         };
 
         _settings.OverlayPositionEditRequested += () => EnterEditMode();
+        _settings.SetCaptureRegionRequested    += () => EnterCaptureRegionEditMode();
+
+        _settings.CaptureRegionModeChanged += isCustom =>
+        {
+            if (!isCustom)
+            {
+                _userSettings.UseCustomCaptureRegion = false;
+                _screenCapture.SetCaptureRegion(ScreenCaptureService.GetDefaultCaptureRegion());
+                UserSettingsService.Save(_userSettings);
+            }
+        };
 
         _settings.DeepLApiKeyChanged += key =>
         {

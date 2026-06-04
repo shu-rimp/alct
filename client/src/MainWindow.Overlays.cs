@@ -1,11 +1,14 @@
 using AlctClient.Core;
+using AlctClient.Utils;
 using AlctClient.Views.Overlays;
+using System.Drawing;
 
 namespace AlctClient;
 
 public partial class MainWindow
 {
     private readonly EditPanelOverlay _editPanel = new();
+    private readonly CaptureRegionOverlay _captureRegionOverlay = new();
 
     // 편집 모드 진입 시 복원용 스냅샷
     private double _snapVoiceLeft, _snapVoiceTop, _snapVoiceWidth;
@@ -35,6 +38,36 @@ public partial class MainWindow
         };
         _editPanel.SaveRequested   += () => ExitEditMode(save: true);
         _editPanel.CancelRequested += () => ExitEditMode(save: false);
+
+        _captureRegionOverlay.SaveRequested += region =>
+        {
+            _userSettings.CustomCaptureX      = region.X;
+            _userSettings.CustomCaptureY      = region.Y;
+            _userSettings.CustomCaptureWidth  = region.Width;
+            _userSettings.CustomCaptureHeight = region.Height;
+            _userSettings.UseCustomCaptureRegion = true;
+            _screenCapture.SetCaptureRegion(region);
+            UserSettingsService.Save(_userSettings);
+            _settings.Show();
+            _settings.Activate();
+        };
+        _captureRegionOverlay.CancelRequested += () =>
+        {
+            _settings.Show();
+            _settings.Activate();
+        };
+    }
+
+    private void EnterCaptureRegionEditMode()
+    {
+        var current = _userSettings.UseCustomCaptureRegion && _userSettings.CustomCaptureWidth > 0
+            ? new Rectangle(_userSettings.CustomCaptureX, _userSettings.CustomCaptureY,
+                            _userSettings.CustomCaptureWidth, _userSettings.CustomCaptureHeight)
+            : ScreenCaptureService.GetDefaultCaptureRegion();
+
+        _captureRegionOverlay.LoadRegion(current);
+        _captureRegionOverlay.Show();
+        _settings.Hide();
     }
 
     private void EnterEditMode()

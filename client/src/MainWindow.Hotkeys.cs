@@ -8,11 +8,16 @@ namespace AlctClient;
 public partial class MainWindow
 {
     private HotkeyManager? _hotkeyManager;
-    private readonly ScreenCaptureService _screenCapture = new();
+    private ScreenCaptureService _screenCapture = new();
     private readonly SemaphoreSlim _ocrLock = new(1, 1);
 
     private void InitHotkeys()
     {
+        if (_userSettings.UseCustomCaptureRegion && _userSettings.CustomCaptureWidth > 0)
+            _screenCapture.SetCaptureRegion(new System.Drawing.Rectangle(
+                _userSettings.CustomCaptureX, _userSettings.CustomCaptureY,
+                _userSettings.CustomCaptureWidth, _userSettings.CustomCaptureHeight));
+
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
         _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;

@@ -6,12 +6,26 @@ namespace AlctClient.Core;
 
 public class ScreenCaptureService
 {
-    // Apex Legends chat area on 1920x1080
-    private static readonly Rectangle DEFAULT_CAPTURE_REGION = new(50, 513, 600, 167);
+    // Apex Legends chat area on 1920x1080 — base reference for proportional scaling
+    private static readonly Rectangle FHD_CAPTURE_REGION = new(50, 513, 600, 167);
 
-    private readonly Rectangle _captureRegion;
+    private Rectangle _captureRegion;
 
-    public ScreenCaptureService() : this(DEFAULT_CAPTURE_REGION) { }
+    public ScreenCaptureService() : this(GetDefaultCaptureRegion()) { }
+
+    public void SetCaptureRegion(Rectangle region) => _captureRegion = region;
+
+    public static Rectangle GetDefaultCaptureRegion()
+    {
+        var screen = System.Windows.Forms.Screen.PrimaryScreen!.Bounds;
+        double sx = (double)screen.Width / 1920;
+        double sy = (double)screen.Height / 1080;
+        return new Rectangle(
+            (int)Math.Round(FHD_CAPTURE_REGION.X * sx),
+            (int)Math.Round(FHD_CAPTURE_REGION.Y * sy),
+            (int)Math.Round(FHD_CAPTURE_REGION.Width * sx),
+            (int)Math.Round(FHD_CAPTURE_REGION.Height * sy));
+    }
 
     public ScreenCaptureService(Rectangle captureRegion)
     {

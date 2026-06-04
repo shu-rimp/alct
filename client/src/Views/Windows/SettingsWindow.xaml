@@ -430,10 +430,10 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="실시간 보이스 채팅 번역"
+                                    <TextBlock Text="실시간 음성 채팅 번역"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock Text="인게임 보이스를 실시간으로 번역합니다. (Windows11 필수)"
+                                    <TextBlock Text="인게임 음성 채팅을 실시간으로 번역합니다. (*Windows11 필수)"
                                                Foreground="{StaticResource TextMutedBrush}"
                                                FontSize="12" Margin="0,3,0,0"/>
                                 </StackPanel>
@@ -530,7 +530,8 @@
                                    FontSize="12" FontWeight="SemiBold"
                                    Margin="0,0,0,10"/>
 
-                        <RadioButton x:Name="RadioCaptureAuto" GroupName="CaptureRegion" IsChecked="True">
+                        <RadioButton x:Name="RadioCaptureAuto" GroupName="CaptureRegion" IsChecked="True"
+                                     Checked="OnCaptureRegionModeChanged">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="자동 (16:9 기준)" FontSize="14"
                                            Foreground="{StaticResource TextPrimaryBrush}"
@@ -545,12 +546,14 @@
                         </RadioButton>
 
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <RadioButton x:Name="RadioCaptureCustom" GroupName="CaptureRegion" VerticalAlignment="Center">
+                            <RadioButton x:Name="RadioCaptureCustom" GroupName="CaptureRegion" VerticalAlignment="Center"
+                                         Checked="OnCaptureRegionModeChanged">
                                 <TextBlock Text="직접 지정" FontSize="14"
                                            Foreground="{StaticResource TextPrimaryBrush}"/>
                             </RadioButton>
                             <Button Content="영역 설정"
                                     Style="{StaticResource SmallButton}"
+                                    IsEnabled="{Binding IsChecked, ElementName=RadioCaptureCustom}"
                                     Margin="8,0,0,0" VerticalAlignment="Center"
                                     Click="OnSetCaptureRegion"/>
                         </StackPanel>
@@ -582,10 +585,10 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="빠른 언어 변경 오버레이"
+                                    <TextBlock Text="빠른 설정 오버레이"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock Text="게임 내 화면에 번역 언어를 변경할 수 있는 버튼을 표시합니다."
+                                    <TextBlock Text="화면 왼쪽 상단에 번역 언어 및 음성 번역 사용 여부를 변경할 수 있는 버튼을 표시합니다."
                                                Foreground="{StaticResource TextMutedBrush}"
                                                FontSize="12" TextWrapping="Wrap"
                                                Margin="0,3,0,0"/>

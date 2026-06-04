@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
     public event Action? ChangeCaptureHotkeyRequested;
     public event Action? ChangeInputHotkeyRequested;
     public event Action? SetCaptureRegionRequested;
+    public event Action<bool>? CaptureRegionModeChanged; // true = 직접 지정
 
     private bool _allowClose;
     private string _deepLApiKey = string.Empty;
@@ -92,6 +93,12 @@ public partial class SettingsWindow : Window
     public void SetCaptionMode(bool enabled) => CaptionMonitorToggle.IsChecked = enabled;
 
     public void SetShowLanguageOverlay(bool show) => ShowLangOverlayToggle.IsChecked = show;
+
+    public void SetCaptureRegionMode(bool isCustom)
+    {
+        if (isCustom) RadioCaptureCustom.IsChecked = true;
+        else RadioCaptureAuto.IsChecked = true;
+    }
 
     public void SetTranslationEngine(bool isDeepL)
     {
@@ -178,6 +185,9 @@ public partial class SettingsWindow : Window
 
     private void OnSetCaptureRegion(object sender, RoutedEventArgs e)
         => SetCaptureRegionRequested?.Invoke();
+
+    private void OnCaptureRegionModeChanged(object sender, RoutedEventArgs e)
+        => CaptureRegionModeChanged?.Invoke(RadioCaptureCustom.IsChecked == true);
 
     // 커스텀 X 버튼: 트레이로 숨김
     private void OnClose(object sender, RoutedEventArgs e) => Hide();
