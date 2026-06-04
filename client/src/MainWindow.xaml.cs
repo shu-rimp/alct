@@ -52,6 +52,7 @@ public partial class MainWindow : Window
         InitOverlays();
         InitOcrCaption();
         InitHotkeys();
+        _settings.SetMonitorIndex(_userSettings.MonitorIndex);
         if (_userSettings.CaptionModeEnabled)
             _ = InitCaptionModeAsync();
     }

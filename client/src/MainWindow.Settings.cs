@@ -68,9 +68,20 @@ public partial class MainWindow
             if (!isCustom)
             {
                 _userSettings.UseCustomCaptureRegion = false;
-                _screenCapture.SetCaptureRegion(ScreenCaptureService.GetDefaultCaptureRegion());
+                _screenCapture.SetCaptureRegion(ScreenCaptureService.GetDefaultCaptureRegion(GetSelectedScreen()));
                 UserSettingsService.Save(_userSettings);
             }
+        };
+
+        _settings.MonitorIndexChanged += index =>
+        {
+            var oldScreen = GetSelectedScreen();
+            _userSettings.MonitorIndex = index;
+            var newScreen = GetSelectedScreen();
+            TranslateAllOverlaysToMonitor(oldScreen, newScreen);
+            UpdateCaptureRegionForMonitor(oldScreen, newScreen);
+            SaveOverlayPositions();
+            UserSettingsService.Save(_userSettings);
         };
 
         _settings.DeepLApiKeyChanged += key =>

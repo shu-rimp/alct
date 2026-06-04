@@ -53,7 +53,11 @@
 
         <!-- 하단 크기 표시 + 버튼 + 가이드 바 -->
         <StackPanel VerticalAlignment="Bottom">
-            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,8">
+            <Border Background="#CC8B7CF8" Padding="0,5" IsHitTestVisible="False">
+                <TextBlock Text="상하좌우 가장자리를 드래그하여 크기 조절"
+                           Foreground="White" FontSize="10" HorizontalAlignment="Center"/>
+            </Border>
+            <StackPanel HorizontalAlignment="Center" Margin="0,8,0,8">
                 <TextBlock x:Name="SizeLabel"
                            Foreground="White" FontSize="11" FontFamily="Consolas"
                            HorizontalAlignment="Center" Margin="0,0,0,5">
@@ -73,10 +77,6 @@
                             Click="OnSave"/>
                 </StackPanel>
             </StackPanel>
-            <Border Background="#CC8B7CF8" Padding="0,5" IsHitTestVisible="False">
-                <TextBlock Text="상하좌우 가장자리를 드래그하여 크기 조절"
-                           Foreground="White" FontSize="10" HorizontalAlignment="Center"/>
-            </Border>
         </StackPanel>
 
     </Grid>
