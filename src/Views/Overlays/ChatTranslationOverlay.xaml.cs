@@ -79,6 +79,12 @@ public partial class ChatTranslationOverlay : Window
         Top  = 80;
     }
 
+    public void MoveToMonitor(System.Windows.Forms.Screen screen)
+    {
+        Left = screen.Bounds.Right - Width - 20;
+        Top  = screen.Bounds.Top  + 80;
+    }
+
     public void LoadBounds(double left, double top, double width)
     {
         Width = width;

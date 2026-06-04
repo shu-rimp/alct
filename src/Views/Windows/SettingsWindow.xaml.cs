@@ -22,6 +22,7 @@ public partial class SettingsWindow : Window
     public event Action<bool>? CaptureRegionModeChanged; // true = 직접 지정
 
     private bool _allowClose;
+    private bool _suppressMonitorEvent;
     private string _deepLApiKey = string.Empty;
 
     public string SourceLang
@@ -93,6 +94,14 @@ public partial class SettingsWindow : Window
     public void SetCaptionMode(bool enabled) => CaptionMonitorToggle.IsChecked = enabled;
 
     public void SetShowLanguageOverlay(bool show) => ShowLangOverlayToggle.IsChecked = show;
+
+    public void SetMonitorIndex(int index)
+    {
+        _suppressMonitorEvent = true;
+        if (index >= 0 && index < MonitorCombo.Items.Count)
+            MonitorCombo.SelectedIndex = index;
+        _suppressMonitorEvent = false;
+    }
 
     public void SetCaptureRegionMode(bool isCustom)
     {
@@ -169,7 +178,10 @@ public partial class SettingsWindow : Window
     }
 
     private void OnMonitorChanged(object sender, SelectionChangedEventArgs e)
-        => MonitorIndexChanged?.Invoke(MonitorCombo.SelectedIndex);
+    {
+        if (_suppressMonitorEvent) return;
+        MonitorIndexChanged?.Invoke(MonitorCombo.SelectedIndex);
+    }
 
     private void OnShowLangOverlayChanged(object sender, RoutedEventArgs e)
         => ShowLanguageOverlayChanged?.Invoke(ShowLangOverlayToggle.IsChecked == true);

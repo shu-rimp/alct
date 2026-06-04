@@ -22,11 +22,10 @@ public partial class CaptureRegionOverlay : Window
                 ?.AddHook(ResizeHook);
     }
 
-    public void LoadRegion(Rectangle region)
+    public void LoadRegion(Rectangle region, System.Windows.Forms.Screen screen)
     {
-        var screen = System.Windows.Forms.Screen.PrimaryScreen!.Bounds;
-        MaxWidth  = screen.Width  * MAX_WIDTH_RATIO;
-        MaxHeight = screen.Height * MAX_HEIGHT_RATIO;
+        MaxWidth  = screen.Bounds.Width  * MAX_WIDTH_RATIO;
+        MaxHeight = screen.Bounds.Height * MAX_HEIGHT_RATIO;
 
         Left   = region.X;
         Top    = region.Y;

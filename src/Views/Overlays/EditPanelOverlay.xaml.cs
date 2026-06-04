@@ -35,6 +35,12 @@ public partial class EditPanelOverlay : Window
         Top  =  SystemParameters.PrimaryScreenHeight - ActualHeight - 60;
     }
 
+    public void MoveToMonitor(System.Windows.Forms.Screen screen)
+    {
+        Left = screen.Bounds.Left + (screen.Bounds.Width  - ActualWidth)  / 2;
+        Top  = screen.Bounds.Bottom - ActualHeight - 60;
+    }
+
     public void SetOpacity(double opacity)
     {
         var pct = (int)Math.Round(opacity * 100);

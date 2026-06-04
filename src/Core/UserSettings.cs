@@ -15,6 +15,8 @@ public class UserSettings
     public double TextOverlayTop    { get; set; } = 80;
     public double TextOverlayWidth  { get; set; } = 280;
 
+    public int MonitorIndex { get; set; } = 0;
+
     public bool UseCustomCaptureRegion { get; set; } = false;
     public int CustomCaptureX      { get; set; } = 0;
     public int CustomCaptureY      { get; set; } = 0;

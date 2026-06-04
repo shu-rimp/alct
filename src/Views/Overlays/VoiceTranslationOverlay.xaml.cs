@@ -68,6 +68,12 @@ public partial class VoiceTranslationOverlay : Window
         Top = 30;
     }
 
+    public void MoveToMonitor(System.Windows.Forms.Screen screen)
+    {
+        Left = screen.Bounds.Left + (screen.Bounds.Width - Width) / 2;
+        Top  = screen.Bounds.Top  + 30;
+    }
+
     public void LoadBounds(double left, double top, double width)
     {
         Width = width;

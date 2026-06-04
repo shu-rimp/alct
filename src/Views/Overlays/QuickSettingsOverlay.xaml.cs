@@ -14,6 +14,7 @@ public partial class QuickSettingsOverlay : Window
     private double _opacity = 0.7;
     private bool _suppressEvents;
     private DispatcherTimer? _collapseTimer;
+    private System.Windows.Forms.Screen? _initialScreen;
 
     public QuickSettingsOverlay()
     {
@@ -21,11 +22,15 @@ public partial class QuickSettingsOverlay : Window
         Loaded += OnLoaded;
     }
 
+    public void SetInitialScreen(System.Windows.Forms.Screen screen)
+        => _initialScreen = screen;
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         WindowsApiHelper.ExcludeFromCapture(this);
-        Left = 20;
-        Top = 30;
+        var screen = _initialScreen ?? System.Windows.Forms.Screen.PrimaryScreen!;
+        Left = screen.Bounds.Left + 20;
+        Top  = screen.Bounds.Top  + 30;
         ApplyOpacity();
     }
 
@@ -66,6 +71,12 @@ public partial class QuickSettingsOverlay : Window
     }
 
     // ── 투명도 ──
+
+    public void MoveToMonitor(System.Windows.Forms.Screen screen)
+    {
+        Left = screen.Bounds.Left + 20;
+        Top  = screen.Bounds.Top  + 30;
+    }
 
     public void SetOpacity(double opacity)
     {

@@ -16,14 +16,16 @@ public class ScreenCaptureService
     public void SetCaptureRegion(Rectangle region) => _captureRegion = region;
 
     public static Rectangle GetDefaultCaptureRegion()
+        => GetDefaultCaptureRegion(System.Windows.Forms.Screen.PrimaryScreen!);
+
+    public static Rectangle GetDefaultCaptureRegion(System.Windows.Forms.Screen screen)
     {
-        var screen = System.Windows.Forms.Screen.PrimaryScreen!.Bounds;
-        double sx = (double)screen.Width / 1920;
-        double sy = (double)screen.Height / 1080;
+        double sx = (double)screen.Bounds.Width  / 1920;
+        double sy = (double)screen.Bounds.Height / 1080;
         return new Rectangle(
-            (int)Math.Round(FHD_CAPTURE_REGION.X * sx),
-            (int)Math.Round(FHD_CAPTURE_REGION.Y * sy),
-            (int)Math.Round(FHD_CAPTURE_REGION.Width * sx),
+            screen.Bounds.X + (int)Math.Round(FHD_CAPTURE_REGION.X * sx),
+            screen.Bounds.Y + (int)Math.Round(FHD_CAPTURE_REGION.Y * sy),
+            (int)Math.Round(FHD_CAPTURE_REGION.Width  * sx),
             (int)Math.Round(FHD_CAPTURE_REGION.Height * sy));
     }
 

@@ -17,6 +17,8 @@ public partial class MainWindow
             _screenCapture.SetCaptureRegion(new System.Drawing.Rectangle(
                 _userSettings.CustomCaptureX, _userSettings.CustomCaptureY,
                 _userSettings.CustomCaptureWidth, _userSettings.CustomCaptureHeight));
+        else
+            _screenCapture.SetCaptureRegion(ScreenCaptureService.GetDefaultCaptureRegion(GetSelectedScreen()));
 
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
@@ -33,7 +35,7 @@ public partial class MainWindow
             try
             {
                 var imageBytes = _screenCapture.CaptureRegionAsPng();
-                // SaveDebugCapture(imageBytes);
+                // SaveDebugCapture(imageBytes); 실제 캡쳐이미지 확인(디버그용)
                 await _ocrClient.SendImageAsync(imageBytes);
             }
             catch (HttpRequestException ex) { Logger.Error("OcrRequest", ex); }
