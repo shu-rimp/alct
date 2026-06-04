@@ -48,6 +48,7 @@ public partial class MainWindow
                 await WindowsApiHelper.StopLiveCaptionsAsync();
                 WindowsApiHelper.SetLiveCaptionsLanguage(lang);
                 await WindowsApiHelper.StartLiveCaptionsAsync();
+                await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();
                 WindowsApiHelper.SetLiveCaptionsVisible(false);
                 _captionMonitor.Start();
             }
@@ -73,6 +74,7 @@ public partial class MainWindow
                 var lang = Dispatcher.Invoke(() => _settings.SourceLang);
                 WindowsApiHelper.SetLiveCaptionsLanguage(lang);
                 await WindowsApiHelper.StartLiveCaptionsAsync();
+                await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();
                 WindowsApiHelper.SetLiveCaptionsVisible(false);
                 _captionMonitor.Start();
             }
@@ -96,6 +98,7 @@ public partial class MainWindow
                 await WindowsApiHelper.StopLiveCaptionsAsync();
             WindowsApiHelper.SetLiveCaptionsLanguage(_userSettings.SourceLang);
             await WindowsApiHelper.StartLiveCaptionsAsync();
+            await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();
             WindowsApiHelper.SetLiveCaptionsVisible(false);
             _captionMonitor.Start();
         }

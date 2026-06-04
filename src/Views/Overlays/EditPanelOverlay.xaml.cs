@@ -1,3 +1,4 @@
+using AlctClient.Utils;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -17,6 +18,7 @@ public partial class EditPanelOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        WindowsApiHelper.ExcludeFromCapture(this);
         SnapToPosition();
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(NoActivateHook);
     }

@@ -1,3 +1,4 @@
+using AlctClient.Utils;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -22,6 +23,7 @@ public partial class QuickSettingsOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        WindowsApiHelper.ExcludeFromCapture(this);
         Left = 20;
         Top = 30;
         ApplyOpacity();

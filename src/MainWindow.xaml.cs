@@ -36,6 +36,7 @@ public partial class MainWindow : Window
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
         _settings.SetTranslationEngine(translationEngine == "DeepL");
         _settings.SetShowLanguageOverlay(_userSettings.ShowLanguageOverlay);
+        _settings.SetCaptureRegionMode(_userSettings.UseCustomCaptureRegion);
 
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -43,7 +44,8 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        WindowsApiHelper.SetLiveCaptionsVisible(true);
+        if (_userSettings.CaptionModeEnabled)
+            WindowsApiHelper.SetLiveCaptionsVisible(true);
         _settings.Show();
         InitTray();
         InitSettings();
@@ -100,6 +102,7 @@ public partial class MainWindow : Window
         _langOverlay.Close();
         _voiceOverlay.Close();
         _editPanel.Close();
+        _captureRegionOverlay.Close();
         if (_userSettings.CaptionModeEnabled)
             WindowsApiHelper.StopLiveCaptions();
         _hotkeyManager?.Dispose();

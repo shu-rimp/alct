@@ -56,6 +56,14 @@ public static class WindowsApiHelper
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+
+    private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+
+    public static void ExcludeFromCapture(Window window)
+        => SetWindowDisplayAffinity(GetWindowHandle(window), WDA_EXCLUDEFROMCAPTURE);
+
     public static void SimulateCopy() => SendCtrlKey(VK_C);
     public static void SimulatePaste() => SendCtrlKey(VK_V);
 
@@ -189,6 +197,16 @@ public static class WindowsApiHelper
         {
             await Task.Delay(500);
             if (Process.GetProcessesByName("LiveCaptions").Length > 0) break;
+        }
+    }
+
+    public static async Task WaitForLiveCaptionsWindowAsync(int timeoutMs = 5000)
+    {
+        var deadline = DateTime.Now.AddMilliseconds(timeoutMs);
+        while (DateTime.Now < deadline)
+        {
+            if (FindLiveCaptionsHandle(requireVisible: true) != IntPtr.Zero) return;
+            await Task.Delay(200);
         }
     }
 
