@@ -11,10 +11,6 @@ namespace AlctClient;
 
 public partial class MainWindow : Window
 {
-    private const uint DEFAULT_HOTKEY_MODIFIERS = (uint)HotkeyModifiers.Ctrl;
-    private const uint DEFAULT_HOTKEY_VKEY = 0x54;        // T — 화면 캡처 번역
-    private const uint DEFAULT_INPUT_HOTKEY_VKEY = 0x47;  // G — 선택 텍스트 번역
-
     private readonly ChatTranslationOverlay _overlay = new();
     private readonly VoiceTranslationOverlay _voiceOverlay = new();
     private readonly QuickSettingsOverlay _langOverlay = new();

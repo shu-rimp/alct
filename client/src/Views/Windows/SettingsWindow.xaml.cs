@@ -109,6 +109,9 @@ public partial class SettingsWindow : Window
         else RadioCaptureAuto.IsChecked = true;
     }
 
+    public void SetCaptureHotkeyLabel(string text) => CaptureHotkeyLabel.Text = text;
+    public void SetInputHotkeyLabel(string text)   => InputHotkeyLabel.Text   = text;
+
     public void SetTranslationEngine(bool isDeepL)
     {
         if (isDeepL) RadioDeepL.IsChecked = true;

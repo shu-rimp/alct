@@ -22,4 +22,9 @@ public class UserSettings
     public int CustomCaptureY      { get; set; } = 0;
     public int CustomCaptureWidth  { get; set; } = 0;
     public int CustomCaptureHeight { get; set; } = 0;
+
+    public uint CaptureHotkeyModifiers { get; set; } = (uint)HotkeyModifiers.Ctrl;
+    public uint CaptureHotkeyVKey      { get; set; } = 0x54; // T
+    public uint InputHotkeyModifiers   { get; set; } = (uint)HotkeyModifiers.Ctrl;
+    public uint InputHotkeyVKey        { get; set; } = 0x47; // G
 }

@@ -60,6 +60,9 @@ public partial class MainWindow
             UserSettingsService.Save(_userSettings);
         };
 
+        _settings.ChangeCaptureHotkeyRequested += RebindCaptureHotkey;
+        _settings.ChangeInputHotkeyRequested   += RebindInputHotkey;
+
         _settings.OverlayPositionEditRequested += () => EnterEditMode();
         _settings.SetCaptureRegionRequested    += () => EnterCaptureRegionEditMode();
 
