@@ -27,6 +27,9 @@
 
   <ItemGroup>
     <Resource Include="assets\alct-wordmark.png"/>
+    <Content Include="assets\livecaptions-install.mp4" Condition="Exists('assets\livecaptions-install.mp4')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="assets\alct.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

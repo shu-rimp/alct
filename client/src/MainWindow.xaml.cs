@@ -42,12 +42,13 @@ public partial class MainWindow : Window
     {
         if (_userSettings.CaptionModeEnabled)
             WindowsApiHelper.SetLiveCaptionsVisible(true);
-        _settings.Show();
-        InitTray();
         InitSettings();
         InitOverlays();
         InitOcrCaption();
+        RunOnboardingIfNeeded();
+        InitTray();
         InitHotkeys();
+        _settings.Show();
         _settings.SetMonitorIndex(_userSettings.MonitorIndex);
         if (_userSettings.CaptionModeEnabled)
             _ = InitCaptionModeAsync();

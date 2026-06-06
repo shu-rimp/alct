@@ -24,7 +24,7 @@ public partial class MainWindow
         _langOverlay.SetLanguage(_userSettings.SourceLang);
         _langOverlay.SetCaptionMode(_userSettings.CaptionModeEnabled);
         _langOverlay.SetOpacity(_userSettings.OverlayOpacity);
-        if (_userSettings.ShowLanguageOverlay) _langOverlay.Show();
+        if (_userSettings.ShowLanguageOverlay && _userSettings.OnboardingComplete) _langOverlay.Show();
 
         LoadOverlayPositions();
         _overlay.SetOpacity(_userSettings.OverlayOpacity);
