@@ -11,6 +11,24 @@ public interface ITranslationService
     Task<string> TranslateFromKoreanAsync(string text, string targetLang);
 }
 
+public enum TranslationEngine { MyMemory, DeepL }
+
+public static class TranslationEngineFactory
+{
+    public static ITranslationService Create(TranslationEngine engine, string apiKey = "")
+        => engine switch
+        {
+            TranslationEngine.DeepL => new DeepLTranslationService(apiKey),
+            _                       => new MyMemoryTranslationService(),
+        };
+
+    public static TranslationEngine Parse(string? raw) => raw switch
+    {
+        "DeepL" => TranslationEngine.DeepL,
+        _       => TranslationEngine.MyMemory,  // "LibreTranslate" 등 구버전 값 포함
+    };
+}
+
 public sealed class DeepLTranslationService : ITranslationService
 {
     private static readonly HttpClient _defaultHttp = new();
@@ -85,5 +103,56 @@ public sealed class DeepLTranslationService : ITranslationService
             .GetProperty("translations")[0]
             .GetProperty("text")
             .GetString() ?? string.Empty;
+    }
+}
+
+public sealed class MyMemoryTranslationService : ITranslationService
+{
+    private static readonly HttpClient _http = new();
+    private const string BaseUrl = "https://api.mymemory.translated.net/get";
+
+    private static string Bcp47ToMyMemory(string bcp47) => bcp47 switch
+    {
+        "ja-JP" => "ja",
+        "zh-CN" => "zh-CN",
+        "en-US" => "en",
+        _       => bcp47.Split('-')[0].ToLowerInvariant(),
+    };
+
+    // OCR 정규화 서버가 삽입하는 <x>한국어</x> 태그 제거 (MyMemory는 태그 무시 불가)
+    private static string StripXmlTags(string text) =>
+        text.Replace("<x>", "").Replace("</x>", "").Trim();
+
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        return await CallAsync(StripXmlTags(text), Bcp47ToMyMemory(sourceLang), "ko");
+    }
+
+    public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        return await CallAsync(text, "ko", Bcp47ToMyMemory(targetLang));
+    }
+
+    private static async Task<string> CallAsync(string text, string from, string to)
+    {
+        var url = $"{BaseUrl}?q={Uri.EscapeDataString(text)}&langpair={from}|{to}";
+        var response = await _http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var root = doc.RootElement;
+
+        if (root.TryGetProperty("quotaFinished", out var quota) && quota.GetBoolean())
+            throw new InvalidOperationException("MyMemory 일일 번역 한도를 초과했습니다.");
+
+        var status = root.TryGetProperty("responseStatus", out var s) ? s.GetInt32() : 200;
+        if (status != 200)
+            throw new InvalidOperationException($"MyMemory 오류: {status}");
+
+        return root.GetProperty("responseData")
+                   .GetProperty("translatedText")
+                   .GetString() ?? string.Empty;
     }
 }

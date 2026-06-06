@@ -388,13 +388,13 @@
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </RadioButton>
-                                <RadioButton x:Name="RadioFree" GroupName="Engine" Margin="0,12,0,0" IsChecked="True"
+                                <RadioButton x:Name="RadioMyMemory" GroupName="Engine" Margin="0,12,0,0" IsChecked="True"
                                              Checked="OnEngineChanged">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="LibreTranslate" FontSize="14"
+                                        <TextBlock Text="MyMemory" FontSize="14"
                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                Margin="0,0,6,0"/>
-                                        <TextBlock Text="- 별도의 설정이 필요없지만 결과가 부정확할 수 있습니다." FontSize="11"
+                                        <TextBlock Text="- 키 없이 무료 사용 (일 5,000단어 한도)" FontSize="11"
                                             Foreground="{StaticResource TextSecondaryBrush}"
                                             VerticalAlignment="Center"/>
                                     </StackPanel>
