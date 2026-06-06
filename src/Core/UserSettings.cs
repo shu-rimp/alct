@@ -27,4 +27,6 @@ public class UserSettings
     public uint CaptureHotkeyVKey      { get; set; } = 0x54; // T
     public uint InputHotkeyModifiers   { get; set; } = (uint)HotkeyModifiers.Ctrl;
     public uint InputHotkeyVKey        { get; set; } = 0x47; // G
+
+    public bool OnboardingComplete { get; set; } = false;
 }
