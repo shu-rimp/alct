@@ -1,3 +1,4 @@
+using AlctClient.Core;
 using AlctClient.Views.Modals;
 using System.ComponentModel;
 using System.IO;
@@ -12,7 +13,7 @@ public partial class SettingsWindow : Window
     public event Action<string>? SourceLangChanged;
     public event Action<bool>? CaptionModeChanged;
     public event Action<string>? DeepLApiKeyChanged;
-    public event Action<bool>? TranslationEngineChanged;   // true = DeepL
+    public event Action<TranslationEngine>? TranslationEngineChanged;
     public event Action<int>? MonitorIndexChanged;
     public event Action<bool>? ShowLanguageOverlayChanged;
     public event Action? OverlayPositionEditRequested;
@@ -35,7 +36,8 @@ public partial class SettingsWindow : Window
     }
 
     public string DeepLApiKey => _deepLApiKey;
-    public bool IsDeepLEnabled => RadioDeepL.IsChecked == true;
+    public TranslationEngine SelectedEngine =>
+        RadioDeepL.IsChecked == true ? TranslationEngine.DeepL : TranslationEngine.MyMemory;
 
     public SettingsWindow()
     {
@@ -112,10 +114,10 @@ public partial class SettingsWindow : Window
     public void SetCaptureHotkeyLabel(string text) => CaptureHotkeyLabel.Text = text;
     public void SetInputHotkeyLabel(string text)   => InputHotkeyLabel.Text   = text;
 
-    public void SetTranslationEngine(bool isDeepL)
+    public void SetTranslationEngine(TranslationEngine engine)
     {
-        if (isDeepL) RadioDeepL.IsChecked = true;
-        else RadioFree.IsChecked = true;
+        if (engine == TranslationEngine.DeepL) RadioDeepL.IsChecked = true;
+        else RadioMyMemory.IsChecked = true;
     }
 
     internal void AllowClose() => _allowClose = true;
@@ -165,7 +167,7 @@ public partial class SettingsWindow : Window
         => SourceLangChanged?.Invoke(SourceLang);
 
     private void OnEngineChanged(object sender, RoutedEventArgs e)
-        => TranslationEngineChanged?.Invoke(RadioDeepL.IsChecked == true);
+        => TranslationEngineChanged?.Invoke(SelectedEngine);
 
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
         => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);

@@ -89,11 +89,16 @@ public partial class MainWindow
 
         _settings.DeepLApiKeyChanged += key =>
         {
-            _translationService = new DeepLTranslationService(key);
+            _deepLKey = key;
+            _translationService = TranslationEngineFactory.Create(_currentEngine, _deepLKey);
             SaveAppSetting("DeepLApiKey", key);
         };
 
-        _settings.TranslationEngineChanged += isDeepL =>
-            SaveAppSetting("TranslationEngine", isDeepL ? "DeepL" : "LibreTranslate");
+        _settings.TranslationEngineChanged += engine =>
+        {
+            _currentEngine = engine;
+            _translationService = TranslationEngineFactory.Create(_currentEngine, _deepLKey);
+            SaveAppSetting("TranslationEngine", engine.ToString());
+        };
     }
 }

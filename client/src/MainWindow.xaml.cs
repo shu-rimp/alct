@@ -18,19 +18,23 @@ public partial class MainWindow : Window
     private readonly OcrHttpClient _ocrClient;
     private ITranslationService _translationService;
     private readonly UserSettings _userSettings;
+    private string _deepLKey = string.Empty;
+    private TranslationEngine _currentEngine = TranslationEngine.MyMemory;
 
     public MainWindow()
     {
         InitializeComponent();
-        var (serverUrl, deepLApiKey, translationEngine) = LoadAppSettings();
+        var (serverUrl, deepLApiKey, engine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
         _ocrClient = new OcrHttpClient(serverUrl);
-        _translationService = new DeepLTranslationService(deepLApiKey);
+        _deepLKey = deepLApiKey;
+        _currentEngine = engine;
+        _translationService = TranslationEngineFactory.Create(engine, deepLApiKey);
 
         _settings.SetDeepLApiKey(deepLApiKey);
         _settings.SetSourceLang(_userSettings.SourceLang);
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
-        _settings.SetTranslationEngine(translationEngine == "DeepL");
+        _settings.SetTranslationEngine(engine);
         _settings.SetShowLanguageOverlay(_userSettings.ShowLanguageOverlay);
         _settings.SetCaptureRegionMode(_userSettings.UseCustomCaptureRegion);
 
@@ -54,7 +58,7 @@ public partial class MainWindow : Window
             _ = InitCaptionModeAsync();
     }
 
-    private static (string serverUrl, string deepLApiKey, string translationEngine) LoadAppSettings()
+    private static (string serverUrl, string deepLApiKey, TranslationEngine engine) LoadAppSettings()
     {
         const string fallbackUrl = "http://localhost:8000";
         try
@@ -65,11 +69,11 @@ public partial class MainWindow : Window
                 ? urlProp.GetString() ?? fallbackUrl : fallbackUrl;
             var key = doc.RootElement.TryGetProperty("DeepLApiKey", out var keyProp)
                 ? keyProp.GetString() ?? string.Empty : string.Empty;
-            var engine = doc.RootElement.TryGetProperty("TranslationEngine", out var engineProp)
-                ? engineProp.GetString() ?? "LibreTranslate" : "LibreTranslate";
-            return (url, key, engine);
+            var engineStr = doc.RootElement.TryGetProperty("TranslationEngine", out var engineProp)
+                ? engineProp.GetString() : null;
+            return (url, key, TranslationEngineFactory.Parse(engineStr));
         }
-        catch { return (fallbackUrl, string.Empty, "LibreTranslate"); }
+        catch { return (fallbackUrl, string.Empty, TranslationEngine.MyMemory); }
     }
 
     private static void SaveAppSetting(string settingKey, string value)
