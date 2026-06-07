@@ -39,15 +39,22 @@ public partial class SettingsWindow : Window
     }
 
     public string DeepLApiKey => _deepLApiKey;
+
     public TranslationEngine SelectedVoiceEngine =>
-        RadioVoiceDeepL.IsChecked  == true ? TranslationEngine.DeepL  :
-        RadioVoiceGemini.IsChecked == true ? TranslationEngine.Gemini :
-                                             TranslationEngine.MyMemory;
+        ((VoiceEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
+        {
+            "DeepL"  => TranslationEngine.DeepL,
+            "Gemini" => TranslationEngine.Gemini,
+            _        => TranslationEngine.MyMemory,
+        };
 
     public TranslationEngine SelectedOcrEngine =>
-        RadioOcrDeepL.IsChecked  == true ? TranslationEngine.DeepL  :
-        RadioOcrGemini.IsChecked == true ? TranslationEngine.Gemini :
-                                           TranslationEngine.MyMemory;
+        ((OcrEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
+        {
+            "DeepL"  => TranslationEngine.DeepL,
+            "Gemini" => TranslationEngine.Gemini,
+            _        => TranslationEngine.MyMemory,
+        };
 
     public SettingsWindow()
     {
@@ -89,8 +96,17 @@ public partial class SettingsWindow : Window
 
     // ── 외부에서 초기값 설정 ──
 
-    public void SetDeepLApiKey(string key)  => _deepLApiKey  = key;
-    public void SetGeminiApiKey(string key) => _geminiApiKey = key;
+    public void SetDeepLApiKey(string key)
+    {
+        _deepLApiKey = key;
+        UpdateApiKeyWarnings();
+    }
+
+    public void SetGeminiApiKey(string key)
+    {
+        _geminiApiKey = key;
+        UpdateApiKeyWarnings();
+    }
 
     public void SetSourceLang(string lang)
     {
@@ -127,16 +143,22 @@ public partial class SettingsWindow : Window
 
     public void SetVoiceEngine(TranslationEngine engine)
     {
-        if (engine == TranslationEngine.DeepL)       RadioVoiceDeepL.IsChecked    = true;
-        else if (engine == TranslationEngine.Gemini) RadioVoiceGemini.IsChecked   = true;
-        else                                         RadioVoiceMyMemory.IsChecked = true;
+        VoiceEngineCombo.SelectedIndex = engine switch
+        {
+            TranslationEngine.DeepL  => 1,
+            TranslationEngine.Gemini => 2,
+            _                        => 0,
+        };
     }
 
     public void SetOcrEngine(TranslationEngine engine)
     {
-        if (engine == TranslationEngine.DeepL)       RadioOcrDeepL.IsChecked    = true;
-        else if (engine == TranslationEngine.Gemini) RadioOcrGemini.IsChecked   = true;
-        else                                         RadioOcrMyMemory.IsChecked = true;
+        OcrEngineCombo.SelectedIndex = engine switch
+        {
+            TranslationEngine.DeepL  => 1,
+            TranslationEngine.Gemini => 2,
+            _                        => 0,
+        };
     }
 
     internal void AllowClose() => _allowClose = true;
@@ -167,6 +189,7 @@ public partial class SettingsWindow : Window
                 PanelScreen.Visibility = Visibility.Visible;
                 break;
         }
+
     }
 
     private void OnTabTranslation(object sender, RoutedEventArgs e) => SetActiveTab(0);
@@ -175,43 +198,60 @@ public partial class SettingsWindow : Window
 
     // ── 이벤트 핸들러 ──
 
-    private void OnLanguageModeChanged(object sender, RoutedEventArgs e)
-    {
-        if (AutoDetectWarning is null) return;
-        AutoDetectWarning.Visibility = RadioAuto.IsChecked == true
-            ? Visibility.Visible : Visibility.Collapsed;
-    }
-
     private void OnSourceLangChanged(object sender, SelectionChangedEventArgs e)
         => SourceLangChanged?.Invoke(SourceLang);
 
-    private void OnVoiceEngineChanged(object sender, RoutedEventArgs e)
-        => VoiceEngineChanged?.Invoke(SelectedVoiceEngine);
+    private void OnVoiceEngineChanged(object sender, SelectionChangedEventArgs e)
+    {
+        VoiceEngineChanged?.Invoke(SelectedVoiceEngine);
+        UpdateApiKeyWarnings();
+    }
 
-    private void OnOcrEngineChanged(object sender, RoutedEventArgs e)
-        => OcrEngineChanged?.Invoke(SelectedOcrEngine);
+    private void OnOcrEngineChanged(object sender, SelectionChangedEventArgs e)
+    {
+        OcrEngineChanged?.Invoke(SelectedOcrEngine);
+        UpdateApiKeyWarnings();
+    }
 
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
         => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
 
-    private void OnDeepLKeyClick(object sender, RoutedEventArgs e)
+    private void OnApiSettingsClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new ApiConfigModal("DeepL", _deepLApiKey) { Owner = this };
+        var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
-            _deepLApiKey = dialog.ApiKey;
-            DeepLApiKeyChanged?.Invoke(_deepLApiKey);
+            if (_deepLApiKey != dialog.DeepLApiKey)
+            {
+                _deepLApiKey = dialog.DeepLApiKey;
+                DeepLApiKeyChanged?.Invoke(_deepLApiKey);
+            }
+            if (_geminiApiKey != dialog.GeminiApiKey)
+            {
+                _geminiApiKey = dialog.GeminiApiKey;
+                GeminiApiKeyChanged?.Invoke(_geminiApiKey);
+            }
+            UpdateApiKeyWarnings();
         }
     }
 
-    private void OnGeminiKeyClick(object sender, RoutedEventArgs e)
+    private void UpdateApiKeyWarnings()
     {
-        var dialog = new ApiConfigModal("Gemini", _geminiApiKey) { Owner = this };
-        if (dialog.ShowDialog() == true)
+        if (OcrApiKeyWarning is null || VoiceApiKeyWarning is null) return;
+
+        OcrApiKeyWarning.Visibility = SelectedOcrEngine switch
         {
-            _geminiApiKey = dialog.ApiKey;
-            GeminiApiKeyChanged?.Invoke(_geminiApiKey);
-        }
+            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)  => Visibility.Visible,
+            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey) => Visibility.Visible,
+            _ => Visibility.Collapsed,
+        };
+
+        VoiceApiKeyWarning.Visibility = SelectedVoiceEngine switch
+        {
+            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)  => Visibility.Visible,
+            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey) => Visibility.Visible,
+            _ => Visibility.Collapsed,
+        };
     }
 
     private void OnMonitorChanged(object sender, SelectionChangedEventArgs e)
