@@ -16,6 +16,7 @@
     <Color x:Key="TextSecondaryColor">#9B98B8</Color>
     <Color x:Key="TextMutedColor">#7C7A9A</Color>
     <Color x:Key="TextDangerColor">#F87171</Color>
+    <Color x:Key="TextWarnColor">#F0A868</Color>
     <Color x:Key="TextSuccessColor">#4ADE80</Color>
 
     <!-- Accent -->
@@ -34,6 +35,7 @@
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
     <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}"/>
     <SolidColorBrush x:Key="TextDangerBrush" Color="{StaticResource TextDangerColor}"/>
+    <SolidColorBrush x:Key="TextWarnBrush" Color="{StaticResource TextWarnColor}"/>
     <SolidColorBrush x:Key="TextSuccessBrush" Color="{StaticResource TextSuccessColor}"/>
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
     <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}"/>
@@ -48,6 +50,14 @@
     <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver"   Color="{StaticResource AccentHoverColor}"/>
     <SolidColorBrush x:Key="ToggleSwitchStrokeOn"            Color="{StaticResource AccentColor}"/>
     <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{StaticResource AccentHoverColor}"/>
+    <!-- WPF-UI ToggleSwitch Knob(thumb) ON 상태 흰색 유지 -->
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOn"            Color="White"/>
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White"/>
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed"     Color="#F0F0F0"/>
+
+    <!-- Elevated input background (combo box) -->
+    <Color x:Key="ComboBgColor">#2A2540</Color>
+    <SolidColorBrush x:Key="ComboBgBrush" Color="{StaticResource ComboBgColor}"/>
 
     <!-- Dimensions -->
     <CornerRadius x:Key="WindowRadius">12</CornerRadius>

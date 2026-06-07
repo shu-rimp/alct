@@ -9,8 +9,8 @@
         Background="Transparent"
         ShowInTaskbar="True"
         ResizeMode="CanResize"
-        Width="560" Height="680"
-        MinWidth="560" MinHeight="480">
+        Width="400" Height="640"
+        MinWidth="400" MinHeight="460" MaxHeight="860">
 
     <Window.Resources>
 
@@ -64,7 +64,7 @@
 
         <!-- ── ComboBox ── -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
+            <Setter Property="Background" Value="{StaticResource ComboBgBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -80,13 +80,14 @@
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     CornerRadius="6"/>
-                            <Grid Margin="10,0,0,0">
+                            <Grid Margin="10,8,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="28"/>
                                 </Grid.ColumnDefinitions>
                                 <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
                                                   ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  HorizontalAlignment="Left"
                                                   VerticalAlignment="Center"
                                                   IsHitTestVisible="False"
                                                   TextElement.Foreground="{TemplateBinding Foreground}"/>
@@ -116,7 +117,7 @@
                                    PopupAnimation="Slide">
                                 <Border MinWidth="{Binding ActualWidth, ElementName=root}"
                                         MaxHeight="180"
-                                        Background="{StaticResource InputBgBrush}"
+                                        Background="{StaticResource ComboBgBrush}"
                                         BorderBrush="{StaticResource CardBorderAccentBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6"
@@ -138,6 +139,12 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.35"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style TargetType="ComboBoxItem">
@@ -156,7 +163,6 @@
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource CardBgBrush}"/>
-                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -188,7 +194,7 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -206,6 +212,15 @@
                     <Setter Property="Cursor" Value="Arrow"/>
                 </Trigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- ── API 설정 버튼 (gear) ── -->
+        <Style x:Key="GearButton" TargetType="Button" BasedOn="{StaticResource SmallButton}">
+            <Setter Property="Background"   Value="{StaticResource ComboBgBrush}"/>
+            <Setter Property="BorderBrush"  Value="{StaticResource CardBorderAccentBrush}"/>
+            <Setter Property="Foreground"   Value="{StaticResource AccentBrush}"/>
+            <Setter Property="FontSize"     Value="11"/>
+            <Setter Property="Padding"      Value="8,3"/>
         </Style>
 
         <Style TargetType="RadioButton">
@@ -279,197 +294,223 @@
             </Grid>
 
             <!-- ── 탭 바 (3개) ── -->
-            <Border Grid.Row="1" Margin="18,12,18,0"
-                    Background="{StaticResource CardBgBrush}"
-                    CornerRadius="20" Padding="3">
-                <StackPanel Orientation="Horizontal">
-                    <Button x:Name="TabTranslationBtn" Content="번역"
-                            Style="{StaticResource TabButtonActive}"
-                            Click="OnTabTranslation"/>
-                    <Button x:Name="TabHotkeyBtn" Content="단축키"
-                            Style="{StaticResource TabButtonInactive}"
-                            Click="OnTabHotkey"/>
-                    <Button x:Name="TabScreenBtn" Content="화면"
-                            Style="{StaticResource TabButtonInactive}"
-                            Click="OnTabScreen"/>
-                </StackPanel>
-            </Border>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="18,12,18,0">
+                <Button x:Name="TabTranslationBtn" Content="번역"
+                        Style="{StaticResource TabButtonActive}"
+                        Click="OnTabTranslation"/>
+                <Button x:Name="TabHotkeyBtn" Content="단축키"
+                        Style="{StaticResource TabButtonInactive}"
+                        Margin="4,0,0,0" Click="OnTabHotkey"/>
+                <Button x:Name="TabScreenBtn" Content="화면"
+                        Style="{StaticResource TabButtonInactive}"
+                        Margin="4,0,0,0" Click="OnTabScreen"/>
+            </StackPanel>
 
             <!-- ── 콘텐츠 ── -->
             <ScrollViewer Grid.Row="2"
                           VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Padding="20,18,20,26">
+                          HorizontalScrollBarVisibility="Disabled">
+            <Border Padding="20,28,20,40">
                 <Grid>
 
                     <!-- ══════════ 탭1: 번역 ══════════ -->
                     <StackPanel x:Name="PanelTranslation" Visibility="Visible">
 
                         <!-- 번역 언어 -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <TextBlock Text="번역 언어"
-                                       Foreground="{StaticResource TextMutedBrush}"
-                                       FontSize="12" FontWeight="SemiBold"
-                                       VerticalAlignment="Center"/>
-                            <utils:HintIcon Margin="4,0,0,0" VerticalAlignment="Center"
-                                            Guide="한국어로 번역할 언어를 선택하세요."/>
-                        </StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="100"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <RadioButton x:Name="RadioManual" GroupName="LanguageMode" IsChecked="True"
-                                             Checked="OnLanguageModeChanged">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="수동 지정" FontSize="14"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                   VerticalAlignment="Center"/>
-                                        <Border Background="{StaticResource CardBgBrush}"
-                                                BorderBrush="{StaticResource BorderBrush}"
-                                                BorderThickness="1" CornerRadius="4"
-                                                Padding="6,1" Margin="6,0,0,0">
-                                            <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
-                                        </Border>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton x:Name="RadioAuto" GroupName="LanguageMode" Margin="0,12,0,0"
-                                             Checked="OnLanguageModeChanged">
-                                    <TextBlock Text="자동 감지" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                                </RadioButton>
-                                <TextBlock x:Name="AutoDetectWarning"
-                                           Visibility="Collapsed"
-                                           Text="⚠ 자동 감지 설정 시 번역 품질이 낮아질 수 있습니다."
-                                           Foreground="{StaticResource TextDangerBrush}"
-                                           FontSize="11" TextWrapping="Wrap"
-                                           Margin="18,4,0,0"/>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="번역 언어"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                                <utils:HintIcon Margin="4,0,0,0" VerticalAlignment="Center"
+                                                Guide="한국어로 번역할 언어를 선택하세요."/>
                             </StackPanel>
                             <ComboBox x:Name="SourceLangCombo"
-                                      Grid.Column="1"
+                                      Width="150" HorizontalAlignment="Left"
                                       Style="{StaticResource DarkComboBox}"
-                                      VerticalAlignment="Top"
                                       SelectionChanged="OnSourceLangChanged">
                                 <ComboBoxItem Content="일본어" Tag="ja-JP" IsSelected="True"/>
                                 <ComboBoxItem Content="중국어" Tag="zh-CN"/>
                                 <ComboBoxItem Content="영어"   Tag="en-US"/>
                             </ComboBox>
-                        </Grid>
-
-                        <Separator/>
-
-                        <!-- 번역 엔진 -->
-                        <TextBlock Text="번역 엔진"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   FontSize="12" FontWeight="SemiBold"
-                                   Margin="0,16,0,10"/>
-
-                        <StackPanel>
-                            <!-- 채팅 번역 -->
-                            <TextBlock Text="채팅" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
-                            <StackPanel Margin="8,0,0,0">
-                                <RadioButton x:Name="RadioOcrMyMemory" GroupName="OcrEngine" IsChecked="True"
-                                             Checked="OnOcrEngineChanged">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="MyMemory" FontSize="14"
-                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="- 키 없이 무료 (일 5,000단어)" FontSize="11"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton x:Name="RadioOcrDeepL" GroupName="OcrEngine" Margin="0,10,0,0"
-                                             Checked="OnOcrEngineChanged">
-                                    <TextBlock Text="DeepL" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                </RadioButton>
-                                <RadioButton x:Name="RadioOcrGemini" GroupName="OcrEngine" Margin="0,10,0,0"
-                                             Checked="OnOcrEngineChanged">
-                                    <TextBlock Text="Gemini" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                </RadioButton>
-                            </StackPanel>
-
-                            <!-- 음성 번역 -->
-                            <TextBlock Text="음성" FontSize="11" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,14,0,8"/>
-                            <StackPanel Margin="8,0,0,0">
-                                <RadioButton x:Name="RadioVoiceMyMemory" GroupName="VoiceEngine" IsChecked="True"
-                                             Checked="OnVoiceEngineChanged">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="MyMemory" FontSize="14"
-                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                        <Border Background="{StaticResource CardBgBrush}"
-                                                BorderBrush="{StaticResource BorderBrush}"
-                                                BorderThickness="1" CornerRadius="4"
-                                                Padding="6,1" Margin="6,0,6,0">
-                                            <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
-                                        </Border>
-                                        <TextBlock Text="- 키 없이 무료 (일 5,000단어)" FontSize="11"
-                                                   Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton x:Name="RadioVoiceDeepL" GroupName="VoiceEngine" Margin="0,10,0,0"
-                                             Checked="OnVoiceEngineChanged">
-                                    <TextBlock Text="DeepL" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                </RadioButton>
-                                <RadioButton x:Name="RadioVoiceGemini" GroupName="VoiceEngine" Margin="0,10,0,0"
-                                             Checked="OnVoiceEngineChanged">
-                                    <TextBlock Text="Gemini" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                </RadioButton>
-                            </StackPanel>
-
-                            <!-- API 키 설정 -->
-                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                                <Button Content="DeepL API 설정" Style="{StaticResource SmallButton}"
-                                        Click="OnDeepLKeyClick" Margin="0,0,6,0"/>
-                                <utils:HintIcon VerticalAlignment="Center"
-                                                Guide="DeepL 계정에서 발급받은 API 키를 입력하세요."
-                                                LinkText="API 키 발급 받기 →"
-                                                LinkUrl="https://www.deepl.com/ko/your-account/keys"/>
-                                <Button Content="Gemini API 설정" Style="{StaticResource SmallButton}"
-                                        Click="OnGeminiKeyClick" Margin="12,0,6,0"/>
-                                <utils:HintIcon VerticalAlignment="Center"
-                                                Guide="Google AI Studio에서 발급받은 API 키를 입력하세요."
-                                                LinkText="API 키 발급 받기 →"
-                                                LinkUrl="https://aistudio.google.com/app/apikey"/>
-                            </StackPanel>
                         </StackPanel>
 
-                        <Separator/>
+                        <Separator Margin="0,26,0,22"/>
 
-                        <!-- 음성 번역 -->
-                        <Border Margin="0,16,0,0"
-                                Background="{StaticResource CardBgBrush}"
+                        <!-- 번역 엔진 헤더 -->
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="번역 엔진"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Content="설정"
+                                    Style="{StaticResource GearButton}"
+                                    Click="OnApiSettingsClick"/>
+                        </Grid>
+
+                        <!-- 채팅 번역 카드 -->
+                        <Border Background="{StaticResource CardBgBrush}"
                                 BorderBrush="{StaticResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="실시간 음성 채팅 번역"
+                                Padding="{StaticResource CardPadding}"
+                                Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="💬 채팅 번역"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Margin="0,0,0,12"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="175"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="번역 엔진"
                                                Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock Text="인게임 음성 채팅을 실시간으로 번역합니다. (*Windows11 필수)"
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               FontSize="12" Margin="0,3,0,0"/>
-                                </StackPanel>
-                                <ui:ToggleSwitch x:Name="CaptionMonitorToggle"
-                                                 Grid.Column="1"
-                                                 VerticalAlignment="Center"
-                                                 IsChecked="False"
-                                                 Checked="OnCaptionModeChanged"
-                                                 Unchecked="OnCaptionModeChanged"/>
-                            </Grid>
+                                               FontSize="13" VerticalAlignment="Top"
+                                               Margin="0,9,0,0"/>
+                                    <ComboBox x:Name="OcrEngineCombo"
+                                              Grid.Column="1"
+                                              Style="{StaticResource DarkComboBox}"
+                                              SelectionChanged="OnOcrEngineChanged">
+                                        <ComboBoxItem Tag="MyMemory" IsSelected="True">
+                                            <StackPanel>
+                                                <TextBlock Text="MyMemory" FontSize="13"/>
+                                                <TextBlock Text="키 없이 바로 사용" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="DeepL">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="DeepL" FontSize="13" VerticalAlignment="Center"/>
+                                                    <Border Background="{StaticResource ComboBgBrush}"
+                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="고품질 번역 · API 키 필요" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="Gemini">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="Gemini" FontSize="13" VerticalAlignment="Center"/>
+                                                    <Border Background="{StaticResource ComboBgBrush}"
+                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="AI 번역 · API 키 필요" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock x:Name="OcrApiKeyWarning"
+                                           Visibility="Collapsed"
+                                           Foreground="{StaticResource TextWarnBrush}"
+                                           FontSize="11" Margin="0,6,0,0"
+                                           Text="⚠️ [설정]에서 API 키를 입력해주세요."/>
+                            </StackPanel>
                         </Border>
+
+                        <!-- 음성 번역 카드 -->
+                        <Border Background="{StaticResource CardBgBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CardRadius}"
+                                Padding="{StaticResource CardPadding}"
+                                Margin="0,0,0,10">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="🎙️ 실시간 음성 번역"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Windows 11 필수"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="11" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch x:Name="CaptionMonitorToggle"
+                                                     Grid.Column="1"
+                                                     VerticalAlignment="Center"
+                                                     IsChecked="False"
+                                                     Checked="OnCaptionModeChanged"
+                                                     Unchecked="OnCaptionModeChanged"/>
+                                </Grid>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="175"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="번역 엔진"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               FontSize="13" VerticalAlignment="Top"
+                                               Margin="0,9,0,0"/>
+                                    <ComboBox x:Name="VoiceEngineCombo"
+                                              Grid.Column="1"
+                                              Style="{StaticResource DarkComboBox}"
+                                              IsEnabled="{Binding IsChecked, ElementName=CaptionMonitorToggle}"
+                                              SelectionChanged="OnVoiceEngineChanged">
+                                        <ComboBoxItem Tag="MyMemory" IsSelected="True">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="MyMemory" FontSize="13" VerticalAlignment="Center"/>
+                                                    <Border Background="{StaticResource ComboBgBrush}"
+                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="키 없이 바로 사용" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="DeepL">
+                                            <StackPanel>
+                                                <TextBlock Text="DeepL" FontSize="13"/>
+                                                <TextBlock Text="고품질 번역 · API 키 필요" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="Gemini">
+                                            <StackPanel>
+                                                <TextBlock Text="Gemini" FontSize="13"/>
+                                                <TextBlock Text="AI 번역 · API 키 필요" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock x:Name="VoiceApiKeyWarning"
+                                           Visibility="Collapsed"
+                                           Foreground="{StaticResource TextWarnBrush}"
+                                           FontSize="11" Margin="0,6,0,0"
+                                           Text="⚠️ [설정]에서 API 키를 입력해주세요."/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="DeepL·Gemini는 더 정확하지만 무료 사용량 한도 도달 시 번역이 제한됩니다."
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Margin="2,16,2,0"/>
 
                     </StackPanel>
 
@@ -659,6 +700,7 @@
                     </StackPanel>
 
                 </Grid>
+            </Border>
             </ScrollViewer>
 
         </Grid>
