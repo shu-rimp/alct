@@ -16,25 +16,33 @@ public partial class MainWindow : Window
     private readonly QuickSettingsOverlay _langOverlay = new();
     private readonly SettingsWindow _settings = new();
     private readonly OcrHttpClient _ocrClient;
-    private ITranslationService _translationService;
+    private ITranslationService _voiceTranslationService;
+    private ITranslationService _ocrTranslationService;
     private readonly UserSettings _userSettings;
-    private string _deepLKey = string.Empty;
-    private TranslationEngine _currentEngine = TranslationEngine.MyMemory;
+    private string _deepLKey  = string.Empty;
+    private string _geminiKey = string.Empty;
+    private TranslationEngine _voiceEngine = TranslationEngine.MyMemory;
+    private TranslationEngine _ocrEngine   = TranslationEngine.MyMemory;
 
     public MainWindow()
     {
         InitializeComponent();
-        var (serverUrl, deepLApiKey, engine) = LoadAppSettings();
+        var (serverUrl, deepLApiKey, geminiApiKey, voiceEngine, ocrEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
-        _ocrClient = new OcrHttpClient(serverUrl);
-        _deepLKey = deepLApiKey;
-        _currentEngine = engine;
-        _translationService = TranslationEngineFactory.Create(engine, deepLApiKey);
+        _ocrClient    = new OcrHttpClient(serverUrl);
+        _deepLKey     = deepLApiKey;
+        _geminiKey    = geminiApiKey;
+        _voiceEngine  = voiceEngine;
+        _ocrEngine    = ocrEngine;
+        _voiceTranslationService = TranslationEngineFactory.Create(voiceEngine, GetApiKey(voiceEngine));
+        _ocrTranslationService   = TranslationEngineFactory.Create(ocrEngine,   GetApiKey(ocrEngine));
 
         _settings.SetDeepLApiKey(deepLApiKey);
+        _settings.SetGeminiApiKey(geminiApiKey);
         _settings.SetSourceLang(_userSettings.SourceLang);
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
-        _settings.SetTranslationEngine(engine);
+        _settings.SetVoiceEngine(voiceEngine);
+        _settings.SetOcrEngine(ocrEngine);
         _settings.SetShowLanguageOverlay(_userSettings.ShowLanguageOverlay);
         _settings.SetCaptureRegionMode(_userSettings.UseCustomCaptureRegion);
 
@@ -58,23 +66,34 @@ public partial class MainWindow : Window
             _ = InitCaptionModeAsync();
     }
 
-    private static (string serverUrl, string deepLApiKey, TranslationEngine engine) LoadAppSettings()
+    private static (string serverUrl, string deepLKey, string geminiKey, TranslationEngine voiceEngine, TranslationEngine ocrEngine) LoadAppSettings()
     {
         const string fallbackUrl = "http://localhost:8000";
         try
         {
             var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            var url = doc.RootElement.TryGetProperty("ServerUrl", out var urlProp)
-                ? urlProp.GetString() ?? fallbackUrl : fallbackUrl;
-            var key = doc.RootElement.TryGetProperty("DeepLApiKey", out var keyProp)
-                ? keyProp.GetString() ?? string.Empty : string.Empty;
-            var engineStr = doc.RootElement.TryGetProperty("TranslationEngine", out var engineProp)
-                ? engineProp.GetString() : null;
-            return (url, key, TranslationEngineFactory.Parse(engineStr));
+            var root = doc.RootElement;
+            var url       = root.TryGetProperty("ServerUrl",    out var p1) ? p1.GetString() ?? fallbackUrl  : fallbackUrl;
+            var deepLKey  = root.TryGetProperty("DeepLApiKey",  out var p2) ? p2.GetString() ?? string.Empty : string.Empty;
+            var geminiKey = root.TryGetProperty("GeminiApiKey", out var p3) ? p3.GetString() ?? string.Empty : string.Empty;
+
+            // 구버전 단일 엔진 설정 폴백
+            string? legacyEngine = root.TryGetProperty("TranslationEngine", out var leg) ? leg.GetString() : null;
+            string? voiceStr = root.TryGetProperty("VoiceTranslationEngine", out var ve) ? ve.GetString() : legacyEngine;
+            string? ocrStr   = root.TryGetProperty("OcrTranslationEngine",   out var oe) ? oe.GetString() : legacyEngine;
+
+            return (url, deepLKey, geminiKey, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(ocrStr));
         }
-        catch { return (fallbackUrl, string.Empty, TranslationEngine.MyMemory); }
+        catch { return (fallbackUrl, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
     }
+
+    private string GetApiKey(TranslationEngine engine) => engine switch
+    {
+        TranslationEngine.DeepL  => _deepLKey,
+        TranslationEngine.Gemini => _geminiKey,
+        _                        => string.Empty,
+    };
 
     private static void SaveAppSetting(string settingKey, string value)
     {

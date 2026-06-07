@@ -18,7 +18,7 @@ public partial class MainWindow
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _translationService.TranslateToKoreanAsync(normalizedText, sourceLang);
+                var translation = await _ocrTranslationService.TranslateToKoreanAsync(normalizedText, sourceLang);
                 _overlay.ShowTranslation(translation, rawText);
             }
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
@@ -29,7 +29,7 @@ public partial class MainWindow
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _translationService.TranslateToKoreanAsync(text, sourceLang);
+                var translation = await _voiceTranslationService.TranslateToKoreanAsync(text, sourceLang);
                 _voiceOverlay.ShowTranslation(translation, text);
             }
             catch (Exception ex) { Logger.Error("CaptionTranslation", ex); }

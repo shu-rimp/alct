@@ -365,55 +365,80 @@
                                    FontSize="12" FontWeight="SemiBold"
                                    Margin="0,16,0,10"/>
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <RadioButton x:Name="RadioDeepL" GroupName="Engine"
-                                             Checked="OnEngineChanged">
+                        <StackPanel>
+                            <!-- 채팅 번역 -->
+                            <TextBlock Text="채팅" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
+                            <StackPanel Margin="8,0,0,0">
+                                <RadioButton x:Name="RadioOcrMyMemory" GroupName="OcrEngine" IsChecked="True"
+                                             Checked="OnOcrEngineChanged">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="DeepL" FontSize="14"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="MyMemory" FontSize="14"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="- 키 없이 무료 (일 5,000단어)" FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton x:Name="RadioOcrDeepL" GroupName="OcrEngine" Margin="0,10,0,0"
+                                             Checked="OnOcrEngineChanged">
+                                    <TextBlock Text="DeepL" FontSize="14"
+                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </RadioButton>
+                                <RadioButton x:Name="RadioOcrGemini" GroupName="OcrEngine" Margin="0,10,0,0"
+                                             Checked="OnOcrEngineChanged">
+                                    <TextBlock Text="Gemini" FontSize="14"
+                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </RadioButton>
+                            </StackPanel>
+
+                            <!-- 음성 번역 -->
+                            <TextBlock Text="음성" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,14,0,8"/>
+                            <StackPanel Margin="8,0,0,0">
+                                <RadioButton x:Name="RadioVoiceMyMemory" GroupName="VoiceEngine" IsChecked="True"
+                                             Checked="OnVoiceEngineChanged">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="MyMemory" FontSize="14"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                         <Border Background="{StaticResource CardBgBrush}"
                                                 BorderBrush="{StaticResource BorderBrush}"
                                                 BorderThickness="1" CornerRadius="4"
                                                 Padding="6,1" Margin="6,0,6,0">
                                             <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
                                         </Border>
-                                        <TextBlock Text="- 강력한 번역 성능을 제공합니다." FontSize="11"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="- 키 없이 무료 (일 5,000단어)" FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </RadioButton>
-                                <RadioButton x:Name="RadioMyMemory" GroupName="Engine" Margin="0,12,0,0" IsChecked="True"
-                                             Checked="OnEngineChanged">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="MyMemory" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               Margin="0,0,6,0"/>
-                                        <TextBlock Text="- 키 없이 무료 사용 (일 5,000단어 한도)" FontSize="11"
-                                            Foreground="{StaticResource TextSecondaryBrush}"
-                                            VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                <RadioButton x:Name="RadioVoiceDeepL" GroupName="VoiceEngine" Margin="0,10,0,0"
+                                             Checked="OnVoiceEngineChanged">
+                                    <TextBlock Text="DeepL" FontSize="14"
+                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                </RadioButton>
+                                <RadioButton x:Name="RadioVoiceGemini" GroupName="VoiceEngine" Margin="0,10,0,0"
+                                             Checked="OnVoiceEngineChanged">
+                                    <TextBlock Text="Gemini" FontSize="14"
+                                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 </RadioButton>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                        VerticalAlignment="Top">
-                                <Button Content="API 설정"
-                                        Style="{StaticResource SmallButton}"
-                                        IsEnabled="{Binding IsChecked, ElementName=RadioDeepL}"
-                                        Click="OnApiKeySettingClick"
-                                        Margin="0,0,6,0"/>
-                                <utils:HintIcon
-                                        VerticalAlignment="Center"
-                                        Guide="DeepL 계정에서 발급받은 API 키를 입력하세요."
-                                        LinkText="API 키 발급 받기 →"
-                                        LinkUrl="https://www.deepl.com/ko/your-account/keys"/>
+
+                            <!-- API 키 설정 -->
+                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                <Button Content="DeepL API 설정" Style="{StaticResource SmallButton}"
+                                        Click="OnDeepLKeyClick" Margin="0,0,6,0"/>
+                                <utils:HintIcon VerticalAlignment="Center"
+                                                Guide="DeepL 계정에서 발급받은 API 키를 입력하세요."
+                                                LinkText="API 키 발급 받기 →"
+                                                LinkUrl="https://www.deepl.com/ko/your-account/keys"/>
+                                <Button Content="Gemini API 설정" Style="{StaticResource SmallButton}"
+                                        Click="OnGeminiKeyClick" Margin="12,0,6,0"/>
+                                <utils:HintIcon VerticalAlignment="Center"
+                                                Guide="Google AI Studio에서 발급받은 API 키를 입력하세요."
+                                                LinkText="API 키 발급 받기 →"
+                                                LinkUrl="https://aistudio.google.com/app/apikey"/>
                             </StackPanel>
-                        </Grid>
+                        </StackPanel>
 
                         <Separator/>
 

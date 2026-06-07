@@ -90,15 +90,35 @@ public partial class MainWindow
         _settings.DeepLApiKeyChanged += key =>
         {
             _deepLKey = key;
-            _translationService = TranslationEngineFactory.Create(_currentEngine, _deepLKey);
+            if (_voiceEngine == TranslationEngine.DeepL)
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, key);
+            if (_ocrEngine == TranslationEngine.DeepL)
+                _ocrTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, key);
             SaveAppSetting("DeepLApiKey", key);
         };
 
-        _settings.TranslationEngineChanged += engine =>
+        _settings.GeminiApiKeyChanged += key =>
         {
-            _currentEngine = engine;
-            _translationService = TranslationEngineFactory.Create(_currentEngine, _deepLKey);
-            SaveAppSetting("TranslationEngine", engine.ToString());
+            _geminiKey = key;
+            if (_voiceEngine == TranslationEngine.Gemini)
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, key);
+            if (_ocrEngine == TranslationEngine.Gemini)
+                _ocrTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, key);
+            SaveAppSetting("GeminiApiKey", key);
+        };
+
+        _settings.VoiceEngineChanged += engine =>
+        {
+            _voiceEngine = engine;
+            _voiceTranslationService = TranslationEngineFactory.Create(engine, GetApiKey(engine));
+            SaveAppSetting("VoiceTranslationEngine", engine.ToString());
+        };
+
+        _settings.OcrEngineChanged += engine =>
+        {
+            _ocrEngine = engine;
+            _ocrTranslationService = TranslationEngineFactory.Create(engine, GetApiKey(engine));
+            SaveAppSetting("OcrTranslationEngine", engine.ToString());
         };
     }
 }

@@ -1,7 +1,7 @@
 # ALCT Client
 
 ## Overview
-C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 클라이언트 DeepL 번역 → 결과 표시.
+C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 클라이언트 번역(DeepL/Gemini/MyMemory) → 결과 표시.
 
 ## Architecture
 ```
@@ -17,7 +17,7 @@ C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 
 - C# .NET 8, WPF
 - Screen Capture: System.Drawing (`Graphics.CopyFromScreen`)
 - HTTP: `System.Net.Http.HttpClient` (keep-alive 자동)
-- Translation: DeepL API (사용자 API 키)
+- Translation: DeepL / Gemini / MyMemory (팩토리 패턴으로 런타임 선택)
 - OS API: Windows P/Invoke (click-through, hotkey, always-on-top)
 
 ## Key Notes
@@ -27,10 +27,23 @@ C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 
 - 서버 연결 오류는 조용히 무시 (오버레이 미표시)
 - `HttpClient`는 static singleton — keep-alive 자동 처리
 
-### Translation (DeepL)
+### Translation
+- 엔진 선택: `TranslationEngineFactory.Create(engine, apiKey)` — DeepL / Gemini / MyMemory
+- `ITranslationService`: `TranslateToKoreanAsync`, `TranslateFromKoreanAsync`, `MapLanguageCode` 필수 구현
+- `ITranslationService.StripXmlTags()`: 인터페이스 정적 메서드, OCR normalizer의 `<x>Korean</x>` 태그 제거 공통 처리
+- 테스트 주입: 각 서비스는 `internal` 생성자로 `HttpClient` 주입 가능 (`public` 생성자는 static singleton 사용)
+
+#### DeepL
 - Free key 감지: `apiKey.EndsWith(":fx")` → `api-free.deepl.com`, 아니면 `api.deepl.com`
 - OCR/Caption 번역: `tag_handling=xml, ignore_tags=["x"]` (서버 normalizer의 `<x>Korean</x>` 보존)
 - 입력 번역: `source_lang=KO`, target은 현재 선택 언어
+
+#### Gemini
+- 모델: `gemini-3.1-flash-lite` (`generativelanguage.googleapis.com`)
+- 프롬프트 방식: 한국어 지시문으로 번역 요청, `temperature=0.1`
+
+#### MyMemory
+- 무료 API, 일일 한도 초과 시 `quotaFinished` 플래그로 감지해 예외 발생
 
 ### Overlay
 - `Topmost = true` + `WS_EX_TRANSPARENT | WS_EX_LAYERED` (클릭 통과)
@@ -57,7 +70,13 @@ client/
 │   │   ├── HotkeyManager.cs
 │   │   ├── OcrHttpClient.cs
 │   │   ├── ScreenCaptureService.cs
-│   │   ├── TranslationService.cs    # ITranslationService + DeepLTranslationService
+│   │   ├── TranslationService.cs    # 빈 파일 (리팩토링됨 → Translation/ 참고)
+│   │   └── Translation/             # 번역 엔진
+│   │       ├── ITranslationService.cs       # 인터페이스 + TranslationEngine enum + StripXmlTags
+│   │       ├── TranslationEngineFactory.cs  # 팩토리
+│   │       ├── DeepLTranslationService.cs
+│   │       ├── GeminiTranslationService.cs
+│   │       └── MyMemoryTranslationService.cs
 │   │   ├── UserSettings.cs          # 설정 모델
 │   │   └── UserSettingsService.cs   # 설정 저장/로드
 │   ├── Themes/

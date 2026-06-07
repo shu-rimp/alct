@@ -92,7 +92,7 @@ public partial class MainWindow
                 if (string.IsNullOrWhiteSpace(text)) return;
 
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _translationService.TranslateFromKoreanAsync(text, sourceLang);
+                var translation = await _ocrTranslationService.TranslateFromKoreanAsync(text, sourceLang);
                 Dispatcher.Invoke(() => Clipboard.SetText(translation));
                 await Task.Delay(50);
                 WindowsApiHelper.SimulatePaste();
