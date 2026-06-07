@@ -31,8 +31,12 @@ public partial class MainWindow
 
     private void OnOnboardingApiKeyConfirmed(string key)
     {
+        _deepLKey = key;
         SaveAppSetting("DeepLApiKey", key);
-        _translationService = new DeepLTranslationService(key);
+        if (_voiceEngine == TranslationEngine.DeepL)
+            _voiceTranslationService = new DeepLTranslationService(key);
+        if (_ocrEngine == TranslationEngine.DeepL)
+            _ocrTranslationService = new DeepLTranslationService(key);
         _settings.SetDeepLApiKey(key);
     }
 

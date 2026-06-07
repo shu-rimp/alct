@@ -13,7 +13,9 @@ public partial class SettingsWindow : Window
     public event Action<string>? SourceLangChanged;
     public event Action<bool>? CaptionModeChanged;
     public event Action<string>? DeepLApiKeyChanged;
-    public event Action<TranslationEngine>? TranslationEngineChanged;
+    public event Action<string>? GeminiApiKeyChanged;
+    public event Action<TranslationEngine>? VoiceEngineChanged;
+    public event Action<TranslationEngine>? OcrEngineChanged;
     public event Action<int>? MonitorIndexChanged;
     public event Action<bool>? ShowLanguageOverlayChanged;
     public event Action? OverlayPositionEditRequested;
@@ -24,7 +26,8 @@ public partial class SettingsWindow : Window
 
     private bool _allowClose;
     private bool _suppressMonitorEvent;
-    private string _deepLApiKey = string.Empty;
+    private string _deepLApiKey  = string.Empty;
+    private string _geminiApiKey = string.Empty;
 
     public string SourceLang
     {
@@ -36,8 +39,15 @@ public partial class SettingsWindow : Window
     }
 
     public string DeepLApiKey => _deepLApiKey;
-    public TranslationEngine SelectedEngine =>
-        RadioDeepL.IsChecked == true ? TranslationEngine.DeepL : TranslationEngine.MyMemory;
+    public TranslationEngine SelectedVoiceEngine =>
+        RadioVoiceDeepL.IsChecked  == true ? TranslationEngine.DeepL  :
+        RadioVoiceGemini.IsChecked == true ? TranslationEngine.Gemini :
+                                             TranslationEngine.MyMemory;
+
+    public TranslationEngine SelectedOcrEngine =>
+        RadioOcrDeepL.IsChecked  == true ? TranslationEngine.DeepL  :
+        RadioOcrGemini.IsChecked == true ? TranslationEngine.Gemini :
+                                           TranslationEngine.MyMemory;
 
     public SettingsWindow()
     {
@@ -79,7 +89,8 @@ public partial class SettingsWindow : Window
 
     // ── 외부에서 초기값 설정 ──
 
-    public void SetDeepLApiKey(string key) => _deepLApiKey = key;
+    public void SetDeepLApiKey(string key)  => _deepLApiKey  = key;
+    public void SetGeminiApiKey(string key) => _geminiApiKey = key;
 
     public void SetSourceLang(string lang)
     {
@@ -114,10 +125,18 @@ public partial class SettingsWindow : Window
     public void SetCaptureHotkeyLabel(string text) => CaptureHotkeyLabel.Text = text;
     public void SetInputHotkeyLabel(string text)   => InputHotkeyLabel.Text   = text;
 
-    public void SetTranslationEngine(TranslationEngine engine)
+    public void SetVoiceEngine(TranslationEngine engine)
     {
-        if (engine == TranslationEngine.DeepL) RadioDeepL.IsChecked = true;
-        else RadioMyMemory.IsChecked = true;
+        if (engine == TranslationEngine.DeepL)       RadioVoiceDeepL.IsChecked    = true;
+        else if (engine == TranslationEngine.Gemini) RadioVoiceGemini.IsChecked   = true;
+        else                                         RadioVoiceMyMemory.IsChecked = true;
+    }
+
+    public void SetOcrEngine(TranslationEngine engine)
+    {
+        if (engine == TranslationEngine.DeepL)       RadioOcrDeepL.IsChecked    = true;
+        else if (engine == TranslationEngine.Gemini) RadioOcrGemini.IsChecked   = true;
+        else                                         RadioOcrMyMemory.IsChecked = true;
     }
 
     internal void AllowClose() => _allowClose = true;
@@ -166,19 +185,32 @@ public partial class SettingsWindow : Window
     private void OnSourceLangChanged(object sender, SelectionChangedEventArgs e)
         => SourceLangChanged?.Invoke(SourceLang);
 
-    private void OnEngineChanged(object sender, RoutedEventArgs e)
-        => TranslationEngineChanged?.Invoke(SelectedEngine);
+    private void OnVoiceEngineChanged(object sender, RoutedEventArgs e)
+        => VoiceEngineChanged?.Invoke(SelectedVoiceEngine);
+
+    private void OnOcrEngineChanged(object sender, RoutedEventArgs e)
+        => OcrEngineChanged?.Invoke(SelectedOcrEngine);
 
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
         => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
 
-    private void OnApiKeySettingClick(object sender, RoutedEventArgs e)
+    private void OnDeepLKeyClick(object sender, RoutedEventArgs e)
     {
         var dialog = new ApiConfigModal("DeepL", _deepLApiKey) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             _deepLApiKey = dialog.ApiKey;
             DeepLApiKeyChanged?.Invoke(_deepLApiKey);
+        }
+    }
+
+    private void OnGeminiKeyClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ApiConfigModal("Gemini", _geminiApiKey) { Owner = this };
+        if (dialog.ShowDialog() == true)
+        {
+            _geminiApiKey = dialog.ApiKey;
+            GeminiApiKeyChanged?.Invoke(_geminiApiKey);
         }
     }
 
