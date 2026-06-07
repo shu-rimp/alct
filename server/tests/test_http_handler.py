@@ -12,7 +12,7 @@ class TestOcrEndpoint:
         mocker.patch("core.text_normalizer.normalizeText", return_value="<x>굿겜</x> wp")
         r = client.post("/ocr", content=samplePngBytes)
         assert r.status_code == 200
-        assert r.json() == {"normalizedText": "<x>굿겜</x> wp"}
+        assert r.json() == {"normalizedText": "<x>굿겜</x> wp", "rawText": "gg wp"}
 
     def test_returnsEmptyNormalizedText_whenOcrEmpty(self, samplePngBytes, mocker):
         mocker.patch("core.ocr_service.extractText", return_value="")
