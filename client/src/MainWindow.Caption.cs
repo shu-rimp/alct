@@ -12,19 +12,22 @@ public partial class MainWindow
     private readonly SemaphoreSlim _translateQueue = new(1, 1); // 번역 순서 보장 — 발화당 1개씩 순차 처리
     private ManagementEventWatcher? _liveCaptionsWatcher;
 
-    private void InitOcrCaption()
+    private void InitOcrHandler()
     {
         _ocrClient.OcrTextReceived += async (normalizedText, rawText) =>
         {
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _ocrTranslationService.TranslateToKoreanAsync(normalizedText, sourceLang);
+                var translation = await _textTranslationService.TranslateToKoreanAsync(normalizedText, sourceLang);
                 _overlay.ShowTranslation(translation, rawText);
             }
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
         };
+    }
 
+    private void InitVoiceHandler()
+    {
         _captionMonitor.CaptionUpdating += delta =>
             _voiceOverlay.ShowPending(delta);
 
