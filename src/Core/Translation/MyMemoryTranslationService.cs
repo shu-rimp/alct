@@ -5,7 +5,10 @@ namespace AlctClient.Core;
 
 public sealed class MyMemoryTranslationService : ITranslationService
 {
-    private static readonly HttpClient _defaultHttp = new();
+    private static readonly HttpClient _defaultHttp = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+    });
     private readonly HttpClient _http;
     private const string BaseUrl = "https://api.mymemory.translated.net/get";
 

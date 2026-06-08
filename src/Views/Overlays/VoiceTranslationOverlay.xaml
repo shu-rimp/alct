@@ -14,38 +14,25 @@
 
     <Border x:Name="RootBorder"
             Background="{StaticResource OverlayBgBrush}"
-            CornerRadius="{StaticResource CardRadius}"
-            BorderBrush="{StaticResource CardBorderAccentBrush}"
-            BorderThickness="1"
+            CornerRadius="8"
             MouseLeftButtonDown="OnMouseLeftButtonDown">
 
         <StackPanel>
 
-            <!-- Header -->
-            <StackPanel Orientation="Horizontal" Margin="12,9,12,9">
+            <!-- 헤더: 초록 dot + 타이틀 -->
+            <StackPanel Orientation="Horizontal" Margin="12,8,12,4">
                 <Ellipse Width="7" Height="7"
-                         Fill="{StaticResource TextSuccessBrush}"
+                         Fill="#4CAF50"
                          VerticalAlignment="Center"
-                         Margin="0,0,7,0"/>
-                <TextBlock Text="음성 번역"
-                           Foreground="{StaticResource AccentBrush}"
-                           FontSize="11" FontWeight="SemiBold"
+                         Margin="0,0,6,0"/>
+                <TextBlock Text="ALCT 음성번역"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="10"
                            VerticalAlignment="Center"/>
             </StackPanel>
 
             <!-- Content -->
-            <Rectangle Height="1" Fill="{StaticResource BorderBrush}"/>
-            <StackPanel Margin="12,8,12,8">
-                <TextBlock x:Name="TranslatedText"
-                           Foreground="{StaticResource TextPrimaryBrush}"
-                           FontSize="13"
-                           TextWrapping="Wrap"/>
-                <TextBlock x:Name="OriginalText"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           FontSize="11"
-                           Margin="0,3,0,0"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
+            <StackPanel x:Name="TranslationList" Margin="12,4,12,10"/>
 
             <!-- 편집 모드 안내 바 (기본 숨김) -->
             <Border x:Name="EditModeBar"
