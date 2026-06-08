@@ -34,7 +34,7 @@ public sealed class DeepLTranslationService : ITranslationService
         _ => bcp47.Split('-')[0].ToUpperInvariant(),
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang)
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
 
@@ -46,7 +46,7 @@ public sealed class DeepLTranslationService : ITranslationService
             tag_handling = "xml",
             ignore_tags = new[] { "x" },
         };
-        var result = await CallDeepLAsync(payload);
+        var result = await CallDeepLAsync(payload, ct);
         return StripXTags(result);
     }
 
@@ -66,7 +66,7 @@ public sealed class DeepLTranslationService : ITranslationService
     private static string StripXTags(string text) =>
         WebUtility.HtmlDecode(text.Replace("<x>", "").Replace("</x>", " ").Trim());
 
-    private async Task<string> CallDeepLAsync(object payload)
+    private async Task<string> CallDeepLAsync(object payload, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, _baseUrl)
         {
@@ -74,7 +74,7 @@ public sealed class DeepLTranslationService : ITranslationService
         };
         request.Headers.Add("Authorization", $"DeepL-Auth-Key {_apiKey}");
 
-        var response = await _http.SendAsync(request);
+        var response = await _http.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());

@@ -20,7 +20,7 @@ namespace AlctClient.Core;
 public sealed class CaptionMonitorService : IDisposable
 {
     private const int POLL_MS = 200;
-    private const int DEBOUNCE_MS = 1500;
+    private const int DEBOUNCE_MS = 800;
 
     private static readonly CacheRequest _nameCache = BuildCacheRequest();
     private static readonly PropertyCondition _captionsTextBlockCondition =
