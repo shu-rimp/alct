@@ -1,11 +1,19 @@
+import os
 import time
 from collections import defaultdict
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from api.http_responses import ErrorResponse, NormalizedTextResponse
 from core import ocr_service, text_normalizer
+
+_SERVER_TOKEN = os.getenv("ALCT_SERVER_TOKEN")
+
+
+def _verifyToken(x_alct_token: str | None = Header(default=None)) -> None:
+    if _SERVER_TOKEN and x_alct_token != _SERVER_TOKEN:
+        raise HTTPException(status_code=403)
 
 RATE_LIMIT_MAX_REQUESTS = 30
 RATE_LIMIT_WINDOW_SECONDS = 60
@@ -32,7 +40,7 @@ def _isRateLimited(ip: str) -> bool:
     return False
 
 
-@router.post("/ocr")
+@router.post("/ocr", dependencies=[Depends(_verifyToken)])
 async def ocrEndpoint(request: Request):
     clientIp = _getClientIp(request)
     if _isRateLimited(clientIp):

@@ -31,6 +31,36 @@ class TestOcrEndpoint:
         assert r.status_code == 400
 
 
+class TestTokenAuth:
+    def test_returns403_whenTokenMissing(self, samplePngBytes, mocker):
+        mocker.patch("api.http_router._SERVER_TOKEN", "secret")
+        r = client.post("/ocr", content=samplePngBytes)
+        assert r.status_code == 403
+
+    def test_returns403_whenTokenInvalid(self, samplePngBytes, mocker):
+        mocker.patch("api.http_router._SERVER_TOKEN", "secret")
+        r = client.post("/ocr", content=samplePngBytes, headers={"X-ALCT-Token": "wrong"})
+        assert r.status_code == 403
+
+    def test_returns200_whenTokenValid(self, samplePngBytes, mocker):
+        mocker.patch("api.http_router._SERVER_TOKEN", "secret")
+        mocker.patch("core.ocr_service.extractText", return_value="gg")
+        mocker.patch("core.text_normalizer.normalizeText", return_value="gg")
+        r = client.post("/ocr", content=samplePngBytes, headers={"X-ALCT-Token": "secret"})
+        assert r.status_code == 200
+
+    def test_returns200_whenNoServerToken(self, samplePngBytes, mocker):
+        mocker.patch("api.http_router._SERVER_TOKEN", None)
+        mocker.patch("core.ocr_service.extractText", return_value="gg")
+        mocker.patch("core.text_normalizer.normalizeText", return_value="gg")
+        r = client.post("/ocr", content=samplePngBytes)
+        assert r.status_code == 200
+
+    def test_healthReturns200_withoutToken(self):
+        r = client.get("/health")
+        assert r.status_code == 200
+
+
 class TestHealthCheck:
     def test_returns200(self):
         r = client.get("/health")
