@@ -22,6 +22,8 @@ public sealed class OcrHttpClient
     public async Task SendImageAsync(byte[] imageBytes)
     {
         using var content = new ByteArrayContent(imageBytes);
+        if (!BuildConstants.SERVER_TOKEN.StartsWith("#{"))
+            content.Headers.Add("X-ALCT-Token", BuildConstants.SERVER_TOKEN);
         var response = await _http.PostAsync(_ocrUrl, content);
         response.EnsureSuccessStatusCode();
 
