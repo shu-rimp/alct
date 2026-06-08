@@ -2,6 +2,7 @@
 client/**/bin/
 client/**/obj/
 client/**/*.user
+client/**/*wpftmp.csproj
 client/.vs/
 
 # 캡처 디버그 이미지
