@@ -7,7 +7,10 @@ namespace AlctClient.Core;
 
 public sealed class DeepLTranslationService : ITranslationService
 {
-    private static readonly HttpClient _defaultHttp = new();
+    private static readonly HttpClient _defaultHttp = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+    });
     private readonly HttpClient _http;
     private readonly string _apiKey;
     private readonly string _baseUrl;

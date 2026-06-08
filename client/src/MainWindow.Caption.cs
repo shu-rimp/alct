@@ -9,6 +9,7 @@ public partial class MainWindow
 {
     private readonly CaptionMonitorService _captionMonitor = new();
     private readonly SemaphoreSlim _captionLock = new(1, 1);
+    private readonly SemaphoreSlim _translateQueue = new(1, 1); // 번역 순서 보장 — 발화당 1개씩 순차 처리
     private ManagementEventWatcher? _liveCaptionsWatcher;
 
     private void InitOcrCaption()
@@ -24,15 +25,21 @@ public partial class MainWindow
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
         };
 
+        _captionMonitor.CaptionUpdating += delta =>
+            _voiceOverlay.ShowPending(delta);
+
         _captionMonitor.CaptionStabilized += async text =>
         {
+            await _translateQueue.WaitAsync();
             try
             {
+                _voiceOverlay.ShowOriginalPinned(text);
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _voiceTranslationService.TranslateToKoreanAsync(text, sourceLang);
-                _voiceOverlay.ShowTranslation(translation, text);
+                _voiceOverlay.ShowTranslation(translation);
             }
             catch (Exception ex) { Logger.Error("CaptionTranslation", ex); }
+            finally { _translateQueue.Release(); }
         };
     }
 

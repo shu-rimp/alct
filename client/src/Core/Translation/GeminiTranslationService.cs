@@ -6,7 +6,10 @@ namespace AlctClient.Core;
 
 public sealed class GeminiTranslationService : ITranslationService
 {
-    private static readonly HttpClient _defaultHttp = new();
+    private static readonly HttpClient _defaultHttp = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+    });
     private readonly HttpClient _http;
     private readonly string _endpoint;
     private const string Model = "gemini-3.1-flash-lite";
