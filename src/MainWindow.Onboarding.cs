@@ -35,8 +35,8 @@ public partial class MainWindow
         SaveAppSetting("DeepLApiKey", key);
         if (_voiceEngine == TranslationEngine.DeepL)
             _voiceTranslationService = new DeepLTranslationService(key);
-        if (_ocrEngine == TranslationEngine.DeepL)
-            _ocrTranslationService = new DeepLTranslationService(key);
+        if (_textEngine == TranslationEngine.DeepL)
+            _textTranslationService = new DeepLTranslationService(key);
         _settings.SetDeepLApiKey(key);
     }
 

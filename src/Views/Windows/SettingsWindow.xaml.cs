@@ -15,7 +15,7 @@ public partial class SettingsWindow : Window
     public event Action<string>? DeepLApiKeyChanged;
     public event Action<string>? GeminiApiKeyChanged;
     public event Action<TranslationEngine>? VoiceEngineChanged;
-    public event Action<TranslationEngine>? OcrEngineChanged;
+    public event Action<TranslationEngine>? TextEngineChanged;
     public event Action<int>? MonitorIndexChanged;
     public event Action<bool>? ShowLanguageOverlayChanged;
     public event Action? OverlayPositionEditRequested;
@@ -48,8 +48,8 @@ public partial class SettingsWindow : Window
             _        => TranslationEngine.MyMemory,
         };
 
-    public TranslationEngine SelectedOcrEngine =>
-        ((OcrEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
+    public TranslationEngine SelectedTextEngine =>
+        ((TextEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
         {
             "DeepL"  => TranslationEngine.DeepL,
             "Gemini" => TranslationEngine.Gemini,
@@ -151,9 +151,9 @@ public partial class SettingsWindow : Window
         };
     }
 
-    public void SetOcrEngine(TranslationEngine engine)
+    public void SetTextEngine(TranslationEngine engine)
     {
-        OcrEngineCombo.SelectedIndex = engine switch
+        TextEngineCombo.SelectedIndex = engine switch
         {
             TranslationEngine.DeepL  => 1,
             TranslationEngine.Gemini => 2,
@@ -207,9 +207,9 @@ public partial class SettingsWindow : Window
         UpdateApiKeyWarnings();
     }
 
-    private void OnOcrEngineChanged(object sender, SelectionChangedEventArgs e)
+    private void OnTextEngineChanged(object sender, SelectionChangedEventArgs e)
     {
-        OcrEngineChanged?.Invoke(SelectedOcrEngine);
+        TextEngineChanged?.Invoke(SelectedTextEngine);
         UpdateApiKeyWarnings();
     }
 
@@ -237,9 +237,9 @@ public partial class SettingsWindow : Window
 
     private void UpdateApiKeyWarnings()
     {
-        if (OcrApiKeyWarning is null || VoiceApiKeyWarning is null) return;
+        if (TextApiKeyWarning is null || VoiceApiKeyWarning is null) return;
 
-        OcrApiKeyWarning.Visibility = SelectedOcrEngine switch
+        TextApiKeyWarning.Visibility = SelectedTextEngine switch
         {
             TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)  => Visibility.Visible,
             TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey) => Visibility.Visible,

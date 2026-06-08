@@ -17,32 +17,32 @@ public partial class MainWindow : Window
     private readonly SettingsWindow _settings = new();
     private readonly OcrHttpClient _ocrClient;
     private ITranslationService _voiceTranslationService;
-    private ITranslationService _ocrTranslationService;
+    private ITranslationService _textTranslationService;
     private readonly UserSettings _userSettings;
     private string _deepLKey  = string.Empty;
     private string _geminiKey = string.Empty;
     private TranslationEngine _voiceEngine = TranslationEngine.MyMemory;
-    private TranslationEngine _ocrEngine   = TranslationEngine.MyMemory;
+    private TranslationEngine _textEngine  = TranslationEngine.MyMemory;
 
     public MainWindow()
     {
         InitializeComponent();
-        var (serverUrl, deepLApiKey, geminiApiKey, voiceEngine, ocrEngine) = LoadAppSettings();
+        var (serverUrl, deepLApiKey, geminiApiKey, voiceEngine, textEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
         _ocrClient    = new OcrHttpClient(serverUrl);
         _deepLKey     = deepLApiKey;
         _geminiKey    = geminiApiKey;
         _voiceEngine  = voiceEngine;
-        _ocrEngine    = ocrEngine;
-        _voiceTranslationService = TranslationEngineFactory.Create(voiceEngine, GetApiKey(voiceEngine));
-        _ocrTranslationService   = TranslationEngineFactory.Create(ocrEngine,   GetApiKey(ocrEngine));
+        _textEngine   = textEngine;
+        _voiceTranslationService = TranslationEngineFactory.Create(voiceEngine,  GetApiKey(voiceEngine));
+        _textTranslationService  = TranslationEngineFactory.Create(textEngine,   GetApiKey(textEngine));
 
         _settings.SetDeepLApiKey(deepLApiKey);
         _settings.SetGeminiApiKey(geminiApiKey);
         _settings.SetSourceLang(_userSettings.SourceLang);
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
         _settings.SetVoiceEngine(voiceEngine);
-        _settings.SetOcrEngine(ocrEngine);
+        _settings.SetTextEngine(textEngine);
         _settings.SetShowLanguageOverlay(_userSettings.ShowLanguageOverlay);
         _settings.SetCaptureRegionMode(_userSettings.UseCustomCaptureRegion);
 
@@ -56,7 +56,8 @@ public partial class MainWindow : Window
             WindowsApiHelper.SetLiveCaptionsVisible(true);
         InitSettings();
         InitOverlays();
-        InitOcrCaption();
+        InitOcrHandler();
+        InitVoiceHandler();
         RunOnboardingIfNeeded();
         InitTray();
         InitHotkeys();
@@ -66,7 +67,7 @@ public partial class MainWindow : Window
             _ = InitCaptionModeAsync();
     }
 
-    private static (string serverUrl, string deepLKey, string geminiKey, TranslationEngine voiceEngine, TranslationEngine ocrEngine) LoadAppSettings()
+    private static (string serverUrl, string deepLKey, string geminiKey, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
     {
         const string fallbackUrl = "http://localhost:8000";
         try
@@ -81,9 +82,10 @@ public partial class MainWindow : Window
             // 구버전 단일 엔진 설정 폴백
             string? legacyEngine = root.TryGetProperty("TranslationEngine", out var leg) ? leg.GetString() : null;
             string? voiceStr = root.TryGetProperty("VoiceTranslationEngine", out var ve) ? ve.GetString() : legacyEngine;
-            string? ocrStr   = root.TryGetProperty("OcrTranslationEngine",   out var oe) ? oe.GetString() : legacyEngine;
+            string? textStr  = root.TryGetProperty("TextTranslationEngine",  out var te) ? te.GetString()
+                             : root.TryGetProperty("OcrTranslationEngine",   out var oe) ? oe.GetString() : legacyEngine;
 
-            return (url, deepLKey, geminiKey, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(ocrStr));
+            return (url, deepLKey, geminiKey, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(textStr));
         }
         catch { return (fallbackUrl, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
     }
