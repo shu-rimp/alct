@@ -6,11 +6,11 @@ C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 
 ## Architecture
 ```
 [Ctrl+T] → [ScreenCaptureService] → [OcrHttpClient.SendImageAsync]
-         → OcrTextReceived(normalizedText) → [DeepLTranslationService] → [TranslationOverlay]
+         → OcrTextReceived(normalizedText) → _textTranslationService → [ChatTranslationOverlay]
 
-[Ctrl+G] → clipboard text → [DeepLTranslationService.TranslateFromKoreanAsync] → paste
+[Ctrl+G] → clipboard text → _textTranslationService.TranslateFromKoreanAsync → paste
 
-[CaptionMonitor] → stabilized text → [DeepLTranslationService.TranslateToKoreanAsync] → [TranslationOverlay]
+[CaptionMonitor] → stabilized text → _voiceTranslationService.TranslateToKoreanAsync → [VoiceTranslationOverlay]
 ```
 
 ## Tech Stack
@@ -26,9 +26,12 @@ C# WPF 오버레이. 핫키 → 화면 캡처 → HTTP로 서버 OCR 요청 → 
 - `OcrHttpClient`: `POST {serverUrl}/ocr` — raw PNG bytes body, `{"normalizedText":"..."}` 응답
 - 서버 연결 오류는 조용히 무시 (오버레이 미표시)
 - `HttpClient`는 static singleton — keep-alive 자동 처리
+- `BuildConstants.SERVER_TOKEN`: 빌드 시 실제 토큰으로 치환, `X-ALCT-Token` 헤더로 전송 (placeholder 그대로면 헤더 미전송)
 
 ### Translation
+- 엔진은 용도별로 분리: `_voiceTranslationService` (라이브캡션), `_textTranslationService` (OCR + 입력창 번역)
 - 엔진 선택: `TranslationEngineFactory.Create(engine, apiKey)` — DeepL / Gemini / MyMemory
+- appsettings 키: `VoiceTranslationEngine`, `TextTranslationEngine` (구버전 `OcrTranslationEngine` 폴백 유지)
 - `ITranslationService`: `TranslateToKoreanAsync`, `TranslateFromKoreanAsync`, `MapLanguageCode` 필수 구현
 - `ITranslationService.StripXmlTags()`: 인터페이스 정적 메서드, OCR normalizer의 `<x>Korean</x>` 태그 제거 공통 처리
 - 테스트 주입: 각 서비스는 `internal` 생성자로 `HttpClient` 주입 가능 (`public` 생성자는 static singleton 사용)
@@ -66,6 +69,7 @@ client/
 │   ├── assets/                  # 아이콘, 이미지
 │   ├── Core/                    # 비즈니스 로직 + 도메인 모델
 │   │   ├── AppState.cs
+│   │   ├── BuildConstants.cs        # SERVER_TOKEN placeholder — 빌드 시 CI가 치환
 │   │   ├── CaptionMonitorService.cs
 │   │   ├── HotkeyManager.cs
 │   │   ├── OcrHttpClient.cs

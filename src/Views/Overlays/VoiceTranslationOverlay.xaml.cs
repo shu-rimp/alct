@@ -9,7 +9,7 @@ namespace AlctClient.Views.Overlays;
 
 public partial class VoiceTranslationOverlay : Window
 {
-    private const int AUTO_HIDE_DELAY_MS = 10000;
+    private const int AUTO_HIDE_DELAY_MS = 5000;
     private static readonly WpfColor BgColor = WpfColor.FromRgb(0x16, 0x14, 0x1F);
 
     private DispatcherTimer? _hideTimer;
@@ -210,15 +210,14 @@ public partial class VoiceTranslationOverlay : Window
     }
 
     // (2/2) 번역 완료: 같은 패널에 번역 결과로 교체
-    // 큐에서 순서대로 호출되므로 별도 stale 체크 불필요
     public void ShowTranslation(string translated)
     {
         Dispatcher.Invoke(() =>
         {
-            if (_contentPanel == null) return;
+            EnsureContentPanel();
 
             var primaryBrush = (WpfBrushBase)FindResource("TextPrimaryBrush");
-            _contentPanel.Children.Clear();
+            _contentPanel!.Children.Clear();
             _contentPanel.Children.Add(new TextBlock
             {
                 Text         = translated,

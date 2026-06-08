@@ -9,7 +9,7 @@ public partial class MainWindow
 {
     private readonly CaptionMonitorService _captionMonitor = new();
     private readonly SemaphoreSlim _captionLock = new(1, 1);
-    private readonly SemaphoreSlim _translateQueue = new(1, 1); // 번역 순서 보장 — 발화당 1개씩 순차 처리
+    private readonly SemaphoreSlim _translateQueue = new(1, 1);
     private ManagementEventWatcher? _liveCaptionsWatcher;
 
     private void InitOcrHandler()
@@ -36,7 +36,6 @@ public partial class MainWindow
             await _translateQueue.WaitAsync();
             try
             {
-                _voiceOverlay.ShowOriginalPinned(text);
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _voiceTranslationService.TranslateToKoreanAsync(text, sourceLang);
                 _voiceOverlay.ShowTranslation(translation);

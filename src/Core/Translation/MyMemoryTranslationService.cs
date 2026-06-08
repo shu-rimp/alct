@@ -27,10 +27,10 @@ public sealed class MyMemoryTranslationService : ITranslationService
         _       => bcp47.Split('-')[0].ToLowerInvariant(),
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang)
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
-        return await CallAsync(ITranslationService.StripXmlTags(text), MapLanguageCode(sourceLang), "ko");
+        return await CallAsync(ITranslationService.StripXmlTags(text), MapLanguageCode(sourceLang), "ko", ct);
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
@@ -39,10 +39,10 @@ public sealed class MyMemoryTranslationService : ITranslationService
         return await CallAsync(text, "ko", MapLanguageCode(targetLang));
     }
 
-    private async Task<string> CallAsync(string text, string from, string to)
+    private async Task<string> CallAsync(string text, string from, string to, CancellationToken ct = default)
     {
         var url = $"{BaseUrl}?q={Uri.EscapeDataString(text)}&langpair={from}|{to}";
-        var response = await _http.GetAsync(url);
+        var response = await _http.GetAsync(url, ct);
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());

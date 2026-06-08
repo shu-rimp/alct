@@ -30,11 +30,11 @@ public sealed class GeminiTranslationService : ITranslationService
         _       => bcp47,
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang)
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
         var prompt = $"다음 텍스트를 한국어로 번역해. 번역 결과만 출력해. 설명은 하지 마:\n\n{ITranslationService.StripXmlTags(text)}";
-        return await CallAsync(prompt);
+        return await CallAsync(prompt, ct);
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
@@ -44,7 +44,7 @@ public sealed class GeminiTranslationService : ITranslationService
         return await CallAsync(prompt);
     }
 
-    private async Task<string> CallAsync(string prompt)
+    private async Task<string> CallAsync(string prompt, CancellationToken ct = default)
     {
         var payload = new
         {
@@ -52,7 +52,7 @@ public sealed class GeminiTranslationService : ITranslationService
             generationConfig = new { temperature = 0.1, maxOutputTokens = 512 },
         };
 
-        var response = await _http.PostAsync(_endpoint, JsonContent.Create(payload));
+        var response = await _http.PostAsync(_endpoint, JsonContent.Create(payload), ct);
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
