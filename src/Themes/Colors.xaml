@@ -2,27 +2,25 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Background -->
-    <Color x:Key="AppBgColor">#0D0C14</Color>
-    <Color x:Key="SurfaceBgColor">#16141F</Color>
-    <Color x:Key="CardBgColor">#1E1B2E</Color>
-    <Color x:Key="InputBgColor">#12111A</Color>
-
+    <Color x:Key="AppBgColor">#0A0B16</Color>
+    <Color x:Key="SurfaceBgColor">#13142A</Color>
+    <Color x:Key="CardBgColor">#1A1D38</Color>
+    <Color x:Key="InputBgColor">#12132A</Color>
     <!-- Border -->
-    <Color x:Key="BorderColor">#2E2A45</Color>
-    <Color x:Key="CardBorderAccentColor">#3D3760</Color>
-
+    <Color x:Key="BorderColor">#262A4A</Color>
+    <Color x:Key="CardBorderAccentColor">#2E3358</Color>
     <!-- Text -->
-    <Color x:Key="TextPrimaryColor">#E2E0F0</Color>
-    <Color x:Key="TextSecondaryColor">#9B98B8</Color>
-    <Color x:Key="TextMutedColor">#7C7A9A</Color>
+    <Color x:Key="TextPrimaryColor">#E8E8F2</Color>
+    <Color x:Key="TextSecondaryColor">#B0B2CC</Color>
+    <Color x:Key="TextMutedColor">#8588A8</Color>
     <Color x:Key="TextDangerColor">#F87171</Color>
     <Color x:Key="TextWarnColor">#F0A868</Color>
     <Color x:Key="TextSuccessColor">#4ADE80</Color>
-
     <!-- Accent -->
-    <Color x:Key="AccentColor">#8B7CF8</Color>
-    <Color x:Key="AccentHoverColor">#7C6EE8</Color>
-    <Color x:Key="AccentPressedColor">#6D5FD8</Color>
+    <Color x:Key="AccentColor">#818CF8</Color>
+    <Color x:Key="AccentHoverColor">#6E78E8</Color>
+    <Color x:Key="AccentPressedColor">#5B64D8</Color>
+    <Color x:Key="AccentSoftColor">#A5B4FC</Color>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="AppBgBrush" Color="{StaticResource AppBgColor}"/>
@@ -56,7 +54,7 @@
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed"     Color="#F0F0F0"/>
 
     <!-- Elevated input background (combo box) -->
-    <Color x:Key="ComboBgColor">#2A2540</Color>
+    <Color x:Key="ComboBgColor">#20234A</Color>
     <SolidColorBrush x:Key="ComboBgBrush" Color="{StaticResource ComboBgColor}"/>
 
     <!-- Dimensions -->
