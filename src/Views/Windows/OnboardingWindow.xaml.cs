@@ -227,8 +227,14 @@ public partial class OnboardingWindow : Window
 
         bool jp = jpTask.Result;
         bool zh = zhTask.Result;
+
+        bool jpChanged = jp != _installStatus["ja-JP"];
+        bool zhChanged = zh != _installStatus["zh-CN"];
         _installStatus["ja-JP"] = jp;
         _installStatus["zh-CN"] = zh;
+
+        if (jpChanged || zhChanged)
+            Logger.Info("Preflight", $"언어팩 상태 변경 — ja-JP={jp}, zh-CN={zh}");
 
         Dispatcher.Invoke(() => UpdateInstallStatusUI(jp, zh));
     }

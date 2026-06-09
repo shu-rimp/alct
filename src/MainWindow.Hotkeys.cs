@@ -11,6 +11,7 @@ public partial class MainWindow
     private HotkeyManager? _hotkeyManager;
     private ScreenCaptureService _screenCapture = new();
     private readonly SemaphoreSlim _ocrLock = new(1, 1);
+    private bool _screenCaptureLogged;
 
     private void InitHotkeys()
     {
@@ -72,11 +73,25 @@ public partial class MainWindow
             try
             {
                 var imageBytes = _screenCapture.CaptureRegionAsPng();
+                if (!_screenCaptureLogged)
+                {
+                    _screenCaptureLogged = true;
+                    Logger.Info("Preflight", "화면 캡처: GDI 사용 가능");
+                }
                 // SaveDebugCapture(imageBytes); 실제 캡쳐이미지 확인(디버그용)
                 await _ocrClient.SendImageAsync(imageBytes);
             }
-            catch (HttpRequestException ex) { Logger.Error("OcrRequest", ex); }
-            catch (Exception ex) { Logger.Error("OcrCapture", ex); }
+            catch (HttpRequestException ex)
+            {
+                Logger.Error("OcrRequest", ex);
+                _overlay.ShowNotice("서버에 일시적으로 접속할 수 없어요. 잠시 후 다시 시도해주세요.");
+            }
+            catch (Exception ex)
+            {
+                if (!_screenCaptureLogged) { _screenCaptureLogged = true; Logger.Info("Preflight", "화면 캡처: GDI 사용 불가"); }
+                Logger.Error("OcrCapture", ex);
+                _overlay.ShowNotice("이 기기는 화면 캡처를 지원하지 않아 채팅 번역을 사용할 수 없어요.");
+            }
             finally { _ocrLock.Release(); }
         });
     }
