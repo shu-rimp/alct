@@ -216,7 +216,9 @@ public partial class SettingsWindow : Window
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
         => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
 
-    private void OnApiSettingsClick(object sender, RoutedEventArgs e)
+    private void OnApiSettingsClick(object sender, RoutedEventArgs e) => NavigateToApiConfig();
+
+    public void NavigateToApiConfig()
     {
         var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey) { Owner = this };
         if (dialog.ShowDialog() == true)
