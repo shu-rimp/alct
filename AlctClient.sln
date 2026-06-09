@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlctClient", "AlctClient.csproj", "{276B6D3D-0956-4775-A75C-CBAEC1DB7E08}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlctClient", "src\AlctClient.csproj", "{276B6D3D-0956-4775-A75C-CBAEC1DB7E08}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AlctClient.Tests", "Tests\AlctClient.Tests.csproj", "{3914443F-8365-4139-96E9-1558D6D1CD01}"
 EndProject

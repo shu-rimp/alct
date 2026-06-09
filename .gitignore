@@ -2,10 +2,11 @@
 client/**/bin/
 client/**/obj/
 client/**/*.user
+client/**/*wpftmp.csproj
 client/.vs/
 
 # 캡처 디버그 이미지
-client/bin/**/capture_debug*.png
+client/src/bin/**/capture_debug*.png
 
 # ==================== SERVER (Python) ====================
 # 바이트코드 캐시
@@ -34,8 +35,8 @@ server/tests/capture_debug*.png
 
 # ==================== 문서 ====================
 server/GUIDE.txt
-client/GUIDE.txt
-client/UI_SPEC.md
+client/docs
+plan.md
 
 # ==================== 환경 설정 ====================
 .env
@@ -43,7 +44,7 @@ client/UI_SPEC.md
 *.key
 *.pem
 secrets.json
-client/appsettings.json
+client/src/appsettings.json
 
 # ==================== OS / 편집기 ====================
 .DS_Store

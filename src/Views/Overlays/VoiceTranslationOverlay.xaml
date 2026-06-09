@@ -1,0 +1,51 @@
+<Window x:Class="AlctClient.Views.Overlays.VoiceTranslationOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VoiceTranslationOverlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        SizeToContent="Height"
+        Width="500"
+        MinWidth="300" MaxWidth="700">
+
+    <Border x:Name="RootBorder"
+            Background="{StaticResource OverlayBgBrush}"
+            CornerRadius="8"
+            MouseLeftButtonDown="OnMouseLeftButtonDown">
+
+        <StackPanel>
+
+            <!-- 헤더: 초록 dot + 타이틀 -->
+            <StackPanel Orientation="Horizontal" Margin="12,8,12,4">
+                <Ellipse Width="7" Height="7"
+                         Fill="#4CAF50"
+                         VerticalAlignment="Center"
+                         Margin="0,0,6,0"/>
+                <TextBlock Text="ALCT 음성번역"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="10"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Content -->
+            <StackPanel x:Name="TranslationList" Margin="12,4,12,10"/>
+
+            <!-- 편집 모드 안내 바 (기본 숨김) -->
+            <Border x:Name="EditModeBar"
+                    Visibility="Collapsed"
+                    Background="{StaticResource AccentBrush}"
+                    CornerRadius="0,0,8,8"
+                    Padding="0,5">
+                <TextBlock Text="← 좌우 가장자리를 드래그하여 너비 조절 · 나머지 영역을 드래그하여 이동"
+                           Foreground="White"
+                           FontSize="10"
+                           HorizontalAlignment="Center"/>
+            </Border>
+
+        </StackPanel>
+    </Border>
+</Window>
