@@ -29,7 +29,6 @@ public partial class QuickSettingsOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        WindowsApiHelper.ExcludeFromCapture(this);
         var screen = _initialScreen ?? System.Windows.Forms.Screen.PrimaryScreen!;
         Left = screen.Bounds.Left + 20;
         Top  = screen.Bounds.Top  + 30;
