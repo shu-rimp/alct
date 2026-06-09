@@ -241,4 +241,11 @@ public static class WindowsApiHelper
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\LiveCaptions\UI", writable: true);
         key?.SetValue("CaptionLanguage", bcp47Tag, RegistryValueKind.String);
     }
+
+    public static bool IsLiveCaptionSupported()
+    {
+        using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+        if (key?.GetValue("CurrentBuild") is not string build) return false;
+        return int.TryParse(build, out int n) && n >= 22621;
+    }
 }

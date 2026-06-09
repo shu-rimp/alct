@@ -5,13 +5,20 @@ namespace AlctClient.Utils;
 public static class Logger
 {
     private static readonly string _logPath =
-        Path.Combine(AppContext.BaseDirectory, "error.log");
+        Path.Combine(AppContext.BaseDirectory, "alct.log");
     private static readonly object _lock = new();
+
+    public static void Info(string context, string message)
+    {
+        var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [INFO] [{context}] {message}{Environment.NewLine}";
+        try { lock (_lock) File.AppendAllText(_logPath, line); }
+        catch { }
+    }
 
     public static void Error(string context, Exception ex)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{context}] {ex.GetType().Name}: {ex.Message}");
+        sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [ERROR] [{context}] {ex.GetType().Name}: {ex.Message}");
         sb.AppendLine(ex.StackTrace);
 
         var inner = ex.InnerException;

@@ -122,6 +122,17 @@ public partial class SettingsWindow : Window
 
     public void SetCaptionMode(bool enabled) => CaptionMonitorToggle.IsChecked = enabled;
 
+    public void SetVoiceSupported(bool supported)
+    {
+        CaptionMonitorToggle.IsEnabled = supported;
+        if (!supported)
+        {
+            CaptionMonitorToggle.IsChecked = false;
+            VoiceHintText.Text = "실시간 음성 채팅 번역 기능은 Windows 11 22H2 이상 버전에서 지원돼요";
+            VoiceHintText.Foreground = (System.Windows.Media.SolidColorBrush)FindResource("TextWarnBrush");
+        }
+    }
+
     public void SetShowLanguageOverlay(bool show) => ShowLangOverlayToggle.IsChecked = show;
 
     public void SetMonitorIndex(int index)
@@ -216,7 +227,9 @@ public partial class SettingsWindow : Window
     private void OnCaptionModeChanged(object sender, RoutedEventArgs e)
         => CaptionModeChanged?.Invoke(CaptionMonitorToggle.IsChecked == true);
 
-    private void OnApiSettingsClick(object sender, RoutedEventArgs e)
+    private void OnApiSettingsClick(object sender, RoutedEventArgs e) => NavigateToApiConfig();
+
+    public void NavigateToApiConfig()
     {
         var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey) { Owner = this };
         if (dialog.ShowDialog() == true)
