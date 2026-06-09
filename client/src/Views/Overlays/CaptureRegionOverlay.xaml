@@ -31,7 +31,7 @@
     <Grid>
 
         <!-- 영역 외곽선 -->
-        <Rectangle Stroke="#FF8B7CF8" StrokeThickness="2"
+        <Rectangle Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
                    Fill="#90000000"/>
 
         <!-- 상단 가이드 텍스트 -->
@@ -53,7 +53,7 @@
 
         <!-- 하단 크기 표시 + 버튼 + 가이드 바 -->
         <StackPanel VerticalAlignment="Bottom">
-            <Border Background="#CC8B7CF8" Padding="0,5" IsHitTestVisible="False">
+            <Border Background="{StaticResource AccentBrush}" Padding="0,5" IsHitTestVisible="False">
                 <TextBlock Text="상하좌우 가장자리를 드래그하여 크기 조절"
                            Foreground="White" FontSize="10" HorizontalAlignment="Center"/>
             </Border>
@@ -73,7 +73,7 @@
                             Click="OnCancel"/>
                     <Button Content="저장"
                             Style="{StaticResource EditBtn}"
-                            Background="#FF8B7CF8" Foreground="White"
+                            Background="{StaticResource AccentBrush}" Foreground="White"
                             Click="OnSave"/>
                 </StackPanel>
             </StackPanel>
