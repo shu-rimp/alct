@@ -243,9 +243,6 @@
             BorderBrush="{StaticResource CardBorderAccentBrush}"
             BorderThickness="1"
             MouseLeftButtonDown="OnHeaderDrag">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.5" Color="#000000"/>
-        </Border.Effect>
 
         <Grid>
             <Grid.RowDefinitions>
@@ -443,7 +440,8 @@
                                         <TextBlock Text="🎙️ 실시간 음성 번역"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontSize="13" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Windows 11 필수"
+                                        <TextBlock x:Name="VoiceHintText"
+                                                   Text="Windows 11 필수"
                                                    Foreground="{StaticResource TextMutedBrush}"
                                                    FontSize="11" Margin="0,2,0,0"/>
                                     </StackPanel>

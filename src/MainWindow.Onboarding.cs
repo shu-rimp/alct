@@ -16,44 +16,39 @@ public partial class MainWindow
             _userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey,
             _userSettings.InputHotkeyModifiers,   _userSettings.InputHotkeyVKey);
 
-        onboarding.ApiKeyConfirmed    += OnOnboardingApiKeyConfirmed;
-        onboarding.OverlayCheckEntered += ShowOnboardingOverlays;
-        onboarding.OverlayCheckExited  += HideOnboardingOverlays;
+        onboarding.ApiKeysRegistered  += OnOnboardingApiKeysRegistered;
+        onboarding.OnboardingCompleted += OnOnboardingReachedDone;
 
         onboarding.ShowDialog();
-
-        if (onboarding.DialogResult == true)
-        {
-            _userSettings.OnboardingComplete = true;
-            UserSettingsService.Save(_userSettings);
-        }
     }
 
-    private void OnOnboardingApiKeyConfirmed(string key)
+    private void OnOnboardingReachedDone()
     {
-        _deepLKey = key;
-        SaveAppSetting("DeepLApiKey", key);
-        if (_voiceEngine == TranslationEngine.DeepL)
-            _voiceTranslationService = new DeepLTranslationService(key);
-        if (_textEngine == TranslationEngine.DeepL)
-            _textTranslationService = new DeepLTranslationService(key);
-        _settings.SetDeepLApiKey(key);
-    }
-
-    private void ShowOnboardingOverlays()
-    {
-        var screen = GetSelectedScreen();
-        _overlay.MoveToMonitor(screen);
-        _voiceOverlay.MoveToMonitor(screen);
-        _overlay.SetEditMode(true);
-        _voiceOverlay.SetEditMode(true);
-    }
-
-    private void HideOnboardingOverlays()
-    {
-        _overlay.SetEditMode(false);
-        _voiceOverlay.SetEditMode(false);
-        SaveOverlayPositions();
+        _userSettings.OnboardingComplete = true;
         UserSettingsService.Save(_userSettings);
+    }
+
+    private void OnOnboardingApiKeysRegistered(string deepLKey, string geminiKey)
+    {
+        if (!string.IsNullOrEmpty(deepLKey))
+        {
+            _deepLKey = deepLKey;
+            SaveAppSetting("DeepLApiKey", deepLKey);
+            if (_voiceEngine == TranslationEngine.DeepL)
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, deepLKey);
+            if (_textEngine == TranslationEngine.DeepL)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, deepLKey);
+            _settings.SetDeepLApiKey(deepLKey);
+        }
+        if (!string.IsNullOrEmpty(geminiKey))
+        {
+            _geminiKey = geminiKey;
+            SaveAppSetting("GeminiApiKey", geminiKey);
+            if (_voiceEngine == TranslationEngine.Gemini)
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, geminiKey);
+            if (_textEngine == TranslationEngine.Gemini)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, geminiKey);
+            _settings.SetGeminiApiKey(geminiKey);
+        }
     }
 }

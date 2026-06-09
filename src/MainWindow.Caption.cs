@@ -1,5 +1,6 @@
 using AlctClient.Core;
 using AlctClient.Utils;
+using AlctClient.Views.Windows;
 using System.Diagnostics;
 using System.Management;
 
@@ -116,6 +117,28 @@ public partial class MainWindow
 
     private async Task HandleCaptionModeChangedAsync(bool enabled)
     {
+        if (enabled && !await AllLanguagePacksInstalledAsync())
+        {
+            bool confirmed = await Dispatcher.InvokeAsync(() =>
+            {
+                var window = OnboardingWindow.ForLanguagePackInstall();
+                window.Owner = _settings.IsVisible ? _settings : null;
+                return window.ShowDialog() == true;
+            });
+
+            if (!confirmed)
+            {
+                _updatingCaption = true;
+                Dispatcher.Invoke(() =>
+                {
+                    _settings.SetCaptionMode(false);
+                    _langOverlay.SetCaptionMode(false);
+                });
+                _updatingCaption = false;
+                return;
+            }
+        }
+
         _userSettings.CaptionModeEnabled = enabled;
         UserSettingsService.Save(_userSettings);
 
@@ -141,6 +164,15 @@ public partial class MainWindow
         }
         catch (Exception ex) { Logger.Error("CaptionMode", ex); }
         finally { _captionLock.Release(); }
+    }
+
+    private static async Task<bool> AllLanguagePacksInstalledAsync()
+    {
+        var jp = LanguagePackService.IsInstalledAsync("ja-JP");
+        var zh = LanguagePackService.IsInstalledAsync("zh-CN");
+        await Task.WhenAll(jp, zh);
+        Logger.Info("Preflight", $"언어팩 설치 상태 — ja-JP={jp.Result}, zh-CN={zh.Result}");
+        return jp.Result && zh.Result;
     }
 
     private async Task InitCaptionModeAsync()
