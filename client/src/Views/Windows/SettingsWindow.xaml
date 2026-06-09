@@ -243,9 +243,6 @@
             BorderBrush="{StaticResource CardBorderAccentBrush}"
             BorderThickness="1"
             MouseLeftButtonDown="OnHeaderDrag">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.5" Color="#000000"/>
-        </Border.Effect>
 
         <Grid>
             <Grid.RowDefinitions>
