@@ -26,7 +26,9 @@ public sealed class HotkeyManager : IDisposable
 
     public HotkeyManager(Window window)
     {
-        _hwnd = new WindowInteropHelper(window).Handle;
+        var helper = new WindowInteropHelper(window);
+        helper.EnsureHandle();
+        _hwnd = helper.Handle;
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
     }
 

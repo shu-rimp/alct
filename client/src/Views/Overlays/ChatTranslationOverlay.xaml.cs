@@ -125,6 +125,8 @@ public partial class ChatTranslationOverlay : Window
         }
     }
 
+    public void ShowNotice(string message) => ShowTranslation(message, string.Empty);
+
     public void ShowTranslation(string translated, string original)
     {
         Dispatcher.Invoke(() =>

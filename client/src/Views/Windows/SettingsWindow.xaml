@@ -440,7 +440,8 @@
                                         <TextBlock Text="🎙️ 실시간 음성 번역"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
                                                    FontSize="13" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Windows 11 필수"
+                                        <TextBlock x:Name="VoiceHintText"
+                                                   Text="Windows 11 필수"
                                                    Foreground="{StaticResource TextMutedBrush}"
                                                    FontSize="11" Margin="0,2,0,0"/>
                                     </StackPanel>

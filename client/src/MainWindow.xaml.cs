@@ -2,6 +2,7 @@ using AlctClient.Core;
 using AlctClient.Utils;
 using AlctClient.Views.Overlays;
 using AlctClient.Views.Windows;
+using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -52,7 +53,9 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_userSettings.CaptionModeEnabled)
+        LogPreflightEnvironment();
+        bool liveCaption = WindowsApiHelper.IsLiveCaptionSupported();
+        if (_userSettings.CaptionModeEnabled && liveCaption)
             WindowsApiHelper.SetLiveCaptionsVisible(true);
         InitSettings();
         InitOverlays();
@@ -62,8 +65,9 @@ public partial class MainWindow : Window
         InitTray();
         InitHotkeys();
         _settings.Show();
+        _settings.SetVoiceSupported(liveCaption);
         _settings.SetMonitorIndex(_userSettings.MonitorIndex);
-        if (_userSettings.CaptionModeEnabled)
+        if (_userSettings.CaptionModeEnabled && liveCaption)
             _ = InitCaptionModeAsync();
     }
 
@@ -132,6 +136,15 @@ public partial class MainWindow : Window
         _hotkeyManager?.Dispose();
         _captionMonitor.Dispose();
         _tray?.Dispose();
+    }
+
+    private static void LogPreflightEnvironment()
+    {
+        bool liveCaption = WindowsApiHelper.IsLiveCaptionSupported();
+        using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+        string build   = key?.GetValue("CurrentBuild")    as string ?? "unknown";
+        string display = key?.GetValue("DisplayVersion")  as string ?? "unknown";
+        Logger.Info("Preflight", $"Windows build={build} ({display}), LiveCaption={liveCaption}");
     }
 
     private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용

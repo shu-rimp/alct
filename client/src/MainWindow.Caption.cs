@@ -171,6 +171,7 @@ public partial class MainWindow
         var jp = LanguagePackService.IsInstalledAsync("ja-JP");
         var zh = LanguagePackService.IsInstalledAsync("zh-CN");
         await Task.WhenAll(jp, zh);
+        Logger.Info("Preflight", $"언어팩 설치 상태 — ja-JP={jp.Result}, zh-CN={zh.Result}");
         return jp.Result && zh.Result;
     }
 
