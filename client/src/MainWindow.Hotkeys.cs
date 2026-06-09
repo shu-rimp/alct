@@ -72,7 +72,17 @@ public partial class MainWindow
         {
             try
             {
+                var overlayVisible = Dispatcher.Invoke(() =>
+                {
+                    var v = _overlay.IsVisible;
+                    if (v) _overlay.Hide();
+                    return v;
+                });
+
                 var imageBytes = _screenCapture.CaptureRegionAsPng();
+
+                Dispatcher.Invoke(() => { if (overlayVisible) _overlay.Show(); });
+
                 if (!_screenCaptureLogged)
                 {
                     _screenCaptureLogged = true;

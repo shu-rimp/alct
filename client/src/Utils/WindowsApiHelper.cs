@@ -56,14 +56,6 @@ public static class WindowsApiHelper
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
-    [DllImport("user32.dll")]
-    private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
-
-    private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
-
-    public static void ExcludeFromCapture(Window window)
-        => SetWindowDisplayAffinity(GetWindowHandle(window), WDA_EXCLUDEFROMCAPTURE);
-
     public static void SimulateCopy() => SendCtrlKey(VK_C);
     public static void SimulatePaste() => SendCtrlKey(VK_V);
 

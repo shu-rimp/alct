@@ -35,7 +35,6 @@ public partial class VoiceTranslationOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        WindowsApiHelper.ExcludeFromCapture(this);
         if (!_isEditMode) WindowsApiHelper.EnableClickThrough(this);
         ApplyOpacity();
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowHook);
