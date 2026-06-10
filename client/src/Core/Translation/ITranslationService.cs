@@ -10,4 +10,4 @@ public interface ITranslationService
         text.Replace("<x>", "").Replace("</x>", "").Trim();
 }
 
-public enum TranslationEngine { MyMemory, DeepL, Gemini }
+public enum TranslationEngine { MyMemory, DeepL, Gemini, Langbly }

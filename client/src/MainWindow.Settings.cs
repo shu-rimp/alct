@@ -107,6 +107,16 @@ public partial class MainWindow
             SaveAppSetting("GeminiApiKey", key);
         };
 
+        _settings.LangblyApiKeyChanged += key =>
+        {
+            _langblyKey = key;
+            if (_voiceEngine == TranslationEngine.Langbly)
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, key);
+            if (_textEngine == TranslationEngine.Langbly)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, key);
+            SaveAppSetting("LangblyApiKey", key);
+        };
+
         _settings.VoiceEngineChanged += engine =>
         {
             _voiceEngine = engine;
