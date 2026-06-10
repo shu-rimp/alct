@@ -40,7 +40,7 @@ public partial class OnboardingWindow : Window
 
     private DispatcherTimer? _pollTimer;
 
-    public event Action<string, string>? ApiKeysRegistered;
+    public event Action<string, string, string>? ApiKeysRegistered;
     public event Action? OnboardingCompleted;
 
     public OnboardingWindow(uint captureMods, uint captureVKey, uint inputMods, uint inputVKey)
@@ -271,9 +271,9 @@ public partial class OnboardingWindow : Window
 
     private void OnApiUpsellRegister(object sender, RoutedEventArgs e)
     {
-        var modal = new ApiConfigModal("", "") { Owner = this };
+        var modal = new ApiConfigModal("", "", "") { Owner = this };
         if (modal.ShowDialog() == true)
-            ApiKeysRegistered?.Invoke(modal.DeepLApiKey, modal.GeminiApiKey);
+            ApiKeysRegistered?.Invoke(modal.DeepLApiKey, modal.GeminiApiKey, modal.LangblyApiKey);
     }
 
     private void OnComplete(object sender, RoutedEventArgs e)

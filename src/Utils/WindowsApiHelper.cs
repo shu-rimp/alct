@@ -56,20 +56,15 @@ public static class WindowsApiHelper
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
-    public static void SimulateCopy() => SendCtrlKey(VK_C);
-    public static void SimulatePaste() => SendCtrlKey(VK_V);
+    public static void SimulateCopy() =>
+        Send(KeyDown(VK_CONTROL), KeyDown(VK_C), KeyUp(VK_C), KeyUp(VK_CONTROL));
 
-    private static void SendCtrlKey(ushort vk)
-    {
-        var inputs = new[]
-        {
-            KeyDown(VK_CONTROL),
-            KeyDown(vk),
-            KeyUp(vk),
-            KeyUp(VK_CONTROL),
-        };
+    public static void SimulatePaste() =>
+        // Trailing Ctrl Down+Up releases the stuck Ctrl state in the game after paste.
+        Send(KeyDown(VK_CONTROL), KeyDown(VK_V), KeyUp(VK_V), KeyUp(VK_CONTROL), KeyDown(VK_CONTROL), KeyUp(VK_CONTROL));
+
+    private static void Send(params INPUT[] inputs) =>
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
-    }
 
     private static INPUT KeyDown(ushort vk) =>
         new() { type = INPUT_KEYBOARD, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk } } };
@@ -179,12 +174,7 @@ public static class WindowsApiHelper
     public static async Task StartLiveCaptionsAsync()
     {
         if (Process.GetProcessesByName("LiveCaptions").Length > 0) return;
-        var inputs = new[]
-        {
-            KeyDown(VK_LWIN), KeyDown(VK_CONTROL), KeyDown(VK_L),
-            KeyUp(VK_L), KeyUp(VK_CONTROL), KeyUp(VK_LWIN),
-        };
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        Send(KeyDown(VK_LWIN), KeyDown(VK_CONTROL), KeyDown(VK_L), KeyUp(VK_L), KeyUp(VK_CONTROL), KeyUp(VK_LWIN));
         for (int i = 0; i < 20; i++)
         {
             await Task.Delay(500);

@@ -15,6 +15,7 @@ public partial class MainWindow
 
     private void InitHotkeys()
     {
+        if (!IsLoaded || !IsVisible) return;
         if (_userSettings.UseCustomCaptureRegion && _userSettings.CustomCaptureWidth > 0)
             _screenCapture.SetCaptureRegion(new System.Drawing.Rectangle(
                 _userSettings.CustomCaptureX, _userSettings.CustomCaptureY,

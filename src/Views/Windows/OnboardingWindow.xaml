@@ -188,7 +188,7 @@
                         ClipToBounds="True">
                     <MediaElement x:Name="ChatDemoMedia"
                                   LoadedBehavior="Manual" UnloadedBehavior="Stop"
-                                  Stretch="Uniform"
+                                  Stretch="Uniform" Volume="0"
                                   MediaEnded="OnChatMediaEnded"/>
                 </Border>
 
@@ -244,7 +244,7 @@
                         ClipToBounds="True">
                     <MediaElement x:Name="InputDemoMedia"
                                   LoadedBehavior="Manual" UnloadedBehavior="Stop"
-                                  Stretch="Uniform"
+                                  Stretch="Uniform" Volume="0"
                                   MediaEnded="OnInputMediaEnded"/>
                 </Border>
 
@@ -302,7 +302,7 @@
                         ClipToBounds="True">
                     <MediaElement x:Name="VoiceDemoMedia"
                                   LoadedBehavior="Manual" UnloadedBehavior="Stop"
-                                  Stretch="Uniform"
+                                  Stretch="Uniform" Volume="0"
                                   MediaEnded="OnVoiceMediaEnded"/>
                 </Border>
 
@@ -345,7 +345,7 @@
                         ClipToBounds="True">
                     <MediaElement x:Name="InstallGuideMedia"
                                   LoadedBehavior="Manual" UnloadedBehavior="Stop"
-                                  Stretch="Uniform"
+                                  Stretch="Uniform" Volume="0"
                                   MediaEnded="OnGuideMediaEnded"/>
                 </Border>
 
