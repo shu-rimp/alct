@@ -74,14 +74,14 @@ public partial class ChatTranslationOverlay : Window
 
     private void SnapToDefaultPosition()
     {
-        Left = SystemParameters.PrimaryScreenWidth - Width - 20;
-        Top  = 80;
+        Left = 20;
+        Top  = (SystemParameters.PrimaryScreenHeight - 120) / 2;
     }
 
     public void MoveToMonitor(System.Windows.Forms.Screen screen)
     {
-        Left = screen.Bounds.Right - Width - 20;
-        Top  = screen.Bounds.Top  + 80;
+        Left = screen.Bounds.Left + 20;
+        Top  = screen.Bounds.Top  + (screen.Bounds.Height - 120) / 2;
     }
 
     public void LoadBounds(double left, double top, double width)

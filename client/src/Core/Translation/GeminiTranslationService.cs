@@ -33,22 +33,26 @@ public sealed class GeminiTranslationService : ITranslationService
     public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
-        var prompt = $"다음 텍스트를 한국어로 번역해. 번역 결과만 출력해. 설명은 하지 마:\n\n{ITranslationService.StripXmlTags(text)}";
-        return await CallAsync(prompt, ct);
+        return await CallAsync(
+            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Only output the translated text.",
+            userContent: $"Translate the following text to Korean:\n\n{ITranslationService.StripXmlTags(text)}",
+            ct);
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
-        var prompt = $"다음 한국어 텍스트를 {MapLanguageCode(targetLang)}로 번역해. 번역 결과만 출력해. 설명은 하지 마:\n\n{text}";
-        return await CallAsync(prompt);
+        return await CallAsync(
+            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Only output the translated text.",
+            userContent: $"Translate the following Korean text to {MapLanguageCode(targetLang)}:\n\n{text}");
     }
 
-    private async Task<string> CallAsync(string prompt, CancellationToken ct = default)
+    private async Task<string> CallAsync(string systemInstruction, string userContent, CancellationToken ct = default)
     {
         var payload = new
         {
-            contents = new[] { new { parts = new[] { new { text = prompt } } } },
+            system_instruction = new { parts = new[] { new { text = systemInstruction } } },
+            contents = new[] { new { parts = new[] { new { text = userContent } } } },
             generationConfig = new { temperature = 0.1, maxOutputTokens = 512 },
         };
 
