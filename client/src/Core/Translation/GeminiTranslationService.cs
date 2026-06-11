@@ -34,8 +34,8 @@ public sealed class GeminiTranslationService : ITranslationService
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
         return await CallAsync(
-            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Only output the translated text.",
-            userContent: $"Translate the following text to Korean:\n\n{ITranslationService.StripXmlTags(text)}",
+            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
+            userContent: $"Translate each line below to Korean, outputting the same number of lines:\n\n{ITranslationService.StripXmlTags(text)}",
             ct);
     }
 

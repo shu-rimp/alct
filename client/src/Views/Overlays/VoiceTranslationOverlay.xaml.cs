@@ -1,4 +1,5 @@
 using AlctClient.Utils;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -14,9 +15,12 @@ public partial class VoiceTranslationOverlay : Window
 
     private DispatcherTimer? _hideTimer;
     private double _opacity = 0.7;
+    private double _fontSize = 13;
     private bool _isEditMode;
     private bool _hasContent;
     private bool _isEditPlaceholder; // SetEditMode에서만 true — 편집모드 미리보기 텍스트
+    private IntPtr _winEventHook;
+    private WinEventProc? _winEventProc;
 
     // 번역 결과 패널 (항상 1개 — 재활용)
     private StackPanel? _contentPanel;
@@ -38,6 +42,40 @@ public partial class VoiceTranslationOverlay : Window
         if (!_isEditMode) WindowsApiHelper.EnableClickThrough(this);
         ApplyOpacity();
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowHook);
+        _winEventProc = OnForegroundChanged;
+        _winEventHook = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, _winEventProc, 0, 0, 0x0000); // EVENT_SYSTEM_FOREGROUND
+        Closed += (_, _) => { if (_winEventHook != IntPtr.Zero) UnhookWinEvent(_winEventHook); };
+        SizeChanged += (_, e) =>
+        {
+            if (!e.WidthChanged) return;
+            Width = ActualWidth;
+            TranslationList.InvalidateMeasure();
+            SizeToContent = SizeToContent.Manual;
+            SizeToContent = SizeToContent.Height;
+        };
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public IntPtr hwnd, hwndInsertAfter;
+        public int x, y, cx, cy;
+        public uint flags;
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint eMin, uint eMax, IntPtr hmod, WinEventProc fn, uint pid, uint tid, uint flags);
+    [DllImport("user32.dll")] private static extern bool   UnhookWinEvent(IntPtr hook);
+    [DllImport("user32.dll")] private static extern bool   SetWindowPos(IntPtr hwnd, IntPtr hwndAfter, int x, int y, int cx, int cy, uint flags);
+
+    private delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time);
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
+
+    private void OnForegroundChanged(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time)
+    {
+        if (!IsVisible) return;
+        var myHwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == myHwnd) return;
+        SetWindowPos(myHwnd, HWND_TOPMOST, 0, 0, 0, 0, 0x0013); // SWP_NOSIZE|SWP_NOMOVE|SWP_NOACTIVATE
     }
 
     private IntPtr WindowHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -46,6 +84,27 @@ public partial class VoiceTranslationOverlay : Window
         {
             handled = true;
             return (IntPtr)3; // MA_NOACTIVATE
+        }
+
+        if (msg == 0x0046) // WM_WINDOWPOSCHANGING
+        {
+            var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+            if ((pos.flags & 0x0004) == 0) // SWP_NOZORDER 미설정 = z-order 변경 시도
+            {
+                pos.hwndInsertAfter = new IntPtr(-1); // HWND_TOPMOST 재고정
+                Marshal.StructureToPtr(pos, lParam, false);
+            }
+        }
+
+        if (msg == 0x0232) // WM_EXITSIZEMOVE — 드래그 완료 후 최종 높이 보정
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                Width = ActualWidth;
+                TranslationList.InvalidateMeasure();
+                SizeToContent = SizeToContent.Manual;
+                SizeToContent = SizeToContent.Height;
+            });
         }
 
         if (_isEditMode && msg == 0x0084) // WM_NCHITTEST
@@ -71,6 +130,14 @@ public partial class VoiceTranslationOverlay : Window
     private void ApplyOpacity() =>
         RootBorder.Background = new WpfBrush(BgColor) { Opacity = _opacity };
 
+    public void SetFontSize(double size)
+    {
+        _fontSize = size;
+        foreach (var sp in TranslationList.Children.OfType<StackPanel>())
+            foreach (var tb in sp.Children.OfType<TextBlock>())
+                tb.FontSize = tb.Tag as string == "main" ? size : Math.Max(8, size - 2);
+    }
+
     // ── 위치 ──────────────────────────────────────────────────────────────────
 
     private void SnapToDefaultPosition()
@@ -83,6 +150,12 @@ public partial class VoiceTranslationOverlay : Window
     {
         Left = screen.Bounds.Left + (screen.Bounds.Width - Width) / 2;
         Top  = screen.Bounds.Top  + 30;
+    }
+
+    public void ResetBounds(System.Windows.Forms.Screen screen)
+    {
+        Width = 500;
+        MoveToMonitor(screen);
     }
 
     public void LoadBounds(double left, double top, double width)
@@ -116,8 +189,9 @@ public partial class VoiceTranslationOverlay : Window
                 {
                     Text         = "오늘 와주셔서 감사합니다.",
                     Foreground   = primaryBrush,
-                    FontSize     = 13,
+                    FontSize     = _fontSize,
                     TextWrapping = TextWrapping.Wrap,
+                    Tag          = "main",
                 });
                 _hasContent        = true;
                 _isEditPlaceholder = true;
@@ -153,9 +227,10 @@ public partial class VoiceTranslationOverlay : Window
                 {
                     Text         = delta,
                     Foreground   = secondaryBrush,
-                    FontSize     = 11,
+                    FontSize     = Math.Max(8, _fontSize - 2),
                     FontStyle    = FontStyles.Italic,
                     TextWrapping = TextWrapping.Wrap,
+                    Tag          = "sub",
                 };
                 _pendingPanel = new StackPanel
                 {
@@ -196,9 +271,10 @@ public partial class VoiceTranslationOverlay : Window
             {
                 Text         = original,
                 Foreground   = secondaryBrush,
-                FontSize     = 11,
+                FontSize     = Math.Max(8, _fontSize - 2),
                 FontStyle    = FontStyles.Italic,
                 TextWrapping = TextWrapping.Wrap,
+                Tag          = "sub",
             });
 
             _hasContent        = true;
@@ -221,8 +297,9 @@ public partial class VoiceTranslationOverlay : Window
             {
                 Text         = translated,
                 Foreground   = primaryBrush,
-                FontSize     = 13,
+                FontSize     = _fontSize,
                 TextWrapping = TextWrapping.Wrap,
+                Tag          = "main",
             });
 
             _hasContent        = true;

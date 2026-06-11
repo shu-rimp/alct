@@ -14,10 +14,11 @@ public partial class MainWindow
     private double _snapVoiceLeft, _snapVoiceTop, _snapVoiceWidth;
     private double _snapTextLeft,  _snapTextTop,  _snapTextWidth;
     private double _snapOpacity;
+    private double _snapFontSize;
 
     private void InitOverlays()
     {
-        var screens = System.Windows.Forms.Screen.AllScreens;
+        var screens = GetSortedScreens();
         if (_userSettings.MonitorIndex > 0 && _userSettings.MonitorIndex < screens.Length)
             _langOverlay.SetInitialScreen(screens[_userSettings.MonitorIndex]);
 
@@ -30,6 +31,8 @@ public partial class MainWindow
         _overlay.SetOpacity(_userSettings.OverlayOpacity);
         _voiceOverlay.SetOpacity(_userSettings.OverlayOpacity);
         _langOverlay.SetOpacity(_userSettings.OverlayOpacity);
+        _overlay.SetFontSize(_userSettings.OverlayFontSize);
+        _voiceOverlay.SetFontSize(_userSettings.OverlayFontSize);
 
         _editPanel.OpacityChanged += opacity =>
         {
@@ -38,8 +41,15 @@ public partial class MainWindow
             _langOverlay.SetOpacity(opacity);
             _userSettings.OverlayOpacity = opacity;
         };
+        _editPanel.FontSizeChanged += size =>
+        {
+            _overlay.SetFontSize(size);
+            _voiceOverlay.SetFontSize(size);
+            _userSettings.OverlayFontSize = size;
+        };
         _editPanel.SaveRequested   += () => ExitEditMode(save: true);
         _editPanel.CancelRequested += () => ExitEditMode(save: false);
+        _editPanel.ResetRequested  += ResetOverlaysToDefault;
 
         _captureRegionOverlay.SaveRequested += region =>
         {
@@ -61,9 +71,9 @@ public partial class MainWindow
     internal void TranslateAllOverlaysToMonitor(
         System.Windows.Forms.Screen from, System.Windows.Forms.Screen to)
     {
-        TranslateOverlayToMonitor(_overlay,      from, to);
-        TranslateOverlayToMonitor(_voiceOverlay, from, to);
-        TranslateOverlayToMonitor(_langOverlay,  from, to);
+        TranslateOverlayToMonitor(_overlay,      from, to, _userSettings.TextOverlayLeft,  _userSettings.TextOverlayTop);
+        TranslateOverlayToMonitor(_voiceOverlay, from, to, _userSettings.VoiceOverlayLeft, _userSettings.VoiceOverlayTop);
+        TranslateOverlayToMonitor(_langOverlay,  from, to, _langOverlay.Left,              _langOverlay.Top);
         _langOverlay.SetInitialScreen(to);
     }
 
@@ -77,11 +87,12 @@ public partial class MainWindow
     }
 
     private static void TranslateOverlayToMonitor(
-        Window overlay, System.Windows.Forms.Screen from, System.Windows.Forms.Screen to)
+        Window overlay, System.Windows.Forms.Screen from, System.Windows.Forms.Screen to,
+        double currentLeft, double currentTop)
     {
-        if (double.IsNaN(overlay.Left) || double.IsNaN(overlay.Top)) return;
-        double relX = (overlay.Left - from.Bounds.X) / from.Bounds.Width;
-        double relY = (overlay.Top  - from.Bounds.Y) / from.Bounds.Height;
+        if (double.IsNaN(currentLeft) || double.IsNaN(currentTop)) return;
+        double relX = (currentLeft - from.Bounds.X) / from.Bounds.Width;
+        double relY = (currentTop  - from.Bounds.Y) / from.Bounds.Height;
         overlay.Left = to.Bounds.X + Math.Clamp(relX, 0, 1) * to.Bounds.Width;
         overlay.Top  = to.Bounds.Y + Math.Clamp(relY, 0, 1) * to.Bounds.Height;
     }
@@ -139,13 +150,21 @@ public partial class MainWindow
         if (_userSettings.TextOverlayLeft < 0 || !screen.Bounds.Contains(
                 (int)_userSettings.TextOverlayLeft, (int)_userSettings.TextOverlayTop))
             _overlay.MoveToMonitor(screen);
+
+        SaveOverlayPositions();
     }
 
     // ── Screen ──
 
+    private static System.Windows.Forms.Screen[] GetSortedScreens() =>
+        System.Windows.Forms.Screen.AllScreens
+            .OrderBy(s => s.Bounds.Left)
+            .ThenBy(s => s.Bounds.Top)
+            .ToArray();
+
     private System.Windows.Forms.Screen GetSelectedScreen()
     {
-        var screens = System.Windows.Forms.Screen.AllScreens;
+        var screens = GetSortedScreens();
         return _userSettings.MonitorIndex < screens.Length
             ? screens[_userSettings.MonitorIndex]
             : System.Windows.Forms.Screen.PrimaryScreen!;
@@ -173,13 +192,37 @@ public partial class MainWindow
         _snapTextTop    = _overlay.Top;
         _snapTextWidth  = _overlay.Width;
         _snapOpacity    = _userSettings.OverlayOpacity;
+        _snapFontSize   = _userSettings.OverlayFontSize;
 
         _voiceOverlay.SetEditMode(true);
         _overlay.SetEditMode(true);
         _editPanel.SetOpacity(_userSettings.OverlayOpacity);
+        _editPanel.SetFontSize(_userSettings.OverlayFontSize);
         _editPanel.Show();
         _editPanel.MoveToMonitor(GetSelectedScreen());
         _settings.Hide();
+    }
+
+    private void ResetOverlaysToDefault()
+    {
+        var defaults = new UserSettings();
+        var screen = GetSelectedScreen();
+
+        _overlay.ResetBounds(screen);
+        _voiceOverlay.ResetBounds(screen);
+        _langOverlay.MoveToMonitor(screen);
+
+        _overlay.SetOpacity(defaults.OverlayOpacity);
+        _voiceOverlay.SetOpacity(defaults.OverlayOpacity);
+        _langOverlay.SetOpacity(defaults.OverlayOpacity);
+        _overlay.SetFontSize(defaults.OverlayFontSize);
+        _voiceOverlay.SetFontSize(defaults.OverlayFontSize);
+
+        _userSettings.OverlayOpacity  = defaults.OverlayOpacity;
+        _userSettings.OverlayFontSize = defaults.OverlayFontSize;
+
+        _editPanel.SetOpacity(defaults.OverlayOpacity);
+        _editPanel.SetFontSize(defaults.OverlayFontSize);
     }
 
     private void ExitEditMode(bool save)
@@ -201,10 +244,13 @@ public partial class MainWindow
             _overlay.Left   = _snapTextLeft;
             _overlay.Top    = _snapTextTop;
             _overlay.Width  = _snapTextWidth;
-            _userSettings.OverlayOpacity = _snapOpacity;
+            _userSettings.OverlayOpacity  = _snapOpacity;
+            _userSettings.OverlayFontSize = _snapFontSize;
             _voiceOverlay.SetOpacity(_snapOpacity);
             _overlay.SetOpacity(_snapOpacity);
             _langOverlay.SetOpacity(_snapOpacity);
+            _voiceOverlay.SetFontSize(_snapFontSize);
+            _overlay.SetFontSize(_snapFontSize);
         }
 
         _settings.Show();

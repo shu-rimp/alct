@@ -38,16 +38,18 @@ public sealed class DeepLTranslationService : ITranslationService
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
 
+        // 줄별로 배열에 담아 전송 — DeepL이 줄을 병합하지 않고 1:1 번역 보장
+        var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
         var payload = new
         {
-            text = new[] { text },
+            text = lines,
             source_lang = MapLanguageCode(sourceLang),
             target_lang = "KO",
             tag_handling = "xml",
             ignore_tags = new[] { "x" },
         };
-        var result = await CallDeepLAsync(payload, ct);
-        return StripXTags(result);
+        var results = await CallDeepLArrayAsync(payload, ct);
+        return string.Join("\n", results.Select(StripXTags));
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
@@ -82,5 +84,23 @@ public sealed class DeepLTranslationService : ITranslationService
             .GetProperty("translations")[0]
             .GetProperty("text")
             .GetString() ?? string.Empty;
+    }
+
+    private async Task<string[]> CallDeepLArrayAsync(object payload, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, _baseUrl)
+        {
+            Content = JsonContent.Create(payload),
+        };
+        request.Headers.Add("Authorization", $"DeepL-Auth-Key {_apiKey}");
+
+        var response = await _http.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+
+        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        var arr = doc.RootElement.GetProperty("translations");
+        return Enumerable.Range(0, arr.GetArrayLength())
+            .Select(i => arr[i].GetProperty("text").GetString() ?? string.Empty)
+            .ToArray();
     }
 }

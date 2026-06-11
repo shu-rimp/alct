@@ -30,7 +30,13 @@ public sealed class MyMemoryTranslationService : ITranslationService
     public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
-        return await CallAsync(ITranslationService.StripXmlTags(text), MapLanguageCode(sourceLang), "ko", ct);
+        var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var tasks = lines.Select(l =>
+            string.IsNullOrWhiteSpace(l)
+                ? Task.FromResult(string.Empty)
+                : CallAsync(ITranslationService.StripXmlTags(l), MapLanguageCode(sourceLang), "ko", ct));
+        var results = await Task.WhenAll(tasks);
+        return string.Join("\n", results);
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)

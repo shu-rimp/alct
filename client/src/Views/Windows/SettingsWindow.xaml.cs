@@ -85,8 +85,12 @@ public partial class SettingsWindow : Window
 
     private void LoadMonitors()
     {
+        _suppressMonitorEvent = true;
         MonitorCombo.Items.Clear();
-        var screens = System.Windows.Forms.Screen.AllScreens;
+        var screens = System.Windows.Forms.Screen.AllScreens
+            .OrderBy(s => s.Bounds.Left)
+            .ThenBy(s => s.Bounds.Top)
+            .ToArray();
         for (int i = 0; i < screens.Length; i++)
         {
             var s = screens[i];
@@ -96,6 +100,7 @@ public partial class SettingsWindow : Window
         }
         if (MonitorCombo.Items.Count > 0)
             MonitorCombo.SelectedIndex = 0;
+        _suppressMonitorEvent = false;
     }
 
     // ── 외부에서 초기값 설정 ──

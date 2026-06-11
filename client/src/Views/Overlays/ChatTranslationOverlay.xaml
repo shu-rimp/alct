@@ -37,6 +37,11 @@
             <!-- Translation entries -->
             <ItemsControl x:Name="EntriesList" Margin="0,0,0,4"
                           HorizontalContentAlignment="Stretch">
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="{x:Type local:TranslationEntry}">
                         <StackPanel>
@@ -44,11 +49,11 @@
                             <StackPanel Margin="12,8,12,8">
                                 <TextBlock Text="{Binding Translated}"
                                            Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="13"
+                                           FontSize="{DynamicResource OverlayFontSizeMain}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{Binding Original}"
                                            Foreground="{StaticResource TextMutedBrush}"
-                                           FontSize="11"
+                                           FontSize="{DynamicResource OverlayFontSizeSub}"
                                            Margin="0,3,0,0"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
