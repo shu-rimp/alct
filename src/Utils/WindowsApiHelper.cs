@@ -24,6 +24,8 @@ public static class WindowsApiHelper
     private const uint KEYEVENTF_KEYUP = 0x0002;
     private const ushort VK_LWIN    = 0x5B;
     private const ushort VK_CONTROL = 0x11;
+    private const ushort VK_SHIFT   = 0x10;
+    private const ushort VK_HOME    = 0x24;
     private const ushort VK_C = 0x43;
     private const ushort VK_L = 0x4C;
     private const ushort VK_V = 0x56;
@@ -55,6 +57,10 @@ public static class WindowsApiHelper
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    public static void SimulateSelectToLineStart() =>
+        // Ctrl-up first: hotkey modifier may still be logically down, causing Ctrl+Shift+Home (select to doc start) instead of Shift+Home
+        Send(KeyUp(VK_CONTROL), KeyDown(VK_SHIFT), KeyDown(VK_HOME), KeyUp(VK_HOME), KeyUp(VK_SHIFT));
 
     public static void SimulateCopy() =>
         Send(KeyDown(VK_CONTROL), KeyDown(VK_C), KeyUp(VK_C), KeyUp(VK_CONTROL));

@@ -105,21 +105,21 @@ public partial class HotkeyRecorderModal : Window
         if (mods == 0 && IsAlphanumericKey(key))
         {
             ConfirmButton.IsEnabled = false;
-            SetHint(true, "알파벳/숫자 키는 조합키(Ctrl / Alt / Shift)와 함께 사용해야 합니다.");
+            SetHint(true, "알파벳/숫자 키는 조합키(Ctrl / Alt / Shift)와 함께 눌러 주세요.");
             return;
         }
 
         if (BlockedCombos.Contains((mods, vkey)))
         {
             ConfirmButton.IsEnabled = false;
-            SetHint(true, "시스템 기본 단축키(복사/붙여넣기 등)와 충돌합니다. 다른 조합을 선택해 주세요.");
+            SetHint(true, "시스템 기본 단축키(복사/붙여넣기 등)와 충돌해요. 다른 조합을 선택해 주세요.");
             return;
         }
 
         if (mods == _otherModifiers && vkey == _otherVKey)
         {
             ConfirmButton.IsEnabled = false;
-            SetHint(true, $"다른 단축키({HotkeyManager.FormatHotkey(_otherModifiers, _otherVKey)})와 중복됩니다. 다른 조합을 선택해 주세요.");
+            SetHint(true, $"다른 단축키({HotkeyManager.FormatHotkey(_otherModifiers, _otherVKey)})와 중복돼요. 다른 조합을 선택해 주세요.");
             return;
         }
 
@@ -144,7 +144,7 @@ public partial class HotkeyRecorderModal : Window
         HintText.Foreground = isError
             ? (System.Windows.Media.Brush)FindResource("TextDangerBrush")
             : (System.Windows.Media.Brush)FindResource("TextMutedBrush");
-        HintText.Text = message ?? "조합키(Ctrl / Alt / Shift)를 함께 누르거나, F1~F24 단독으로 설정할 수 있습니다.";
+        HintText.Text = message ?? "조합키(Ctrl / Alt / Shift)를 함께 누르거나, F1~F24 단독으로 설정할 수 있어요.";
     }
 
     private static bool IsModifierKey(Key key) =>
