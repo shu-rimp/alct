@@ -109,6 +109,7 @@ public partial class MainWindow
 
     private void OnInputTranslationHotkeyPressed()
     {
+        WindowsApiHelper.SimulateSelectToLineStart();
         WindowsApiHelper.SimulateCopy();
         _ = Task.Run(async () =>
         {
