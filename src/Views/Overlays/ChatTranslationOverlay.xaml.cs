@@ -1,5 +1,6 @@
 using AlctClient.Utils;
 using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -20,6 +21,8 @@ public partial class ChatTranslationOverlay : Window
     private double _opacity = 0.7;
     private bool _isEditMode;
     private bool _isPlaceholder;
+    private IntPtr _winEventHook;
+    private WinEventProc? _winEventProc;
 
     private static readonly TranslationEntry[] Placeholder =
     [
@@ -30,8 +33,16 @@ public partial class ChatTranslationOverlay : Window
     public ChatTranslationOverlay()
     {
         InitializeComponent();
+        Resources["OverlayFontSizeMain"] = 13.0;
+        Resources["OverlayFontSizeSub"]  = 11.0;
         EntriesList.ItemsSource = _entries;
         Loaded += OnLoaded;
+    }
+
+    public void SetFontSize(double size)
+    {
+        Resources["OverlayFontSizeMain"] = size;
+        Resources["OverlayFontSizeSub"]  = Math.Max(8.0, size - 2);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -39,6 +50,40 @@ public partial class ChatTranslationOverlay : Window
         if (!_isEditMode) WindowsApiHelper.EnableClickThrough(this);
         ApplyOpacity();
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowHook);
+        _winEventProc = OnForegroundChanged;
+        _winEventHook = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, _winEventProc, 0, 0, 0x0000); // EVENT_SYSTEM_FOREGROUND
+        Closed += (_, _) => { if (_winEventHook != IntPtr.Zero) UnhookWinEvent(_winEventHook); };
+        SizeChanged += (_, e) =>
+        {
+            if (!e.WidthChanged) return;
+            Width = ActualWidth;
+            EntriesList.InvalidateMeasure();
+            SizeToContent = SizeToContent.Manual;
+            SizeToContent = SizeToContent.Height;
+        };
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public IntPtr hwnd, hwndInsertAfter;
+        public int x, y, cx, cy;
+        public uint flags;
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint eMin, uint eMax, IntPtr hmod, WinEventProc fn, uint pid, uint tid, uint flags);
+    [DllImport("user32.dll")] private static extern bool   UnhookWinEvent(IntPtr hook);
+    [DllImport("user32.dll")] private static extern bool   SetWindowPos(IntPtr hwnd, IntPtr hwndAfter, int x, int y, int cx, int cy, uint flags);
+
+    private delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time);
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
+
+    private void OnForegroundChanged(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time)
+    {
+        if (!IsVisible) return;
+        var myHwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == myHwnd) return;
+        SetWindowPos(myHwnd, HWND_TOPMOST, 0, 0, 0, 0, 0x0013); // SWP_NOSIZE|SWP_NOMOVE|SWP_NOACTIVATE
     }
 
     private IntPtr WindowHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -47,6 +92,27 @@ public partial class ChatTranslationOverlay : Window
         {
             handled = true;
             return (IntPtr)3; // MA_NOACTIVATE
+        }
+
+        if (msg == 0x0046) // WM_WINDOWPOSCHANGING
+        {
+            var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+            if ((pos.flags & 0x0004) == 0) // SWP_NOZORDER 미설정 = z-order 변경 시도
+            {
+                pos.hwndInsertAfter = new IntPtr(-1); // HWND_TOPMOST 재고정
+                Marshal.StructureToPtr(pos, lParam, false);
+            }
+        }
+
+        if (msg == 0x0232) // WM_EXITSIZEMOVE — 드래그 완료 후 최종 높이 보정
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                Width = ActualWidth;
+                EntriesList.InvalidateMeasure();
+                SizeToContent = SizeToContent.Manual;
+                SizeToContent = SizeToContent.Height;
+            });
         }
 
         if (_isEditMode && msg == 0x0084) // WM_NCHITTEST
@@ -82,6 +148,12 @@ public partial class ChatTranslationOverlay : Window
     {
         Left = screen.Bounds.Left + 20;
         Top  = screen.Bounds.Top  + (screen.Bounds.Height - 120) / 2;
+    }
+
+    public void ResetBounds(System.Windows.Forms.Screen screen)
+    {
+        Width = 280;
+        MoveToMonitor(screen);
     }
 
     public void LoadBounds(double left, double top, double width)

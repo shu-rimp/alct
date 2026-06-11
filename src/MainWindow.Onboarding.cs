@@ -20,6 +20,9 @@ public partial class MainWindow
         onboarding.OnboardingCompleted += OnOnboardingReachedDone;
 
         onboarding.ShowDialog();
+
+        if (_userSettings.OnboardingComplete && _userSettings.ShowLanguageOverlay)
+            _langOverlay.Show();
     }
 
     private void OnOnboardingReachedDone()
