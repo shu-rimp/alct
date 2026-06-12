@@ -50,6 +50,7 @@ def _isRateLimited(ip: str) -> bool:
 async def ocrEndpoint(request: Request):
     global _activeOcrCount
     clientIp = _getClientIp(request)
+    print(f"[OCR] ip={clientIp} xfwd={request.headers.get('x-forwarded-for')} client={request.client.host}", flush=True)
     if _isRateLimited(clientIp):
         return JSONResponse(ErrorResponse(error="rate limit exceeded").model_dump(), status_code=429)
     if _activeOcrCount >= MAX_CONCURRENT_OCR:
