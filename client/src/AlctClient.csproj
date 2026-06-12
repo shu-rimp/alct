@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="assets\glossary_data.json"/>
     <Resource Include="assets\alct-wordmark.png"/>
     <Resource Include="assets\alct.png"/>
     <Content Include="assets\livecaptions-install.mp4" Condition="Exists('assets\livecaptions-install.mp4')">
