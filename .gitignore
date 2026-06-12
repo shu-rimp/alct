@@ -32,6 +32,9 @@ server/models/*.onnx
 
 # 테스트용 임시 이미지
 server/tests/capture_debug*.png
+# 원격서버 부하 테스트
+server/tests/locustfile.py
+server/results
 
 # ==================== 문서 ====================
 server/GUIDE.txt

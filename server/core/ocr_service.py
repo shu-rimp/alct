@@ -1,10 +1,15 @@
 import io
+import os
 
 import numpy as np
 from PIL import Image
 from rapidocr import EngineType, ModelType, OCRVersion, RapidOCR
 
 _engine: RapidOCR | None = None
+
+# ONNX_NUM_THREADS=1 을 환경변수로 설정하면 worker별 스레드 경합을 줄일 수 있음
+# 0 이면 ONNX Runtime 기본값(가용 코어 전체) 사용
+_ONNX_NUM_THREADS = int(os.getenv("ONNX_NUM_THREADS", "0"))
 
 # ── Cyan username mask ─────────────────────────────────────────
 # In-game chat usernames are always rendered in cyan; messages are white.
@@ -29,13 +34,19 @@ _BACKGROUND_COLOR = [20, 20, 20]
 def _getEngine() -> RapidOCR:
     global _engine
     if _engine is None:
-        _engine = RapidOCR(
-            params={
-                "Rec.ocr_version": OCRVersion.PPOCRV5,
-                "Rec.engine_type": EngineType.ONNXRUNTIME,
-                "Rec.model_type": ModelType.SERVER,
-            }
-        )
+        params: dict = {
+            "Det.ocr_version": OCRVersion.PPOCRV5,
+            "Det.engine_type": EngineType.ONNXRUNTIME,
+            "Det.model_type": ModelType.MOBILE, 
+            "Rec.ocr_version": OCRVersion.PPOCRV5,
+            "Rec.engine_type": EngineType.ONNXRUNTIME,
+            "Rec.model_type": ModelType.MOBILE,  
+        }
+        if _ONNX_NUM_THREADS > 0:
+            for prefix in ("Det", "Rec", "Cls"):
+                params[f"{prefix}.intra_op_num_threads"] = _ONNX_NUM_THREADS
+                params[f"{prefix}.inter_op_num_threads"] = _ONNX_NUM_THREADS
+        _engine = RapidOCR(params=params)
     return _engine
 
 

@@ -1,3 +1,4 @@
+import os
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -13,7 +14,7 @@ from core import ocr_service
 
 UVICORN_HOST = "0.0.0.0"
 UVICORN_PORT = 8000
-UVICORN_WORKERS = 3
+UVICORN_WORKERS = int(os.getenv("UVICORN_WORKERS", "3"))
 
 
 @asynccontextmanager

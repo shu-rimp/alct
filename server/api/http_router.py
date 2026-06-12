@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from collections import defaultdict
@@ -17,13 +18,18 @@ def _verifyToken(x_alct_token: str | None = Header(default=None)) -> None:
 
 RATE_LIMIT_MAX_REQUESTS = 30
 RATE_LIMIT_WINDOW_SECONDS = 60
+MAX_CONCURRENT_OCR = int(os.getenv("MAX_CONCURRENT_OCR", "2"))
 
 _requestTimestamps: dict[str, list[float]] = defaultdict(list)
+_activeOcrCount = 0
 
 router = APIRouter()
 
 
 def _getClientIp(request: Request) -> str:
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -42,12 +48,19 @@ def _isRateLimited(ip: str) -> bool:
 
 @router.post("/ocr", dependencies=[Depends(_verifyToken)])
 async def ocrEndpoint(request: Request):
+    global _activeOcrCount
     clientIp = _getClientIp(request)
     if _isRateLimited(clientIp):
         return JSONResponse(ErrorResponse(error="rate limit exceeded").model_dump(), status_code=429)
+    if _activeOcrCount >= MAX_CONCURRENT_OCR:
+        return JSONResponse(ErrorResponse(error="server busy").model_dump(), status_code=503)
     imageBytes = await request.body()
     if not imageBytes:
         return JSONResponse(ErrorResponse(error="no image data").model_dump(), status_code=400)
-    extractedText = ocr_service.extractText(imageBytes)
-    normalizedText = text_normalizer.normalizeText(extractedText)
-    return NormalizedTextResponse(normalizedText=normalizedText, rawText=extractedText)
+    _activeOcrCount += 1
+    try:
+        extractedText = await asyncio.to_thread(ocr_service.extractText, imageBytes)
+        normalizedText = text_normalizer.normalizeText(extractedText)
+        return NormalizedTextResponse(normalizedText=normalizedText, rawText=extractedText)
+    finally:
+        _activeOcrCount -= 1
