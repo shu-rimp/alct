@@ -40,13 +40,13 @@ public sealed class LangblyTranslationService : ITranslationService
 
     public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
         return await CallAsync(ITranslationService.StripXmlTags(text), MapLanguageCode(sourceLang), "ko", ct);
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
         return await CallAsync(text, "ko", MapLanguageCode(targetLang));
     }
 

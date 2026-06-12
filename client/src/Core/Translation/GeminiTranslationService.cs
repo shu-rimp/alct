@@ -11,6 +11,7 @@ public sealed class GeminiTranslationService : ITranslationService
         PooledConnectionLifetime = TimeSpan.FromMinutes(2),
     });
     private readonly HttpClient _http;
+    private readonly string _apiKey;
     private readonly string _endpoint;
     private const string Model = "gemini-3.1-flash-lite";
 
@@ -18,6 +19,7 @@ public sealed class GeminiTranslationService : ITranslationService
 
     internal GeminiTranslationService(string apiKey, HttpClient http)
     {
+        _apiKey = apiKey;
         _http = http;
         _endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={apiKey}";
     }
@@ -32,7 +34,7 @@ public sealed class GeminiTranslationService : ITranslationService
 
     public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
         return await CallAsync(
             systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
             userContent: $"Translate each line below to Korean, outputting the same number of lines:\n\n{ITranslationService.StripXmlTags(text)}",
@@ -41,7 +43,7 @@ public sealed class GeminiTranslationService : ITranslationService
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
         return await CallAsync(
             systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Only output the translated text.",
             userContent: $"Translate the following Korean text to {MapLanguageCode(targetLang)}:\n\n{text}");
