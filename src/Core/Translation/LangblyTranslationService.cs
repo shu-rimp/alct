@@ -38,7 +38,8 @@ public sealed class LangblyTranslationService : ITranslationService
         _       => bcp47.Split('-')[0].ToLowerInvariant(),
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
+    // UI 미노출 엔진 — context 전달은 생략
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
         return await CallAsync(ITranslationService.StripXmlTags(text), MapLanguageCode(sourceLang), "ko", ct);
