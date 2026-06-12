@@ -23,7 +23,7 @@ venv/
 env/
 
 # 원격서버 부하 테스트 결과 raw data
-server/results/scenario_*.csv
+server/test/results/scenario_*.csv
 
 # ==================== 문서 ====================
 server/GUIDE.txt

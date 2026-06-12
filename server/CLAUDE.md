@@ -6,22 +6,25 @@ Python OCR server. Receives PNG via HTTP POST → OCR → normalization → retu
 ## Project Structure
 ```
 server/
-├── main.py
-├── api/
-│   ├── http_router.py
-│   └── http_responses.py
-├── core/
-│   ├── ocr_service.py
-│   ├── text_normalizer.py
-│   └── normalizer_data.json
-├── tests/
+├── src/
+│   ├── main.py
+│   ├── api/
+│   │   ├── http_router.py
+│   │   └── http_responses.py
+│   └── core/
+│       ├── ocr_service.py
+│       ├── text_normalizer.py
+│       └── normalizer_data.json
+├── test/
+│   ├── results/
+│   │   └── summary.csv
 │   ├── conftest.py
 │   ├── test_ocr_service.py
-│   ├── test_ocr_service.py
-│   └── test_server_load.py
+│   └── test_http_handler.py
 ├── Dockerfile
 ├── docker-compose.dev.yml
 ├── docker-compose.yml
+├── pytest.ini
 ├── requirements-dev.txt
 └── requirements.txt
 ```

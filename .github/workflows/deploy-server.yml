@@ -30,7 +30,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: python -m pytest tests/ -v --ignore=tests/test_server_load.py
+        run: python -m pytest test/ -v --ignore=test/test_server_load.py
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
