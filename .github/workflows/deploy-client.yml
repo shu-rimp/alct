@@ -22,11 +22,14 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Inject server token
+      - name: Inject build constants
         shell: pwsh
         run: |
           $file = "client/src/Core/BuildConstants.cs"
-          (Get-Content $file) -replace '#{ALCT_SERVER_TOKEN}#', '${{ secrets.ALCT_SERVER_TOKEN }}' | Set-Content $file
+          (Get-Content $file) `
+            -replace '#{ALCT_SERVER_URL}#',   '${{ secrets.ALCT_SERVER_URL }}'   |
+            -replace '#{ALCT_SERVER_TOKEN}#', '${{ secrets.ALCT_SERVER_TOKEN }}' `
+          Set-Content $file
 
       - name: Publish
         working-directory: client/src

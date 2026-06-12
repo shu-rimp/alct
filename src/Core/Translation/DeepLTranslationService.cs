@@ -36,7 +36,7 @@ public sealed class DeepLTranslationService : ITranslationService
 
     public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
 
         // 줄별로 배열에 담아 전송 — DeepL이 줄을 병합하지 않고 1:1 번역 보장
         var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
@@ -54,7 +54,7 @@ public sealed class DeepLTranslationService : ITranslationService
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
 
         var payload = new
         {
