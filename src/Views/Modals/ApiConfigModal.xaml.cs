@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -23,9 +24,11 @@ public partial class ApiConfigModal : Window
     private KeyState _deeplState   = KeyState.None;
     private KeyState _geminiState  = KeyState.None;
     private KeyState _langblyState = KeyState.None;
+    private (long count, long limit)? _deeplUsage;
+    private bool _deeplUsageFetched;  // 모달 열려있는 동안 탭 전환마다 재조회하지 않도록 캐시
 
     private static readonly string DeepLGuideUrl   = "https://www.deepl.com/ko/signup?cta=checkout&is_api=true";
-    private static readonly string DeepLUsageUrl   = "https://www.deepl.com/ko/pro-api?cta=v-api-member-portal";
+    private static readonly string DeepLUsageUrl   = "https://www.deepl.com/ko/your-account/usage";
     private static readonly string GeminiGuideUrl  = "https://aistudio.google.com/app/apikey";
     private static readonly string GeminiUsageUrl  = "https://aistudio.google.com/rate-limit";
     private static readonly string LangblyGuideUrl = "https://langbly.com/signup";
@@ -37,6 +40,9 @@ public partial class ApiConfigModal : Window
         DeepLApiKey   = deepLKey;
         GeminiApiKey  = geminiKey;
         LangblyApiKey = langblyKey;
+        _deeplState   = string.IsNullOrEmpty(deepLKey)   ? KeyState.None : KeyState.Valid;
+        _geminiState  = string.IsNullOrEmpty(geminiKey)  ? KeyState.None : KeyState.Valid;
+        _langblyState = string.IsNullOrEmpty(langblyKey) ? KeyState.None : KeyState.Valid;
         Loaded += (_, _) => SelectEngine("DeepL");
     }
 
@@ -112,6 +118,9 @@ public partial class ApiConfigModal : Window
             "Gemini" => _geminiState,
             _        => _langblyState,
         });
+
+        if (engine == "DeepL") _ = RefreshDeepLUsageAsync(ApiKeyBox.Password);
+        else UsageBox.Visibility = Visibility.Collapsed;
     }
 
     private void UpdateKeyUi()
@@ -153,13 +162,16 @@ public partial class ApiConfigModal : Window
                 break;
         }
 
-        SaveBtn.IsEnabled = state is not (KeyState.Invalid or KeyState.NetworkError);
+        SaveBtn.IsEnabled =
+            _deeplState   is not (KeyState.Invalid or KeyState.NetworkError) &&
+            _geminiState  is not (KeyState.Invalid or KeyState.NetworkError) &&
+            _langblyState is not (KeyState.Invalid or KeyState.NetworkError);
     }
 
     private void UpdateDots()
     {
-        DotDeepL.Visibility  = string.IsNullOrEmpty(DeepLApiKey)  ? Visibility.Collapsed : Visibility.Visible;
-        DotGemini.Visibility = string.IsNullOrEmpty(GeminiApiKey) ? Visibility.Collapsed : Visibility.Visible;
+        DotDeepL.Visibility  = _deeplState  == KeyState.Valid ? Visibility.Visible : Visibility.Collapsed;
+        DotGemini.Visibility = _geminiState == KeyState.Valid ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnSelectDeepL(object sender, RoutedEventArgs e)   => SelectEngine("DeepL");
@@ -169,8 +181,13 @@ public partial class ApiConfigModal : Window
     private void OnApiKeyPasswordChanged(object sender, RoutedEventArgs e)
     {
         UpdateKeyUi();
-        if (!_suppressReset)
-            ApplyKeyState(KeyState.None);
+        if (_suppressReset) return;
+        ApplyKeyState(KeyState.None);
+        if (_currentEngine == "DeepL")
+        {
+            _deeplUsageFetched = false;
+            UsageBox.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async void OnPaste(object sender, RoutedEventArgs e)
@@ -210,7 +227,52 @@ public partial class ApiConfigModal : Window
 
     private static bool IsAscii(string s) => s.All(c => c < 128);
 
-    private static async Task<bool> ValidateDeepLAsync(string apiKey)
+    // 검증과 사용량 조회가 같은 /v2/usage 엔드포인트 — 한 번의 호출로 둘 다 처리
+    private async Task<bool> ValidateDeepLAsync(string apiKey)
+    {
+        _deeplUsage = await FetchDeepLUsageAsync(apiKey);
+        _deeplUsageFetched = _deeplUsage is not null;
+        ShowDeepLUsage(_deeplUsage);
+        return _deeplUsage is not null;
+    }
+
+    private async Task RefreshDeepLUsageAsync(string apiKey)
+    {
+        if (string.IsNullOrEmpty(apiKey)) { ShowDeepLUsage(null); return; }
+        if (!_deeplUsageFetched)
+        {
+            try
+            {
+                _deeplUsage = await FetchDeepLUsageAsync(apiKey);
+                _deeplUsageFetched = _deeplUsage is not null;
+            }
+            catch { _deeplUsage = null; }
+        }
+        ShowDeepLUsage(_deeplUsage);
+    }
+
+    private void ShowDeepLUsage((long count, long limit)? usage)
+    {
+        if (_currentEngine != "DeepL" || usage is not { limit: > 0 })
+        {
+            UsageBox.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var (count, limit) = usage.Value;
+        var ratio = Math.Clamp((double)count / limit, 0, 1);
+        UsageText.Text = $"{count:N0} / {limit:N0}자 ({ratio:P1})";
+        UsageFillCol.Width = new GridLength(ratio, GridUnitType.Star);
+        UsageRestCol.Width = new GridLength(1 - ratio, GridUnitType.Star);
+        UsageFill.Background = new WpfBrush(ratio switch
+        {
+            >= 0.95 => WpfColor.FromRgb(0xef, 0x44, 0x44),
+            >= 0.80 => WpfColor.FromRgb(0xF0, 0xA8, 0x68),
+            _       => WpfColor.FromRgb(0x4a, 0xde, 0x80),
+        });
+        UsageBox.Visibility = Visibility.Visible;
+    }
+
+    private static async Task<(long count, long limit)?> FetchDeepLUsageAsync(string apiKey)
     {
         var baseUrl = apiKey.EndsWith(":fx")
             ? "https://api-free.deepl.com/v2/usage"
@@ -219,7 +281,11 @@ public partial class ApiConfigModal : Window
         using var request = new HttpRequestMessage(HttpMethod.Get, baseUrl);
         request.Headers.Add("Authorization", $"DeepL-Auth-Key {apiKey}");
         var response = await _validationHttp.SendAsync(request);
-        return response.IsSuccessStatusCode;
+        if (!response.IsSuccessStatusCode) return null;
+
+        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        return (doc.RootElement.GetProperty("character_count").GetInt64(),
+                doc.RootElement.GetProperty("character_limit").GetInt64());
     }
 
     private static async Task<bool> ValidateGeminiAsync(string apiKey)
