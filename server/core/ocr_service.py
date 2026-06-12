@@ -35,9 +35,12 @@ def _getEngine() -> RapidOCR:
     global _engine
     if _engine is None:
         params: dict = {
+            "Det.ocr_version": OCRVersion.PPOCRV5,
+            "Det.engine_type": EngineType.ONNXRUNTIME,
+            "Det.model_type": ModelType.MOBILE, 
             "Rec.ocr_version": OCRVersion.PPOCRV5,
             "Rec.engine_type": EngineType.ONNXRUNTIME,
-            "Rec.model_type": ModelType.SERVER,
+            "Rec.model_type": ModelType.MOBILE,  
         }
         if _ONNX_NUM_THREADS > 0:
             for prefix in ("Det", "Rec", "Cls"):
