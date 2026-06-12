@@ -34,20 +34,24 @@ public sealed class DeepLTranslationService : ITranslationService
         _ => bcp47.Split('-')[0].ToUpperInvariant(),
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
 
         // 줄별로 배열에 담아 전송 — DeepL이 줄을 병합하지 않고 1:1 번역 보장
         var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-        var payload = new
+        var payload = new Dictionary<string, object>
         {
-            text = lines,
-            source_lang = MapLanguageCode(sourceLang),
-            target_lang = "KO",
-            tag_handling = "xml",
-            ignore_tags = new[] { "x" },
+            ["text"] = lines,
+            ["source_lang"] = MapLanguageCode(sourceLang),
+            ["target_lang"] = "KO",
+            ["tag_handling"] = "xml",
+            ["ignore_tags"] = new[] { "x" },
         };
+        // DeepL 공식 context 파라미터 — 번역되지 않고 참고만 되며 과금에 포함되지 않음
+        if (!string.IsNullOrWhiteSpace(context))
+            payload["context"] = context;
+
         var results = await CallDeepLArrayAsync(payload, ct);
         return string.Join("\n", results.Select(StripXTags));
     }

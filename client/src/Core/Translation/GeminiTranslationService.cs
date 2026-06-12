@@ -32,12 +32,17 @@ public sealed class GeminiTranslationService : ITranslationService
         _       => bcp47,
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
+
+        var contextBlock = string.IsNullOrWhiteSpace(context)
+            ? ""
+            : $"Recent utterances for context (reference only, do NOT translate):\n{context}\n\n";
+
         return await CallAsync(
-            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
-            userContent: $"Translate each line below to Korean, outputting the same number of lines:\n\n{ITranslationService.StripXmlTags(text)}",
+            systemInstruction: "You are translating in-game chat messages from Apex Legends. The text may contain gaming slang, or abbreviations. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
+            userContent: $"{contextBlock}Translate each line below to Korean, outputting the same number of lines:\n\n{ITranslationService.StripXmlTags(text)}",
             ct);
     }
 

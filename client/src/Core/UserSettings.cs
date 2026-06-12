@@ -10,7 +10,7 @@ public class UserSettings
 
     public double VoiceOverlayLeft  { get; set; } = -1;
     public double VoiceOverlayTop   { get; set; } = 30;
-    public double VoiceOverlayWidth { get; set; } = 500;
+    public double VoiceOverlayWidth { get; set; } = 700;
 
     public double TextOverlayLeft   { get; set; } = -1;
     public double TextOverlayTop    { get; set; } = 80;
