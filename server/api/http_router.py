@@ -46,6 +46,11 @@ def _isRateLimited(ip: str) -> bool:
     return False
 
 
+@router.get("/health")
+async def healthCheck():
+    return {"status": "ok"}
+
+
 @router.post("/ocr", dependencies=[Depends(_verifyToken)])
 async def ocrEndpoint(request: Request):
     global _activeOcrCount

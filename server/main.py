@@ -27,11 +27,6 @@ app = FastAPI(title="ALCT Server", lifespan=lifespan)
 app.include_router(httpRouter)
 
 
-@app.get("/health")
-async def healthCheck():
-    return {"status": "ok"}
-
-
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

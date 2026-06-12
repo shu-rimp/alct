@@ -1,0 +1,29 @@
+# Environment: OCI Free Tier ARM(VM.Standard.A1.Flex) / 4 vCore / 24GB RAM / Locust -u 20 -r 5 (C-50users: -u 50 -r 5)
+# OCR: RapidOCR 3.8.3 / ONNX Runtime 1.26.0 (CPU)
+# [SERVER] PP-OCRv4 Det MOBILE(4.6MB) + PP-OCRv5 Rec SERVER(81MB)
+# [MOBILE] PP-OCRv5 Det MOBILE(4.6MB) + PP-OCRv5 Rec MOBILE(16MB)
+#
+# [result 1] Worker/threads test: Scenario C (workers=4, ONNX_NUM_THREADS=1)
+#   - RPS(req per seconds)는 모든 시나리오에서 ~0.8으로 동일
+#   - OCR이 CPU 연산이라 여기서 병목이 발생, 메모리는 매우 넉넉함.
+#   - C가 Max 응답시간 45s로 가장 안정적 (A 대비 109s → 45s), P99도 B/C가 공동 최저(33s)
+#   - ONNX_NUM_THREADS=1 설정으로 tail latency 개선 (worker 간 스레드 경합 제거)
+#
+# [result 2] RapidOCR model test: MOBILE (workers=4, ONNX_NUM_THREADS=1, PP-OCRv5 MOBILE)
+#   - SERVER모델 대비 RPS 2.3배 향상 (0.77 → 1.77), P50 55% 감소 (22s → 10s)
+#   - P99 64% 감소 (33s → 12s), Max 72% 감소 (45s → 12s), Failures 0
+#   - 모델 크기 81MB → 16MB, 인식 품질 실사용 수준(고정된 영역+동일한 폰트)에서 거의 차이 없음 확인
+#
+# [expect] Scenario C-MOBILE 기준
+#   - 서버 처리량: ~1.77 req/s = 106 req/min
+#   - 채팅 번역 특성상 유저당 요청 빈도가 잦지 않을 것으로 가정(0.5 req/min)
+#   - 동시 활성 유저: 106 / 0.5 = 약 212명
+#   - 동시 활성 비율 20% 가정 시 총 활성 유저 기준 약 1,000명 수준
+Scenario,Model,Workers,ONNX_NUM_THREADS,RPS,P50(ms),P95(ms),P99(ms),Max(ms),Failures
+A,SERVER,3,default(4),0.794,22000,31000,58000,109014,0
+B,SERVER,3,1,0.785,22000,31000,33000,60728,0
+C,SERVER,4,1,0.772,22000,30000,33000,44944,0
+D,SERVER,2,2,0.796,22000,30000,35000,116023,0
+C-50users,SERVER,4,1,0.791,53000,60000,74000,80876,7
+C-MOBILE,MOBILE,4,1,1.773,10000,12000,12000,12709,0
+C-MOBILE-50users,MOBILE,4,1,1.775,14000,57000,60000,62037,0
