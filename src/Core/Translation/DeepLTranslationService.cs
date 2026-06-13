@@ -70,7 +70,7 @@ public sealed class DeepLTranslationService : ITranslationService
     }
 
     private static string StripXTags(string text) =>
-        WebUtility.HtmlDecode(text.Replace("<x>", "").Replace("</x>", " ").Trim());
+        WebUtility.HtmlDecode(text.Replace("<x>", "").Replace("</x>", "").Trim());
 
     private async Task<string> CallDeepLAsync(object payload, CancellationToken ct = default)
     {
