@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -22,12 +23,10 @@ public static class WindowsApiHelper
 
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
-    private const ushort VK_LWIN    = 0x5B;
     private const ushort VK_CONTROL = 0x11;
     private const ushort VK_SHIFT   = 0x10;
     private const ushort VK_HOME    = 0x24;
     private const ushort VK_C = 0x43;
-    private const ushort VK_L = 0x4C;
     private const ushort VK_V = 0x56;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -180,7 +179,22 @@ public static class WindowsApiHelper
     public static async Task StartLiveCaptionsAsync()
     {
         if (Process.GetProcessesByName("LiveCaptions").Length > 0) return;
-        Send(KeyDown(VK_LWIN), KeyDown(VK_CONTROL), KeyDown(VK_L), KeyUp(VK_L), KeyUp(VK_CONTROL), KeyUp(VK_LWIN));
+
+        // 단축키(Win+Ctrl+L) 시뮬레이션 대신 실행 파일을 직접 실행 —
+        // 실행 시점에 사용자가 물리 키를 누르고 있어도 가상 키 입력과 충돌하지 않음.
+        // LiveCaptions.exe는 System32에만 존재하며, AnyCPU 64비트 프로세스라 WOW64 리다이렉션 영향 없음.
+        var exePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "LiveCaptions.exe");
+        try
+        {
+            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = false })?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("LiveCaptions launch failed.", ex);
+            return;
+        }
+
         for (int i = 0; i < 20; i++)
         {
             await Task.Delay(500);
