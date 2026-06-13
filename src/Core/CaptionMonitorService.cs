@@ -21,10 +21,11 @@ namespace AlctClient.Core;
 public sealed class CaptionMonitorService : IDisposable
 {
     private const int POLL_MS = 25;
-    private const int DEBOUNCE_MS = 700;       // 발화 중간 숨 고르기(~0.8초)에 조각이 발사되지 않도록 여유 있게
+    private const int DEBOUNCE_MS = 800;       // 발화 중간 숨 고르기(~0.8초)에 조각이 발사되지 않도록 여유 있게
     private const int MIN_COMMIT_LENGTH = 100;  // uncommitted가 이 가중 길이(CJK=2) 이상 쌓이면 강제 커밋 고려 — CJK ~50자, 라틴 ~100자
     private const int PREFIX_STABLE_COUNT = 3;  // 앞부분이 이 횟수만큼 연속 안정이면 확정으로 간주
     private const int MAX_PARTIAL_MS = 6000;    // 이 시간 초과 시 무조건 flush
+    private const int FIRE_DEDUP_MS = 150;      // 청크 커밋 직후 \n 완성 등으로 같은 줄이 즉시 재발사되는 기계적 중복만 차단
 
     private static readonly CacheRequest _nameCache = BuildCacheRequest();
     private static readonly PropertyCondition _captionsTextBlockCondition =
@@ -246,14 +247,15 @@ public sealed class CaptionMonitorService : IDisposable
     }
 
     // 중복 발송 방지 후 CaptionStabilized 발생
-    // DEBOUNCE_MS 이내 동일 문장만 차단 — 반복 발화는 재발송 허용
+    // FIRE_DEDUP_MS(짧은 윈도우) 이내 동일 문장만 차단 — 기계적 재발사만 막고,
+    // 발화 내 의도적 단어 반복("가자 가자")은 정상 입력이므로 재발송 허용
     private void TryFireLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line)) return;
         if (line.All(c => char.IsPunctuation(c) || char.IsSymbol(c))) return;
 
         var now = DateTime.UtcNow;
-        if (line == _lastFiredLine && (now - _lastFiredTime).TotalMilliseconds < DEBOUNCE_MS) return;
+        if (line == _lastFiredLine && (now - _lastFiredTime).TotalMilliseconds < FIRE_DEDUP_MS) return;
 
         _lastFiredLine = line;
         _lastFiredTime = now;
