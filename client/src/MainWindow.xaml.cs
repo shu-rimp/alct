@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         var (serverUrl, deepLApiKey, geminiApiKey, langblyApiKey, voiceEngine, textEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
         _ocrClient    = new OcrHttpClient(serverUrl);
+        _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl);
         _deepLKey     = deepLApiKey;
         _geminiKey    = geminiApiKey;
         _langblyKey   = langblyApiKey;
@@ -80,17 +81,18 @@ public partial class MainWindow : Window
 
     private static (string serverUrl, string deepLKey, string geminiKey, string langblyKey, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
     {
-        const string fallbackUrl = "http://localhost:8000";
+        var fallbackUrl = BuildConstants.SERVER_URL;
         try
         {
             MigrateAppSettingsIfNeeded();
             var path = _appSettingsPath;
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
             var root = doc.RootElement;
-            var url        = root.TryGetProperty("ServerUrl",    out var p1) ? p1.GetString() ?? fallbackUrl  : fallbackUrl;
-            var deepLKey   = root.TryGetProperty("DeepLApiKey",  out var p2) ? p2.GetString() ?? string.Empty : string.Empty;
-            var geminiKey  = root.TryGetProperty("GeminiApiKey", out var p3) ? p3.GetString() ?? string.Empty : string.Empty;
-            var langblyKey = root.TryGetProperty("LangblyApiKey", out var p4) ? p4.GetString() ?? string.Empty : string.Empty;
+            var customUrl  = root.TryGetProperty("ServerUrl", out var p1) ? p1.GetString() : null;
+            var url        = string.IsNullOrWhiteSpace(customUrl) ? fallbackUrl : customUrl;
+            var deepLKey   = DpapiHelper.Decrypt(root.TryGetProperty("DeepLApiKey",   out var p2) ? p2.GetString() ?? string.Empty : string.Empty);
+            var geminiKey  = DpapiHelper.Decrypt(root.TryGetProperty("GeminiApiKey",  out var p3) ? p3.GetString() ?? string.Empty : string.Empty);
+            var langblyKey = DpapiHelper.Decrypt(root.TryGetProperty("LangblyApiKey", out var p4) ? p4.GetString() ?? string.Empty : string.Empty);
 
             // 구버전 단일 엔진 설정 폴백
             string? legacyEngine = root.TryGetProperty("TranslationEngine", out var leg) ? leg.GetString() : null;
@@ -120,10 +122,13 @@ public partial class MainWindow : Window
         File.Copy(legacyPath, _appSettingsPath);
     }
 
+    private static readonly HashSet<string> _encryptedFields = ["DeepLApiKey", "GeminiApiKey", "LangblyApiKey"];
+
     private static void SaveAppSetting(string settingKey, string value)
     {
         try
         {
+            var storedValue = _encryptedFields.Contains(settingKey) ? DpapiHelper.Encrypt(value) : value;
             var path = _appSettingsPath;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var existing = File.Exists(path) ? File.ReadAllText(path) : "{}";
@@ -131,7 +136,7 @@ public partial class MainWindow : Window
             var dict = new Dictionary<string, string?>();
             foreach (var prop in doc.RootElement.EnumerateObject())
                 dict[prop.Name] = prop.Value.GetString();
-            dict[settingKey] = value;
+            dict[settingKey] = storedValue;
             File.WriteAllText(path, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception ex) { Logger.Error("SaveAppSettings", ex); }
