@@ -16,7 +16,6 @@ public partial class CaptureRegionOverlay : Window
     public CaptureRegionOverlay()
     {
         InitializeComponent();
-        Loaded += (_, _) => WindowsApiHelper.ExcludeFromCapture(this);
         SourceInitialized += (_, _) =>
             HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)
                 ?.AddHook(ResizeHook);

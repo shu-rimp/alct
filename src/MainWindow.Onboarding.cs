@@ -20,6 +20,9 @@ public partial class MainWindow
         onboarding.OnboardingCompleted += OnOnboardingReachedDone;
 
         onboarding.ShowDialog();
+
+        if (_userSettings.OnboardingComplete && _userSettings.ShowLanguageOverlay)
+            _langOverlay.Show();
     }
 
     private void OnOnboardingReachedDone()
@@ -28,7 +31,7 @@ public partial class MainWindow
         UserSettingsService.Save(_userSettings);
     }
 
-    private void OnOnboardingApiKeysRegistered(string deepLKey, string geminiKey)
+    private void OnOnboardingApiKeysRegistered(string deepLKey, string geminiKey, string langblyKey)
     {
         if (!string.IsNullOrEmpty(deepLKey))
         {
@@ -49,6 +52,16 @@ public partial class MainWindow
             if (_textEngine == TranslationEngine.Gemini)
                 _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, geminiKey);
             _settings.SetGeminiApiKey(geminiKey);
+        }
+        if (!string.IsNullOrEmpty(langblyKey))
+        {
+            _langblyKey = langblyKey;
+            SaveAppSetting("LangblyApiKey", langblyKey);
+            if (_voiceEngine == TranslationEngine.Langbly)
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, langblyKey);
+            if (_textEngine == TranslationEngine.Langbly)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, langblyKey);
+            _settings.SetLangblyApiKey(langblyKey);
         }
     }
 }

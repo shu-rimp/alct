@@ -15,6 +15,7 @@ public partial class MainWindow
 
     private void InitHotkeys()
     {
+        if (!IsLoaded || !IsVisible) return;
         if (_userSettings.UseCustomCaptureRegion && _userSettings.CustomCaptureWidth > 0)
             _screenCapture.SetCaptureRegion(new System.Drawing.Rectangle(
                 _userSettings.CustomCaptureX, _userSettings.CustomCaptureY,
@@ -72,7 +73,17 @@ public partial class MainWindow
         {
             try
             {
+                var overlayVisible = Dispatcher.Invoke(() =>
+                {
+                    var v = _overlay.IsVisible;
+                    if (v) _overlay.Hide();
+                    return v;
+                });
+
                 var imageBytes = _screenCapture.CaptureRegionAsPng();
+
+                Dispatcher.Invoke(() => { if (overlayVisible) _overlay.Show(); });
+
                 if (!_screenCaptureLogged)
                 {
                     _screenCaptureLogged = true;
@@ -98,6 +109,7 @@ public partial class MainWindow
 
     private void OnInputTranslationHotkeyPressed()
     {
+        WindowsApiHelper.SimulateSelectToLineStart();
         WindowsApiHelper.SimulateCopy();
         _ = Task.Run(async () =>
         {

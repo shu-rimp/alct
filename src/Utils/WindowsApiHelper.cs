@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -22,10 +23,10 @@ public static class WindowsApiHelper
 
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_KEYUP = 0x0002;
-    private const ushort VK_LWIN    = 0x5B;
     private const ushort VK_CONTROL = 0x11;
+    private const ushort VK_SHIFT   = 0x10;
+    private const ushort VK_HOME    = 0x24;
     private const ushort VK_C = 0x43;
-    private const ushort VK_L = 0x4C;
     private const ushort VK_V = 0x56;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -56,28 +57,19 @@ public static class WindowsApiHelper
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
-    [DllImport("user32.dll")]
-    private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+    public static void SimulateSelectToLineStart() =>
+        // Ctrl-up first: hotkey modifier may still be logically down, causing Ctrl+Shift+Home (select to doc start) instead of Shift+Home
+        Send(KeyUp(VK_CONTROL), KeyDown(VK_SHIFT), KeyDown(VK_HOME), KeyUp(VK_HOME), KeyUp(VK_SHIFT));
 
-    private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+    public static void SimulateCopy() =>
+        Send(KeyDown(VK_CONTROL), KeyDown(VK_C), KeyUp(VK_C), KeyUp(VK_CONTROL));
 
-    public static void ExcludeFromCapture(Window window)
-        => SetWindowDisplayAffinity(GetWindowHandle(window), WDA_EXCLUDEFROMCAPTURE);
+    public static void SimulatePaste() =>
+        // Trailing Ctrl Down+Up releases the stuck Ctrl state in the game after paste.
+        Send(KeyDown(VK_CONTROL), KeyDown(VK_V), KeyUp(VK_V), KeyUp(VK_CONTROL), KeyDown(VK_CONTROL), KeyUp(VK_CONTROL));
 
-    public static void SimulateCopy() => SendCtrlKey(VK_C);
-    public static void SimulatePaste() => SendCtrlKey(VK_V);
-
-    private static void SendCtrlKey(ushort vk)
-    {
-        var inputs = new[]
-        {
-            KeyDown(VK_CONTROL),
-            KeyDown(vk),
-            KeyUp(vk),
-            KeyUp(VK_CONTROL),
-        };
+    private static void Send(params INPUT[] inputs) =>
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
-    }
 
     private static INPUT KeyDown(ushort vk) =>
         new() { type = INPUT_KEYBOARD, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk } } };
@@ -187,12 +179,22 @@ public static class WindowsApiHelper
     public static async Task StartLiveCaptionsAsync()
     {
         if (Process.GetProcessesByName("LiveCaptions").Length > 0) return;
-        var inputs = new[]
+
+        // 단축키(Win+Ctrl+L) 시뮬레이션 대신 실행 파일을 직접 실행 —
+        // 실행 시점에 사용자가 물리 키를 누르고 있어도 가상 키 입력과 충돌하지 않음.
+        // LiveCaptions.exe는 System32에만 존재하며, AnyCPU 64비트 프로세스라 WOW64 리다이렉션 영향 없음.
+        var exePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "LiveCaptions.exe");
+        try
         {
-            KeyDown(VK_LWIN), KeyDown(VK_CONTROL), KeyDown(VK_L),
-            KeyUp(VK_L), KeyUp(VK_CONTROL), KeyUp(VK_LWIN),
-        };
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+            Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = false })?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("LiveCaptions launch failed.", ex);
+            return;
+        }
+
         for (int i = 0; i < 20; i++)
         {
             await Task.Delay(500);

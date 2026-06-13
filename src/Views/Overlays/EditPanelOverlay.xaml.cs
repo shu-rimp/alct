@@ -8,7 +8,9 @@ public partial class EditPanelOverlay : Window
 {
     public event Action? SaveRequested;
     public event Action? CancelRequested;
+    public event Action? ResetRequested;
     public event Action<double>? OpacityChanged;
+    public event Action<double>? FontSizeChanged;
 
     public EditPanelOverlay()
     {
@@ -18,7 +20,6 @@ public partial class EditPanelOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        WindowsApiHelper.ExcludeFromCapture(this);
         SnapToPosition();
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(NoActivateHook);
     }
@@ -48,6 +49,12 @@ public partial class EditPanelOverlay : Window
         OpacityValueText.Text = $"{pct}%";
     }
 
+    public void SetFontSize(double size)
+    {
+        FontSizeSlider.Value   = Math.Clamp(size, 10, 24);
+        FontSizeValueText.Text = $"{(int)size}px";
+    }
+
     private void OnOpacityChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (OpacityValueText is null) return;
@@ -56,6 +63,15 @@ public partial class EditPanelOverlay : Window
         OpacityChanged?.Invoke(pct / 100.0);
     }
 
+    private void OnFontSizeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (FontSizeValueText is null) return;
+        var size = (int)Math.Round(e.NewValue);
+        FontSizeValueText.Text = $"{size}px";
+        FontSizeChanged?.Invoke(size);
+    }
+
     private void OnSave(object sender, RoutedEventArgs e)   => SaveRequested?.Invoke();
     private void OnCancel(object sender, RoutedEventArgs e) => CancelRequested?.Invoke();
+    private void OnReset(object sender, RoutedEventArgs e)  => ResetRequested?.Invoke();
 }

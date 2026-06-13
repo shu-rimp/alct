@@ -203,8 +203,42 @@
                         </Grid>
                         <TextBlock x:Name="KeyValidLabel"
                                    Foreground="#4ade80" FontSize="11"
-                                   Margin="0,0,0,12" Visibility="Collapsed"
+                                   Margin="0,0,0,6" Visibility="Collapsed"
                                    Text="✓ 유효한 키입니다"/>
+                        <TextBlock Text="🔒 API 키는 절대 타인에게 공유하지 마세요."
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="11" Margin="0,0,0,12"/>
+
+                        <!-- 사용량 게이지 (DeepL 전용 — Gemini는 키만으로 사용량 조회 불가) -->
+                        <Border x:Name="UsageBox"
+                                Background="{StaticResource InputBgBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="7"
+                                Padding="10,8" Margin="0,0,0,12"
+                                Visibility="Collapsed">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,7">
+                                    <TextBlock Text="API 문자 사용량"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               FontSize="11"/>
+                                    <TextBlock x:Name="UsageText"
+                                               HorizontalAlignment="Right"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="11"/>
+                                </Grid>
+                                <Border Background="{StaticResource CardBgBrush}"
+                                        CornerRadius="3" Height="6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition x:Name="UsageFillCol" Width="0*"/>
+                                            <ColumnDefinition x:Name="UsageRestCol" Width="1*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border x:Name="UsageFill" Grid.Column="0"
+                                                Background="#4ade80" CornerRadius="3"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
 
                         <Separator Margin="0,0,0,12"/>
 
@@ -243,19 +277,56 @@
                                 </Style>
                             </Button.Style>
                         </Button>
-                        <ItemsControl x:Name="GuideSteps" Margin="0,0,0,8">
+                        <Button x:Name="UsageLinkBtn"
+                                FontSize="12" Cursor="Hand"
+                                Margin="0,0,0,8" Click="OnOpenUsageLink">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="Padding" Value="8,8"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                                        CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource CardBgBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <ItemsControl x:Name="GuideSteps" Margin="0,0,0,8"
+                                      HorizontalContentAlignment="Stretch">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                        <TextBlock Text="{Binding Number}"
+                                    <Grid Margin="0,0,0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Number}"
                                                    Foreground="{StaticResource AccentBrush}"
                                                    FontWeight="SemiBold" FontSize="12"
-                                                   Width="16" VerticalAlignment="Top"/>
-                                        <TextBlock Text="{Binding Text}"
+                                                   VerticalAlignment="Top"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Text}"
                                                    Foreground="{StaticResource TextSecondaryBrush}"
                                                    FontSize="12" TextWrapping="Wrap"
                                                    VerticalAlignment="Top"/>
-                                    </StackPanel>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -308,7 +379,7 @@
                             </Style>
                         </Button.Style>
                     </Button>
-                    <Button Content="저장" Click="OnSave">
+                    <Button x:Name="SaveBtn" Content="저장" Click="OnSave">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
@@ -332,6 +403,12 @@
                                         </ControlTemplate>
                                     </Setter.Value>
                                 </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.35"/>
+                                        <Setter Property="Cursor" Value="Arrow"/>
+                                    </Trigger>
+                                </Style.Triggers>
                             </Style>
                         </Button.Style>
                     </Button>

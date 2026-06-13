@@ -1,4 +1,5 @@
 using AlctClient.Utils;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -29,7 +30,6 @@ public partial class QuickSettingsOverlay : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        WindowsApiHelper.ExcludeFromCapture(this);
         var screen = _initialScreen ?? System.Windows.Forms.Screen.PrimaryScreen!;
         Left = screen.Bounds.Left + 20;
         Top  = screen.Bounds.Top  + 30;
@@ -45,18 +45,60 @@ public partial class QuickSettingsOverlay : Window
         Height = CollapsedSize;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPOS
+    {
+        public IntPtr hwnd, hwndInsertAfter;
+        public int x, y, cx, cy;
+        public uint flags;
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint eMin, uint eMax, IntPtr hmod, WinEventProc fn, uint pid, uint tid, uint flags);
+    [DllImport("user32.dll")] private static extern bool   UnhookWinEvent(IntPtr hook);
+    [DllImport("user32.dll")] private static extern bool   SetWindowPos(IntPtr hwnd, IntPtr hwndAfter, int x, int y, int cx, int cy, uint flags);
+
+    private delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time);
+
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
+    private IntPtr _winEventHook;
+    private WinEventProc? _winEventProc; // GC 방지용 필드 참조 보존
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(NoActivateHook);
+        HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndHook);
+
+        // 다른 창이 포그라운드가 될 때마다 topmost 재주장
+        // WM_WINDOWPOSCHANGING만으로는 게임이 자기 자신을 topmost로 올릴 때 우리 창이 밀리는 케이스를 잡지 못함
+        _winEventProc = OnForegroundChanged;
+        _winEventHook = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, _winEventProc, 0, 0, 0x0000); // EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT
+        Closed += (_, _) => { if (_winEventHook != IntPtr.Zero) UnhookWinEvent(_winEventHook); };
     }
 
-    private static IntPtr NoActivateHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    private void OnForegroundChanged(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time)
+    {
+        if (!IsVisible) return;
+        var myHwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == myHwnd) return;
+        // SWP_NOSIZE(0x0001) | SWP_NOMOVE(0x0002) | SWP_NOACTIVATE(0x0010)
+        SetWindowPos(myHwnd, HWND_TOPMOST, 0, 0, 0, 0, 0x0013);
+    }
+
+    private IntPtr WndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == 0x0021) // WM_MOUSEACTIVATE
         {
             handled = true;
             return (IntPtr)3; // MA_NOACTIVATE
+        }
+        if (msg == 0x0046) // WM_WINDOWPOSCHANGING
+        {
+            var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+            if ((pos.flags & 0x0004) == 0) // SWP_NOZORDER 미설정 = z-order 변경 시도
+            {
+                pos.hwndInsertAfter = new IntPtr(-1); // HWND_TOPMOST 재고정
+                Marshal.StructureToPtr(pos, lParam, false);
+            }
         }
         return IntPtr.Zero;
     }

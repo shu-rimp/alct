@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
     public event Action<bool>? CaptionModeChanged;
     public event Action<string>? DeepLApiKeyChanged;
     public event Action<string>? GeminiApiKeyChanged;
+    public event Action<string>? LangblyApiKeyChanged;
     public event Action<TranslationEngine>? VoiceEngineChanged;
     public event Action<TranslationEngine>? TextEngineChanged;
     public event Action<int>? MonitorIndexChanged;
@@ -26,8 +27,9 @@ public partial class SettingsWindow : Window
 
     private bool _allowClose;
     private bool _suppressMonitorEvent;
-    private string _deepLApiKey  = string.Empty;
-    private string _geminiApiKey = string.Empty;
+    private string _deepLApiKey   = string.Empty;
+    private string _geminiApiKey  = string.Empty;
+    private string _langblyApiKey = string.Empty;
 
     public string SourceLang
     {
@@ -43,17 +45,19 @@ public partial class SettingsWindow : Window
     public TranslationEngine SelectedVoiceEngine =>
         ((VoiceEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
         {
-            "DeepL"  => TranslationEngine.DeepL,
-            "Gemini" => TranslationEngine.Gemini,
-            _        => TranslationEngine.MyMemory,
+            "DeepL"   => TranslationEngine.DeepL,
+            "Gemini"  => TranslationEngine.Gemini,
+            "Langbly" => TranslationEngine.Langbly,
+            _         => TranslationEngine.MyMemory,
         };
 
     public TranslationEngine SelectedTextEngine =>
         ((TextEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
         {
-            "DeepL"  => TranslationEngine.DeepL,
-            "Gemini" => TranslationEngine.Gemini,
-            _        => TranslationEngine.MyMemory,
+            "DeepL"   => TranslationEngine.DeepL,
+            "Gemini"  => TranslationEngine.Gemini,
+            "Langbly" => TranslationEngine.Langbly,
+            _         => TranslationEngine.MyMemory,
         };
 
     public SettingsWindow()
@@ -81,8 +85,12 @@ public partial class SettingsWindow : Window
 
     private void LoadMonitors()
     {
+        _suppressMonitorEvent = true;
         MonitorCombo.Items.Clear();
-        var screens = System.Windows.Forms.Screen.AllScreens;
+        var screens = System.Windows.Forms.Screen.AllScreens
+            .OrderBy(s => s.Bounds.Left)
+            .ThenBy(s => s.Bounds.Top)
+            .ToArray();
         for (int i = 0; i < screens.Length; i++)
         {
             var s = screens[i];
@@ -92,6 +100,7 @@ public partial class SettingsWindow : Window
         }
         if (MonitorCombo.Items.Count > 0)
             MonitorCombo.SelectedIndex = 0;
+        _suppressMonitorEvent = false;
     }
 
     // ── 외부에서 초기값 설정 ──
@@ -105,6 +114,12 @@ public partial class SettingsWindow : Window
     public void SetGeminiApiKey(string key)
     {
         _geminiApiKey = key;
+        UpdateApiKeyWarnings();
+    }
+
+    public void SetLangblyApiKey(string key)
+    {
+        _langblyApiKey = key;
         UpdateApiKeyWarnings();
     }
 
@@ -156,9 +171,10 @@ public partial class SettingsWindow : Window
     {
         VoiceEngineCombo.SelectedIndex = engine switch
         {
-            TranslationEngine.DeepL  => 1,
-            TranslationEngine.Gemini => 2,
-            _                        => 0,
+            TranslationEngine.DeepL   => 1,
+            TranslationEngine.Gemini  => 2,
+            TranslationEngine.Langbly => 3,
+            _                         => 0,
         };
     }
 
@@ -166,9 +182,10 @@ public partial class SettingsWindow : Window
     {
         TextEngineCombo.SelectedIndex = engine switch
         {
-            TranslationEngine.DeepL  => 1,
-            TranslationEngine.Gemini => 2,
-            _                        => 0,
+            TranslationEngine.DeepL   => 1,
+            TranslationEngine.Gemini  => 2,
+            TranslationEngine.Langbly => 3,
+            _                         => 0,
         };
     }
 
@@ -231,7 +248,7 @@ public partial class SettingsWindow : Window
 
     public void NavigateToApiConfig()
     {
-        var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey) { Owner = this };
+        var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey, _langblyApiKey) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             if (_deepLApiKey != dialog.DeepLApiKey)
@@ -244,6 +261,11 @@ public partial class SettingsWindow : Window
                 _geminiApiKey = dialog.GeminiApiKey;
                 GeminiApiKeyChanged?.Invoke(_geminiApiKey);
             }
+            if (_langblyApiKey != dialog.LangblyApiKey)
+            {
+                _langblyApiKey = dialog.LangblyApiKey;
+                LangblyApiKeyChanged?.Invoke(_langblyApiKey);
+            }
             UpdateApiKeyWarnings();
         }
     }
@@ -254,15 +276,17 @@ public partial class SettingsWindow : Window
 
         TextApiKeyWarning.Visibility = SelectedTextEngine switch
         {
-            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)  => Visibility.Visible,
-            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey) => Visibility.Visible,
+            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)   => Visibility.Visible,
+            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey)  => Visibility.Visible,
+            TranslationEngine.Langbly when string.IsNullOrEmpty(_langblyApiKey) => Visibility.Visible,
             _ => Visibility.Collapsed,
         };
 
         VoiceApiKeyWarning.Visibility = SelectedVoiceEngine switch
         {
-            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)  => Visibility.Visible,
-            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey) => Visibility.Visible,
+            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)   => Visibility.Visible,
+            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey)  => Visibility.Visible,
+            TranslationEngine.Langbly when string.IsNullOrEmpty(_langblyApiKey) => Visibility.Visible,
             _ => Visibility.Collapsed,
         };
     }

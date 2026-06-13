@@ -2,7 +2,8 @@ namespace AlctClient.Core;
 
 public interface ITranslationService
 {
-    Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default);
+    // context: 직전 발화들(원어) — 짧은 문장의 번역 정확도를 높이는 참고용, 번역 대상 아님
+    Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default);
     Task<string> TranslateFromKoreanAsync(string text, string targetLang);
     string MapLanguageCode(string bcp47);
 
@@ -10,4 +11,4 @@ public interface ITranslationService
         text.Replace("<x>", "").Replace("</x>", "").Trim();
 }
 
-public enum TranslationEngine { MyMemory, DeepL, Gemini }
+public enum TranslationEngine { MyMemory, DeepL, Gemini, Langbly }

@@ -14,7 +14,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="LibNMeCab" Version="0.10.2" />
+    <PackageReference Include="LibNMeCab.IpaDicBin" Version="0.10.0" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="WPF-UI" Version="3.0.5" />
   </ItemGroup>
@@ -26,19 +29,31 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="assets\alct-wordmark.png"/>
+    <EmbeddedResource Include="assets\glossary_data.json" />
+    <Resource Include="assets\alct-wordmark.png" />
+    <Resource Include="assets\alct.png" />
+    <!-- mp4/ico는 런타임에 디스크 경로로 로드 — 단일 파일 번들에서 제외해 exe 옆 assets\로 배치 -->
     <Content Include="assets\livecaptions-install.mp4" Condition="Exists('assets\livecaptions-install.mp4')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="assets\chat-translation-demo.mp4" Condition="Exists('assets\chat-translation-demo.mp4')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="assets\input-translation-demo.mp4" Condition="Exists('assets\input-translation-demo.mp4')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+    <Content Include="assets\voice-translation-demo.mp4" Condition="Exists('assets\voice-translation-demo.mp4')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
     <Content Include="assets\alct.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
-    <Content Include="appsettings.json" Condition="Exists('appsettings.json')">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="appsettings.example.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+
   </ItemGroup>
 
 </Project>

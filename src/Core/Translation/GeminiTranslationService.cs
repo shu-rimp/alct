@@ -11,6 +11,7 @@ public sealed class GeminiTranslationService : ITranslationService
         PooledConnectionLifetime = TimeSpan.FromMinutes(2),
     });
     private readonly HttpClient _http;
+    private readonly string _apiKey;
     private readonly string _endpoint;
     private const string Model = "gemini-3.1-flash-lite";
 
@@ -18,6 +19,7 @@ public sealed class GeminiTranslationService : ITranslationService
 
     internal GeminiTranslationService(string apiKey, HttpClient http)
     {
+        _apiKey = apiKey;
         _http = http;
         _endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={apiKey}";
     }
@@ -30,25 +32,34 @@ public sealed class GeminiTranslationService : ITranslationService
         _       => bcp47,
     };
 
-    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, CancellationToken ct = default)
+    public async Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
-        var prompt = $"다음 텍스트를 한국어로 번역해. 번역 결과만 출력해. 설명은 하지 마:\n\n{ITranslationService.StripXmlTags(text)}";
-        return await CallAsync(prompt, ct);
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
+
+        var contextBlock = string.IsNullOrWhiteSpace(context)
+            ? ""
+            : $"Recent utterances for context (reference only, do NOT translate):\n{context}\n\n";
+
+        return await CallAsync(
+            systemInstruction: "You are translating in-game chat messages from Apex Legends. The text may contain gaming slang, or abbreviations. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
+            userContent: $"{contextBlock}Translate each line below to Korean, outputting the same number of lines:\n\n{ITranslationService.StripXmlTags(text)}",
+            ct);
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
-        var prompt = $"다음 한국어 텍스트를 {MapLanguageCode(targetLang)}로 번역해. 번역 결과만 출력해. 설명은 하지 마:\n\n{text}";
-        return await CallAsync(prompt);
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
+        return await CallAsync(
+            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Only output the translated text.",
+            userContent: $"Translate the following Korean text to {MapLanguageCode(targetLang)}:\n\n{text}");
     }
 
-    private async Task<string> CallAsync(string prompt, CancellationToken ct = default)
+    private async Task<string> CallAsync(string systemInstruction, string userContent, CancellationToken ct = default)
     {
         var payload = new
         {
-            contents = new[] { new { parts = new[] { new { text = prompt } } } },
+            system_instruction = new { parts = new[] { new { text = systemInstruction } } },
+            contents = new[] { new { parts = new[] { new { text = userContent } } } },
             generationConfig = new { temperature = 0.1, maxOutputTokens = 512 },
         };
 
