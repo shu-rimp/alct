@@ -4,8 +4,15 @@ namespace AlctClient.Utils;
 
 public static class Logger
 {
-    private static readonly string _logPath =
-        Path.Combine(AppContext.BaseDirectory, "alct.log");
+    private static readonly string _logPath = InitLogPath();
+
+    private static string InitLogPath()
+    {
+        var dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ALCT");
+        try { Directory.CreateDirectory(dir); } catch { }
+        return Path.Combine(dir, "alct.log");
+    }
     private static readonly object _lock = new();
 
     public static void Info(string context, string message)
