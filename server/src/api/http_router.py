@@ -2,9 +2,10 @@ import asyncio
 import os
 import time
 from collections import defaultdict
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from api.http_responses import ErrorResponse, NormalizedTextResponse
 from core import ocr_service, text_normalizer
@@ -46,9 +47,18 @@ def _isRateLimited(ip: str) -> bool:
     return False
 
 
+GLOSSARY_PATH = Path(__file__).resolve().parent.parent / "core" / "glossary_data.json"
+
+
 @router.get("/health")
 async def healthCheck():
     return {"status": "ok"}
+
+
+# 게임 용어집 — 파일만 교체하면 클라이언트 재배포 없이 용어집 갱신 가능
+@router.get("/glossary", dependencies=[Depends(_verifyToken)])
+async def glossaryEndpoint():
+    return FileResponse(GLOSSARY_PATH, media_type="application/json")
 
 
 @router.post("/ocr", dependencies=[Depends(_verifyToken)])

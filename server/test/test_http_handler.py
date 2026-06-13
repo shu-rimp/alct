@@ -66,3 +66,20 @@ class TestHealthCheck:
         r = client.get("/health")
         assert r.status_code == 200
         assert r.json() == {"status": "ok"}
+
+
+class TestGlossaryEndpoint:
+    def test_returnsGlossaryJson(self):
+        r = client.get("/glossary")
+        assert r.status_code == 200
+        assert "languages" in r.json()
+
+    def test_returns403_whenTokenInvalid(self, mocker):
+        mocker.patch("api.http_router._SERVER_TOKEN", "secret")
+        r = client.get("/glossary")
+        assert r.status_code == 403
+
+    def test_returns200_whenTokenValid(self, mocker):
+        mocker.patch("api.http_router._SERVER_TOKEN", "secret")
+        r = client.get("/glossary", headers={"X-ALCT-Token": "secret"})
+        assert r.status_code == 200

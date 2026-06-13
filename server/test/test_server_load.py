@@ -4,8 +4,8 @@ ALCT OCR server load test script
 how to:
   1. pip install locust pillow
 
-  2. locust -f tests/test_server_load.py --host=https://api.example.com \
-    --headless -u 20 -r 5 --run-time 3m --csv=results/scenario_A
+  2. locust -f test/test_server_load.py --host=https://api.example.com \
+    --headless -u 20 -r 5 --run-time 3m --csv=test/results/scenario_A
     
     # results are saved in .csv
     # --host: remote server URL

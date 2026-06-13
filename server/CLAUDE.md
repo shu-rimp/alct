@@ -1,40 +1,18 @@
 # ALCT Server
 
-## Overview
-Python OCR server. Receives PNG via HTTP POST → OCR → normalization → returns result. Translation is handled by the client.
+Python OCR server: PNG via HTTP POST → RapidOCR (PP-OCRv5 MOBILE, ONNX CPU) → normalization → JSON. Translation happens client-side.
+FastAPI + Uvicorn multi-worker. `src/api/` routing, `src/core/` OCR + text data, `test/` pytest.
 
-## Project Structure
-```
-server/
-├── src/
-│   ├── main.py
-│   ├── api/
-│   │   ├── http_router.py
-│   │   └── http_responses.py
-│   └── core/
-│       ├── ocr_service.py
-│       ├── text_normalizer.py
-│       └── normalizer_data.json
-├── test/
-│   ├── results/
-│   │   └── summary.csv
-│   ├── conftest.py
-│   ├── test_ocr_service.py
-│   └── test_http_handler.py
-├── Dockerfile
-├── docker-compose.dev.yml
-├── docker-compose.yml
-├── pytest.ini
-├── requirements-dev.txt
-└── requirements.txt
-```
+## Endpoints & data
+- `POST /ocr` — token + per-IP rate limit (`CF-Connecting-IP` first) + `MAX_CONCURRENT_OCR` gate
+- `GET /glossary` — serves `src/core/glossary_data.json`, read per request: **file swap updates all clients without restart** (clients fetch at startup)
+- `GET /health` — no auth
+- Auth: `ALCT_SERVER_TOKEN` env ↔ `X-ALCT-Token` header; unset token = auth disabled (self-hosting)
+- Data role split: `normalizer_data.json` = chat slang/romaji (OCR path only, applied server-side); `glossary_data.json` = game terms (applied client-side, also embedded in client as offline fallback)
 
-## Tech Stack
-- Python 3.11+, FastAPI, Uvicorn (multi-worker)
-- OCR: RapidOCR 3.8.3 — PP-OCRv5 Det + Rec (MOBILE), ONNX Runtime (CPU)
-- Deployment: Oracle Cloud Free Tier ARM (4 vCore / 24 GB), Docker, Cloudflare, nginx
+## Deployment
+- Oracle Cloud Free Tier ARM (4 vCore / 24 GB) — this is the account-wide free maximum, no second free instance
+- Docker + nginx + Cloudflare in front; `docker-compose.dev.yml` for local
 
 ## Code Style
-- Variables: camelCase / Constants: UPPER_SNAKE_CASE
-- One function = one responsibility
-- Prefer list comprehensions and lambdas
+camelCase variables (intentional, not PEP8 — author's Java/Kotlin background; do not "fix" to snake_case), UPPER_SNAKE_CASE constants, one function = one responsibility, prefer comprehensions.
