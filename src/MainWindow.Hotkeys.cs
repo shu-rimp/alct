@@ -109,6 +109,9 @@ public partial class MainWindow
 
     private void OnInputTranslationHotkeyPressed()
     {
+        // 복사 시뮬레이션이 사용자의 원본 클립보드를 덮어쓰기 전에 백업 (UI/STA 스레드)
+        var clipboardBackup = WindowsApiHelper.BackupClipboard();
+
         WindowsApiHelper.SimulateSelectToLineStart();
         WindowsApiHelper.SimulateCopy();
         _ = Task.Run(async () =>
@@ -123,8 +126,14 @@ public partial class MainWindow
                 Dispatcher.Invoke(() => Clipboard.SetText(translation));
                 await Task.Delay(50);
                 WindowsApiHelper.SimulatePaste();
+                await Task.Delay(100); // 대상 앱이 붙여넣기를 소화할 시간 확보 후 원복
             }
             catch (Exception ex) { Logger.Error("InputTranslation", ex); }
+            finally
+            {
+                // 성공·실패·빈 입력 모두 원본 클립보드로 복원 (임시 복사본·번역문 잔류 방지)
+                Dispatcher.Invoke(() => WindowsApiHelper.RestoreClipboard(clipboardBackup));
+            }
         });
     }
 

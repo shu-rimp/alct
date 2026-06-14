@@ -71,6 +71,42 @@ public static class WindowsApiHelper
     private static void Send(params INPUT[] inputs) =>
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
 
+    // ── 클립보드 백업/복원 ──────────────────────────────────────────────
+    // 입력창 번역은 복사·붙여넣기로 클립보드를 덮어쓰므로, 사용자의 원본 내용을
+    // 작업 전에 스냅샷했다가 작업 후 되돌린다. 모든 포맷을 best-effort로 보존.
+    // 반드시 STA(UI) 스레드에서 호출해야 함.
+    public static System.Windows.IDataObject? BackupClipboard()
+    {
+        try
+        {
+            var data = System.Windows.Clipboard.GetDataObject();
+            if (data is null) return null;
+
+            var backup = new System.Windows.DataObject();
+            bool captured = false;
+            foreach (var format in data.GetFormats())
+            {
+                try
+                {
+                    var value = data.GetData(format);
+                    if (value is null) continue;
+                    backup.SetData(format, value);
+                    captured = true;
+                }
+                catch { /* 직렬화 불가 포맷은 건너뜀 */ }
+            }
+            return captured ? backup : null;
+        }
+        catch { return null; }
+    }
+
+    public static void RestoreClipboard(System.Windows.IDataObject? data)
+    {
+        if (data is null) return;  // 원본이 비었거나 읽기 실패 — 복원 생략
+        try { System.Windows.Clipboard.SetDataObject(data, copy: true); }
+        catch { /* 복원 실패는 무시 — 앱 상태에 영향 없음 */ }
+    }
+
     private static INPUT KeyDown(ushort vk) =>
         new() { type = INPUT_KEYBOARD, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk } } };
 
