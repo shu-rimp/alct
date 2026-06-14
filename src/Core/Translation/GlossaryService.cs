@@ -24,8 +24,6 @@ public sealed class GlossaryService
     // 각 언어 목록에는 common(언어 무관 영문 표기) 용어가 병합돼 있음
     private volatile Dictionary<string, List<KeyValuePair<string, string>>> _entries = new();
     private volatile List<KeyValuePair<string, string>> _commonOnly = new();  // 미등록 언어용 폴백
-    // "readings" 섹션 — 일본어 동음 한자 오변환을 표기 등록 없이 읽기(가나)로 커버
-    private volatile Dictionary<string, JapaneseReadingMatcher> _readingMatchers = new();
 
     private GlossaryService()
     {
@@ -38,8 +36,6 @@ public sealed class GlossaryService
     public string Apply(string text, string sourceLang)
     {
         if (string.IsNullOrEmpty(text)) return text;
-        if (_readingMatchers.TryGetValue(sourceLang, out var readingMatcher))
-            text = readingMatcher.Apply(text);  // 표기 치환보다 먼저 — 형태소 분석은 원문 표기 기준
         if (!_entries.TryGetValue(sourceLang, out var terms)) terms = _commonOnly;
 
         foreach (var (term, target) in terms)
@@ -93,15 +89,9 @@ public sealed class GlossaryService
                     merged[term] = target;  // 언어별 용어가 common보다 우선
                 dict[lang.Name] = SortLongestFirst(merged);
             }
-            var matchers = new Dictionary<string, JapaneseReadingMatcher>();
-            if (root.TryGetProperty("readings", out var readings))
-                foreach (var lang in readings.EnumerateObject())
-                    if (lang.Name.StartsWith("ja"))  // 읽기 매칭은 현재 일본어만 지원
-                        matchers[lang.Name] = new JapaneseReadingMatcher(ParseTerms(lang.Value));
 
             _commonOnly = SortLongestFirst(common);
             _entries = dict;
-            _readingMatchers = matchers;
             return true;
         }
         catch (Exception ex)

@@ -91,7 +91,10 @@ public partial class MainWindow
         {
             _deepLKey = key;
             if (_voiceEngine == TranslationEngine.DeepL)
+            {
                 _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, key);
+                _voiceQuotaBlockedUntil = DateTime.MinValue;  // 새 키 = 새 할당량 → 한도 차단 해제
+            }
             if (_textEngine == TranslationEngine.DeepL)
                 _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, key);
             SaveAppSetting("DeepLApiKey", key);
@@ -117,10 +120,24 @@ public partial class MainWindow
             SaveAppSetting("LangblyApiKey", key);
         };
 
+        _settings.MyMemoryEmailChanged += email =>
+        {
+            _myMemoryEmail = email;
+            if (_voiceEngine == TranslationEngine.MyMemory)
+            {
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, email);
+                _voiceQuotaBlockedUntil = DateTime.MinValue;  // 이메일 등록 = 한도 상향, 기존 한도 차단 해제
+            }
+            if (_textEngine == TranslationEngine.MyMemory)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, email);
+            SaveAppSetting("MyMemoryEmail", email);
+        };
+
         _settings.VoiceEngineChanged += engine =>
         {
             _voiceEngine = engine;
             _voiceTranslationService = TranslationEngineFactory.Create(engine, GetApiKey(engine));
+            _voiceQuotaBlockedUntil = DateTime.MinValue;  // 엔진 변경 시 MyMemory 한도 차단 해제
             SaveAppSetting("VoiceTranslationEngine", engine.ToString());
         };
 

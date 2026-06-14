@@ -11,12 +11,16 @@ public sealed class MyMemoryTranslationService : ITranslationService
         PooledConnectionLifetime = TimeSpan.FromMinutes(2),
     });
     private readonly HttpClient _http;
+    private readonly string _email;
     private const string BaseUrl = "https://api.mymemory.translated.net/get";
 
-    public MyMemoryTranslationService() : this(_defaultHttp) { }
+    public MyMemoryTranslationService(string email = "") : this(email, _defaultHttp) { }
 
-    internal MyMemoryTranslationService(HttpClient http)
+    internal MyMemoryTranslationService(HttpClient http) : this(string.Empty, http) { }
+
+    internal MyMemoryTranslationService(string email, HttpClient http)
     {
+        _email = email?.Trim() ?? string.Empty;
         _http = http;
     }
 
@@ -64,21 +68,51 @@ public sealed class MyMemoryTranslationService : ITranslationService
     private async Task<string> CallAsync(string text, string from, string to, CancellationToken ct = default)
     {
         var url = $"{BaseUrl}?q={Uri.EscapeDataString(text)}&langpair={from}|{to}";
+        // 이메일 등록 시 일일 한도 상향(5천→5만 자). 형식이 틀리면 붙이지 않아 번역 요청이 깨지지 않도록
+        if (IsLikelyEmail(_email))
+            url += $"&de={Uri.EscapeDataString(_email)}";
         var response = await _http.GetAsync(url, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        // HTTP 429면 본문이 JSON이 아닐 수 있으므로 파싱 전에 한도 초과로 처리 (재개 시각은 본문에서 best-effort 추출)
+        if ((int)response.StatusCode == 429)
+            throw QuotaException(body);
         response.EnsureSuccessStatusCode();
 
-        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
 
-        if (root.TryGetProperty("quotaFinished", out var quota) && quota.GetBoolean())
-            throw new InvalidOperationException("MyMemory 일일 번역 한도를 초과했습니다.");
-
-        var status = root.TryGetProperty("responseStatus", out var s) ? s.GetInt32() : 200;
+        var quotaFinished = root.TryGetProperty("quotaFinished", out var quota) && quota.ValueKind == JsonValueKind.True;
+        var status = root.TryGetProperty("responseStatus", out var s) ? StatusCode(s) : 200;
+        if (quotaFinished || status == 429)
+            throw QuotaException(body);
         if (status != 200)
             throw new InvalidOperationException($"MyMemory 오류: {status}");
 
         return root.GetProperty("responseData")
                    .GetProperty("translatedText")
                    .GetString() ?? string.Empty;
+    }
+
+    private static bool IsLikelyEmail(string s) =>
+        !string.IsNullOrEmpty(s) && Regex.IsMatch(s, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+    // responseStatus는 숫자 또는 문자열("200")로 올 수 있음
+    private static int StatusCode(JsonElement s) =>
+        s.ValueKind == JsonValueKind.Number ? s.GetInt32()
+        : int.TryParse(s.GetString(), out var v) ? v : 200;
+
+    // MyMemory는 일일 한도뿐 — 재개 시각은 본문에서 파싱, 없으면 1시간 뒤로 보수적 폴백
+    private static TranslationRateLimitException QuotaException(string body) =>
+        new("[MyMemory] 일일 번역 한도를 소진했어요.", ParseNextAvailable(body) ?? DateTime.UtcNow.AddHours(1));
+
+    // "...NEXT AVAILABLE IN 07 HOURS 12 MINUTES..." → 지금부터 그만큼 뒤의 UTC 시각. 없으면 null
+    private static DateTime? ParseNextAvailable(string? body)
+    {
+        if (string.IsNullOrEmpty(body)) return null;
+        var m = Regex.Match(body, @"NEXT AVAILABLE IN\s+(\d+)\s+HOURS?\s+(\d+)\s+MINUTES?", RegexOptions.IgnoreCase);
+        return m.Success
+            ? DateTime.UtcNow.AddHours(int.Parse(m.Groups[1].Value)).AddMinutes(int.Parse(m.Groups[2].Value))
+            : null;
     }
 }

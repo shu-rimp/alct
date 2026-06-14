@@ -12,3 +12,12 @@ public interface ITranslationService
 }
 
 public enum TranslationEngine { MyMemory, DeepL, Gemini, Langbly }
+
+// 번역 엔진의 사용량/속도 제한 초과. RetryAtUtc는 재개 가능 시각(엔진이 응답에서 산출, 폴백 포함)
+public sealed class TranslationRateLimitException : Exception
+{
+    public DateTime RetryAtUtc { get; }
+
+    public TranslationRateLimitException(string message, DateTime retryAtUtc) : base(message)
+        => RetryAtUtc = retryAtUtc;
+}

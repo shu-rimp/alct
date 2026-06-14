@@ -15,6 +15,7 @@ public partial class SettingsWindow : Window
     public event Action<string>? DeepLApiKeyChanged;
     public event Action<string>? GeminiApiKeyChanged;
     public event Action<string>? LangblyApiKeyChanged;
+    public event Action<string>? MyMemoryEmailChanged;
     public event Action<TranslationEngine>? VoiceEngineChanged;
     public event Action<TranslationEngine>? TextEngineChanged;
     public event Action<int>? MonitorIndexChanged;
@@ -30,6 +31,7 @@ public partial class SettingsWindow : Window
     private string _deepLApiKey   = string.Empty;
     private string _geminiApiKey  = string.Empty;
     private string _langblyApiKey = string.Empty;
+    private string _myMemoryEmail = string.Empty;
 
     public string SourceLang
     {
@@ -41,6 +43,7 @@ public partial class SettingsWindow : Window
     }
 
     public string DeepLApiKey => _deepLApiKey;
+    public string MyMemoryEmail => _myMemoryEmail;
 
     public TranslationEngine SelectedVoiceEngine =>
         ((VoiceEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
@@ -122,6 +125,8 @@ public partial class SettingsWindow : Window
         _langblyApiKey = key;
         UpdateApiKeyWarnings();
     }
+
+    public void SetMyMemoryEmail(string email) => _myMemoryEmail = email;
 
     public void SetSourceLang(string lang)
     {
@@ -248,7 +253,7 @@ public partial class SettingsWindow : Window
 
     public void NavigateToApiConfig()
     {
-        var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey, _langblyApiKey) { Owner = this };
+        var dialog = new ApiConfigModal(_deepLApiKey, _geminiApiKey, _langblyApiKey, _myMemoryEmail) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             if (_deepLApiKey != dialog.DeepLApiKey)
@@ -266,13 +271,18 @@ public partial class SettingsWindow : Window
                 _langblyApiKey = dialog.LangblyApiKey;
                 LangblyApiKeyChanged?.Invoke(_langblyApiKey);
             }
+            if (_myMemoryEmail != dialog.MyMemoryEmail)
+            {
+                _myMemoryEmail = dialog.MyMemoryEmail;
+                MyMemoryEmailChanged?.Invoke(_myMemoryEmail);
+            }
             UpdateApiKeyWarnings();
         }
     }
 
     private void UpdateApiKeyWarnings()
     {
-        if (TextApiKeyWarning is null || VoiceApiKeyWarning is null) return;
+        if (TextApiKeyWarning is null || VoiceApiKeyWarning is null || VoiceGeminiNote is null) return;
 
         TextApiKeyWarning.Visibility = SelectedTextEngine switch
         {
@@ -289,6 +299,10 @@ public partial class SettingsWindow : Window
             TranslationEngine.Langbly when string.IsNullOrEmpty(_langblyApiKey) => Visibility.Visible,
             _ => Visibility.Collapsed,
         };
+
+        // Gemini는 음성에 쓰면 한도 소진/지연 우려가 있어 엔진 선택과 무관하게(키 유무 상관없이) 안내
+        VoiceGeminiNote.Visibility = SelectedVoiceEngine == TranslationEngine.Gemini
+            ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnMonitorChanged(object sender, SelectionChangedEventArgs e)

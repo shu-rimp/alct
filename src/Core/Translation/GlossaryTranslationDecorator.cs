@@ -17,9 +17,9 @@ public sealed class GlossaryTranslationDecorator : ITranslationService
     public Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default)
     {
         var applied = _glossary.Apply(text, sourceLang);
-        // 용어집 튜닝용 — STT/OCR이 실제로 출력한 표기를 코드포인트까지 기록 (들리는 발음과 다른 경우가 많음)
-        var codepoints = string.Join(" ", text.Take(40).Select(c => ((int)c).ToString("X4")));
-        Logger.Info("Glossary", $"lang={sourceLang} | in=[{text}] | out=[{applied}] | cp={codepoints}");
+        // 디버깅 용 로그 — STT/OCR이 실제로 출력한 표기를 코드포인트까지 기록 (들리는 발음과 다른 경우가 많음)
+        // var codepoints = string.Join(" ", text.Take(40).Select(c => ((int)c).ToString("X4")));
+        // Logger.Info("Glossary", $"lang={sourceLang} | in=[{text}] | out=[{applied}] | cp={codepoints}");
         return _inner.TranslateToKoreanAsync(applied, sourceLang, context, ct);
     }
 

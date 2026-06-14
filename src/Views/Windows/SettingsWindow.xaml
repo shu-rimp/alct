@@ -470,7 +470,7 @@
                                         <ComboBoxItem Tag="MyMemory" IsSelected="True">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="MyMemory" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="MyMemory" FontSize="13"/>
                                                     <Border Background="{StaticResource ComboBgBrush}"
                                                             BorderBrush="{StaticResource CardBorderAccentBrush}"
                                                             BorderThickness="1" CornerRadius="4"
@@ -484,7 +484,15 @@
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="DeepL">
                                             <StackPanel>
-                                                <TextBlock Text="DeepL" FontSize="13"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="DeepL" FontSize="13" VerticalAlignment="Center"/>
+                                                    <Border Background="{StaticResource ComboBgBrush}"
+                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
                                                 <TextBlock Text="고품질 번역 · API 키 필요" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
@@ -503,6 +511,11 @@
                                            Foreground="{StaticResource TextWarnBrush}"
                                            FontSize="11" Margin="0,6,0,0"
                                            Text="⚠️ [설정]에서 API 키를 입력해주세요."/>
+                                <TextBlock x:Name="VoiceGeminiNote"
+                                           Visibility="Collapsed"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
+                                           Text="Gemini를 음성 번역에 사용 시 무료 한도가 빨리 소진되거나, 번역이 늦게 보일 수 있어요."/>
                             </StackPanel>
                         </Border>
 
