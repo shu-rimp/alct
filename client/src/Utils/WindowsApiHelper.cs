@@ -240,6 +240,10 @@ public static class WindowsApiHelper
 
     public static void SetLiveCaptionsLanguage(string bcp47Tag)
     {
+        // 영어는 별도 언어팩을 받지 않음 — 중국어(zh-CN) 언어팩에 영어 인식이 포함되어 있어 중국어로 설정.
+        if (bcp47Tag.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+            bcp47Tag = "zh-CN";
+
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\LiveCaptions\UI", writable: true);
         key?.SetValue("CaptionLanguage", bcp47Tag, RegistryValueKind.String);
     }

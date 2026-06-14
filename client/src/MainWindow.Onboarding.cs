@@ -31,7 +31,7 @@ public partial class MainWindow
         UserSettingsService.Save(_userSettings);
     }
 
-    private void OnOnboardingApiKeysRegistered(string deepLKey, string geminiKey, string langblyKey)
+    private void OnOnboardingApiKeysRegistered(string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail)
     {
         if (!string.IsNullOrEmpty(deepLKey))
         {
@@ -62,6 +62,19 @@ public partial class MainWindow
             if (_textEngine == TranslationEngine.Langbly)
                 _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, langblyKey);
             _settings.SetLangblyApiKey(langblyKey);
+        }
+        if (!string.IsNullOrEmpty(myMemoryEmail))
+        {
+            _myMemoryEmail = myMemoryEmail;
+            SaveAppSetting("MyMemoryEmail", myMemoryEmail);
+            if (_voiceEngine == TranslationEngine.MyMemory)
+            {
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, myMemoryEmail);
+                _voiceQuotaBlockedUntil = DateTime.MinValue;
+            }
+            if (_textEngine == TranslationEngine.MyMemory)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, myMemoryEmail);
+            _settings.SetMyMemoryEmail(myMemoryEmail);
         }
     }
 }

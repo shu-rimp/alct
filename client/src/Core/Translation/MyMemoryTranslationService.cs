@@ -11,12 +11,16 @@ public sealed class MyMemoryTranslationService : ITranslationService
         PooledConnectionLifetime = TimeSpan.FromMinutes(2),
     });
     private readonly HttpClient _http;
+    private readonly string _email;
     private const string BaseUrl = "https://api.mymemory.translated.net/get";
 
-    public MyMemoryTranslationService() : this(_defaultHttp) { }
+    public MyMemoryTranslationService(string email = "") : this(email, _defaultHttp) { }
 
-    internal MyMemoryTranslationService(HttpClient http)
+    internal MyMemoryTranslationService(HttpClient http) : this(string.Empty, http) { }
+
+    internal MyMemoryTranslationService(string email, HttpClient http)
     {
+        _email = email?.Trim() ?? string.Empty;
         _http = http;
     }
 
@@ -64,6 +68,9 @@ public sealed class MyMemoryTranslationService : ITranslationService
     private async Task<string> CallAsync(string text, string from, string to, CancellationToken ct = default)
     {
         var url = $"{BaseUrl}?q={Uri.EscapeDataString(text)}&langpair={from}|{to}";
+        // 이메일 등록 시 일일 한도 상향(5천→5만 자). 형식이 틀리면 붙이지 않아 번역 요청이 깨지지 않도록
+        if (IsLikelyEmail(_email))
+            url += $"&de={Uri.EscapeDataString(_email)}";
         var response = await _http.GetAsync(url, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
 
@@ -86,6 +93,9 @@ public sealed class MyMemoryTranslationService : ITranslationService
                    .GetProperty("translatedText")
                    .GetString() ?? string.Empty;
     }
+
+    private static bool IsLikelyEmail(string s) =>
+        !string.IsNullOrEmpty(s) && Regex.IsMatch(s, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
 
     // responseStatus는 숫자 또는 문자열("200")로 올 수 있음
     private static int StatusCode(JsonElement s) =>

@@ -9,7 +9,7 @@ public static class TranslationEngineFactory
             TranslationEngine.DeepL   => new DeepLTranslationService(apiKey),
             TranslationEngine.Gemini  => new GeminiTranslationService(apiKey),
             TranslationEngine.Langbly => new LangblyTranslationService(apiKey),
-            _                         => new MyMemoryTranslationService(),
+            _                         => new MyMemoryTranslationService(apiKey),  // 이메일(de 파라미터)을 전달받음
         };
         return new GlossaryTranslationDecorator(inner, GlossaryService.Instance);
     }
@@ -19,6 +19,6 @@ public static class TranslationEngineFactory
         "DeepL"   => TranslationEngine.DeepL,
         "Gemini"  => TranslationEngine.Gemini,
         "Langbly" => TranslationEngine.Langbly,
-        _         => TranslationEngine.MyMemory,  // "LibreTranslate" 등 구버전 값 포함
+        _         => TranslationEngine.MyMemory,
     };
 }
