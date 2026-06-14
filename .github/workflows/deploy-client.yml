@@ -24,8 +24,8 @@ jobs:
         run: |
           $file = "src/Core/BuildConstants.cs"
           (Get-Content $file) `
-            -replace '#{ALCT_SERVER_URL}#',   '${{ secrets.ALCT_SERVER_URL }}'   |
-            -replace '#{ALCT_SERVER_TOKEN}#', '${{ secrets.ALCT_SERVER_TOKEN }}' `
+            -replace '#{ALCT_SERVER_URL}#',   '${{ secrets.ALCT_SERVER_URL }}' `
+            -replace '#{ALCT_SERVER_TOKEN}#', '${{ secrets.ALCT_SERVER_TOKEN }}' |
           Set-Content $file
 
       - name: Publish
