@@ -23,19 +23,21 @@ public partial class MainWindow : Window
     private string _deepLKey   = string.Empty;
     private string _geminiKey  = string.Empty;
     private string _langblyKey = string.Empty;
+    private string _myMemoryEmail = string.Empty;  
     private TranslationEngine _voiceEngine = TranslationEngine.MyMemory;
     private TranslationEngine _textEngine  = TranslationEngine.MyMemory;
 
     public MainWindow()
     {
         InitializeComponent();
-        var (serverUrl, deepLApiKey, geminiApiKey, langblyApiKey, voiceEngine, textEngine) = LoadAppSettings();
+        var (serverUrl, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail, voiceEngine, textEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
         _ocrClient    = new OcrHttpClient(serverUrl);
         _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl);
         _deepLKey     = deepLApiKey;
         _geminiKey    = geminiApiKey;
         _langblyKey   = langblyApiKey;
+        _myMemoryEmail = myMemoryEmail;
         _voiceEngine  = voiceEngine;
         _textEngine   = textEngine;
         _voiceTranslationService = TranslationEngineFactory.Create(voiceEngine, GetApiKey(voiceEngine));
@@ -44,6 +46,7 @@ public partial class MainWindow : Window
         _settings.SetDeepLApiKey(deepLApiKey);
         _settings.SetGeminiApiKey(geminiApiKey);
         _settings.SetLangblyApiKey(langblyApiKey);
+        _settings.SetMyMemoryEmail(myMemoryEmail);
         _settings.SetSourceLang(_userSettings.SourceLang);
         _settings.SetCaptionMode(_userSettings.CaptionModeEnabled);
         _settings.SetVoiceEngine(voiceEngine);
@@ -79,7 +82,7 @@ public partial class MainWindow : Window
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ALCT", "appsettings.json");
 
-    private static (string serverUrl, string deepLKey, string geminiKey, string langblyKey, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
+    private static (string serverUrl, string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
     {
         var fallbackUrl = BuildConstants.SERVER_URL;
         try
@@ -93,6 +96,7 @@ public partial class MainWindow : Window
             var deepLKey   = DpapiHelper.Decrypt(root.TryGetProperty("DeepLApiKey",   out var p2) ? p2.GetString() ?? string.Empty : string.Empty);
             var geminiKey  = DpapiHelper.Decrypt(root.TryGetProperty("GeminiApiKey",  out var p3) ? p3.GetString() ?? string.Empty : string.Empty);
             var langblyKey = DpapiHelper.Decrypt(root.TryGetProperty("LangblyApiKey", out var p4) ? p4.GetString() ?? string.Empty : string.Empty);
+            var myMemoryEmail = root.TryGetProperty("MyMemoryEmail", out var p5) ? p5.GetString() ?? string.Empty : string.Empty;  // 평문(민감정보 아님)
 
             // 구버전 단일 엔진 설정 폴백
             string? legacyEngine = root.TryGetProperty("TranslationEngine", out var leg) ? leg.GetString() : null;
@@ -100,9 +104,9 @@ public partial class MainWindow : Window
             string? textStr  = root.TryGetProperty("TextTranslationEngine",  out var te) ? te.GetString()
                              : root.TryGetProperty("OcrTranslationEngine",   out var oe) ? oe.GetString() : legacyEngine;
 
-            return (url, deepLKey, geminiKey, langblyKey, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(textStr));
+            return (url, deepLKey, geminiKey, langblyKey, myMemoryEmail, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(textStr));
         }
-        catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
+        catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
     }
 
     private string GetApiKey(TranslationEngine engine) => engine switch
@@ -110,6 +114,7 @@ public partial class MainWindow : Window
         TranslationEngine.DeepL   => _deepLKey,
         TranslationEngine.Gemini  => _geminiKey,
         TranslationEngine.Langbly => _langblyKey,
+        TranslationEngine.MyMemory => _myMemoryEmail,  // de 파라미터용 이메일을 키 슬롯으로 전달
         _                         => string.Empty,
     };
 

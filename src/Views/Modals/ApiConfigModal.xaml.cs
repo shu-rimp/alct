@@ -18,6 +18,7 @@ public partial class ApiConfigModal : Window
     public string DeepLApiKey   { get; private set; }
     public string GeminiApiKey  { get; private set; }
     public string LangblyApiKey { get; private set; }
+    public string MyMemoryEmail { get; private set; }
 
     private string _currentEngine = "";  // 빈 문자열 → 첫 SelectEngine 호출 시 저장 건너뜀
     private bool _suppressReset;
@@ -28,18 +29,18 @@ public partial class ApiConfigModal : Window
     private bool _deeplUsageFetched;  // 모달 열려있는 동안 탭 전환마다 재조회하지 않도록 캐시
 
     private static readonly string DeepLGuideUrl   = "https://www.deepl.com/ko/signup?cta=checkout&is_api=true";
-    private static readonly string DeepLUsageUrl   = "https://www.deepl.com/ko/your-account/usage";
     private static readonly string GeminiGuideUrl  = "https://aistudio.google.com/app/apikey";
     private static readonly string GeminiUsageUrl  = "https://aistudio.google.com/rate-limit";
     private static readonly string LangblyGuideUrl = "https://langbly.com/signup";
     private static readonly string LangblyUsageUrl = "https://langbly.com/dashboard";
 
-    public ApiConfigModal(string deepLKey, string geminiKey, string langblyKey)
+    public ApiConfigModal(string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail)
     {
         InitializeComponent();
         DeepLApiKey   = deepLKey;
         GeminiApiKey  = geminiKey;
         LangblyApiKey = langblyKey;
+        MyMemoryEmail = myMemoryEmail;
         _deeplState   = string.IsNullOrEmpty(deepLKey)   ? KeyState.None : KeyState.Valid;
         _geminiState  = string.IsNullOrEmpty(geminiKey)  ? KeyState.None : KeyState.Valid;
         _langblyState = string.IsNullOrEmpty(langblyKey) ? KeyState.None : KeyState.Valid;
@@ -48,40 +49,71 @@ public partial class ApiConfigModal : Window
 
     private void SelectEngine(string engine)
     {
-        if (_currentEngine == "DeepL")        DeepLApiKey   = ApiKeyBox.Password;
+        if (_currentEngine == "MyMemory")     MyMemoryEmail = EmailBox.Text.Trim();
+        else if (_currentEngine == "DeepL")   DeepLApiKey   = ApiKeyBox.Password;
         else if (_currentEngine == "Gemini")  GeminiApiKey  = ApiKeyBox.Password;
         else if (_currentEngine == "Langbly") LangblyApiKey = ApiKeyBox.Password;
 
         _currentEngine = engine;
 
-        SidebarDeepL.Style  = (Style)Resources[engine == "DeepL"  ? "SidebarItemActive" : "SidebarItem"];
-        SidebarGemini.Style = (Style)Resources[engine == "Gemini" ? "SidebarItemActive" : "SidebarItem"];
+        SidebarMyMemory.Style = (Style)Resources[engine == "MyMemory" ? "SidebarItemActive" : "SidebarItem"];
+        SidebarDeepL.Style    = (Style)Resources[engine == "DeepL"    ? "SidebarItemActive" : "SidebarItem"];
+        SidebarGemini.Style   = (Style)Resources[engine == "Gemini"   ? "SidebarItemActive" : "SidebarItem"];
 
         _suppressReset = true;
-        if (engine == "DeepL")
+
+        // 기본: 키(PasswordBox) 입력 레이아웃 — MyMemory 분기에서 이메일 레이아웃으로 덮어씀
+        ApiKeyBox.Visibility     = Visibility.Visible;
+        EmailBox.Visibility      = Visibility.Collapsed;
+        KeyShareNotice.Visibility = Visibility.Visible;
+        GuideLinkBtn.Visibility  = Visibility.Visible;
+        ApiKeyPlaceholder.Text   = "붙여넣기 버튼 클릭";
+
+        if (engine == "MyMemory")
+        {
+            KeyLabel.Text            = "MyMemory 이메일 (선택)";
+            EmailBox.Text            = MyMemoryEmail;
+            ApiKeyBox.Visibility     = Visibility.Collapsed;
+            EmailBox.Visibility      = Visibility.Visible;
+            KeyShareNotice.Visibility = Visibility.Collapsed;
+            KeyValidLabel.Visibility = Visibility.Collapsed;
+            GuideLinkBtn.Visibility  = Visibility.Collapsed;
+            UsageLinkBtn.Visibility  = Visibility.Collapsed;
+            UsageHint.Visibility     = Visibility.Collapsed;
+            ApiKeyPlaceholder.Text   = "you@example.com";
+            GuideTitle.Text          = "이메일 등록 안내";
+            GuideSteps.ItemsSource = new[]
+            {
+                new GuideStep("•", "이메일을 입력하면 일일 번역 한도가 5,000자 → 50,000자로 늘어나요."),
+                new GuideStep("•", "입력하지 않아도 기본 한도(5,000자)로 바로 사용할 수 있어요."),
+            };
+            WarnBox.Visibility = Visibility.Collapsed;
+        }
+        else if (engine == "DeepL")
         {
             KeyLabel.Text        = "DeepL API 키";
             ApiKeyBox.Password   = DeepLApiKey;
             GuideTitle.Text      = "무료 키 발급 방법";
-            GuideLinkBtn.Content = "🔗 DeepL 키 발급 페이지 열기";
-            UsageLinkBtn.Content = "🔗 API 사용량 확인";
+            GuideLinkBtn.Content = "🔗 DeepL 키 발급하기";
             GuideSteps.ItemsSource = new[]
             {
-                new GuideStep("1", "무료 플랜(Developer)으로 가입해 주세요."),
-                new GuideStep("2", "구독에 필요한 플랜 정보를 입력해 주세요."),
-                new GuideStep("3", "[계정] - [API 키 & 한도] - [키 생성 +] 으로 API 키를 발급받아 주세요."),
-                new GuideStep("4", "키를 복사한 후, '붙여넣기' 버튼을 클릭해 주세요."),
+                new GuideStep("1", "Developer 플랜(무료)으로 가입해 주세요."),
+                new GuideStep("2", "[계정] - [API 키 & 한도] - [키 생성 +] 으로 API 키를 발급받아 주세요."),
+                new GuideStep("3", "키를 복사한 후, '붙여넣기' 버튼을 클릭해 주세요."),
             };
             WarnText.Text = "⚠️ 무료 플랜도 카드 등록을 요구하지만, 청구되지 않아요.";
             WarnBox.Visibility = Visibility.Visible;
+            UsageLinkBtn.Visibility = Visibility.Collapsed;  // DeepL은 모달 내 사용량 게이지로 대체 
+            UsageHint.Visibility = Visibility.Collapsed;
         }
         else if (engine == "Gemini")
         {
             KeyLabel.Text        = "Gemini API 키";
             ApiKeyBox.Password   = GeminiApiKey;
             GuideTitle.Text      = "무료 키 발급 방법";
-            GuideLinkBtn.Content = "🔗 Google AI Studio 열기";
+            GuideLinkBtn.Content = "🔗 Gemini 키 발급하기";
             UsageLinkBtn.Content = "🔗 API 사용량 확인";
+            UsageLinkBtn.Visibility = Visibility.Visible;
             GuideSteps.ItemsSource = new[]
             {
                 new GuideStep("1", "Google 계정으로 AI Studio에 로그인해 주세요."),
@@ -89,6 +121,8 @@ public partial class ApiConfigModal : Window
                 new GuideStep("3", "표시된 목록에서 우측 1번째 복사모양 버튼(API 키 복사)을 클릭해 주세요."),
                 new GuideStep("4", "키를 복사한 후, '붙여넣기' 버튼을 클릭해 주세요."),
             };
+            UsageHint.Guide = "기간을 1일로 설정하고, RPD값을 확인하면 돼요. 오늘 한도를 다 소진했어도, 내일 다시 사용할 수 있어요.";
+            UsageHint.Visibility = Visibility.Visible;
             WarnBox.Visibility = Visibility.Collapsed;
         }
         else
@@ -98,6 +132,7 @@ public partial class ApiConfigModal : Window
             GuideTitle.Text      = "키 발급 방법";
             GuideLinkBtn.Content = "🔗 Langbly 가입 페이지 열기";
             UsageLinkBtn.Content = "🔗 대시보드 열기";
+            UsageLinkBtn.Visibility = Visibility.Visible;
             GuideSteps.ItemsSource = new[]
             {
                 new GuideStep("1", "Langbly에 가입하고 카드를 등록해 주세요."),
@@ -107,17 +142,19 @@ public partial class ApiConfigModal : Window
             };
             WarnText.Text = "⚠️ 사용량에 따라 요금이 청구돼요. 대시보드에서 지출 한도를 설정할 수 있어요.";
             WarnBox.Visibility = Visibility.Visible;
+            UsageHint.Visibility = Visibility.Collapsed;
         }
         _suppressReset = false;
 
         UpdateKeyUi();
         UpdateDots();
-        ApplyKeyState(engine switch
-        {
-            "DeepL"  => _deeplState,
-            "Gemini" => _geminiState,
-            _        => _langblyState,
-        });
+        if (engine != "MyMemory")  // MyMemory는 이메일이라 키 검증 상태 표시 없음
+            ApplyKeyState(engine switch
+            {
+                "DeepL"  => _deeplState,
+                "Gemini" => _geminiState,
+                _        => _langblyState,
+            });
 
         if (engine == "DeepL") _ = RefreshDeepLUsageAsync(ApiKeyBox.Password);
         else UsageBox.Visibility = Visibility.Collapsed;
@@ -125,8 +162,10 @@ public partial class ApiConfigModal : Window
 
     private void UpdateKeyUi()
     {
-        var hasKey = !string.IsNullOrEmpty(ApiKeyBox.Password);
-        ApiKeyPlaceholder.Visibility = hasKey ? Visibility.Collapsed : Visibility.Visible;
+        var hasInput = _currentEngine == "MyMemory"
+            ? !string.IsNullOrEmpty(EmailBox.Text)
+            : !string.IsNullOrEmpty(ApiKeyBox.Password);
+        ApiKeyPlaceholder.Visibility = hasInput ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void ApplyKeyState(KeyState state)
@@ -174,9 +213,13 @@ public partial class ApiConfigModal : Window
         DotGemini.Visibility = _geminiState == KeyState.Valid ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void OnSelectMyMemory(object sender, RoutedEventArgs e) => SelectEngine("MyMemory");
     private void OnSelectDeepL(object sender, RoutedEventArgs e)   => SelectEngine("DeepL");
     private void OnSelectGemini(object sender, RoutedEventArgs e)  => SelectEngine("Gemini");
     private void OnSelectLangbly(object sender, RoutedEventArgs e) => SelectEngine("Langbly");
+
+    // MyMemory 이메일은 검증 API가 없어 입력값만 갱신 (placeholder 토글)
+    private void OnEmailChanged(object sender, TextChangedEventArgs e) => UpdateKeyUi();
 
     private void OnApiKeyPasswordChanged(object sender, RoutedEventArgs e)
     {
@@ -195,6 +238,12 @@ public partial class ApiConfigModal : Window
         if (!System.Windows.Clipboard.ContainsText()) return;
         var key = System.Windows.Clipboard.GetText().Trim();
         if (string.IsNullOrEmpty(key)) return;
+
+        if (_currentEngine == "MyMemory")  // 이메일은 검증 없이 입력만
+        {
+            EmailBox.Text = key;
+            return;
+        }
 
         _suppressReset = true;
         ApiKeyBox.Password = key;
@@ -223,7 +272,11 @@ public partial class ApiConfigModal : Window
         }
     }
 
-    private void OnClear(object sender, RoutedEventArgs e) => ApiKeyBox.Password = string.Empty;
+    private void OnClear(object sender, RoutedEventArgs e)
+    {
+        if (_currentEngine == "MyMemory") EmailBox.Text = string.Empty;
+        else ApiKeyBox.Password = string.Empty;
+    }
 
     private static bool IsAscii(string s) => s.All(c => c < 128);
 
@@ -290,7 +343,7 @@ public partial class ApiConfigModal : Window
 
     private static async Task<bool> ValidateGeminiAsync(string apiKey)
     {
-        const string model = "gemini-2.5-flash-lite";
+        const string model = "gemini-3.1-flash-lite";
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
         var payload = new
         {
@@ -314,12 +367,7 @@ public partial class ApiConfigModal : Window
 
     private void OnOpenUsageLink(object sender, RoutedEventArgs e)
     {
-        var url = _currentEngine switch
-        {
-            "DeepL"  => DeepLUsageUrl,
-            "Gemini" => GeminiUsageUrl,
-            _        => LangblyUsageUrl,
-        };
+        var url = _currentEngine == "Gemini" ? GeminiUsageUrl : LangblyUsageUrl;
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
 
@@ -363,7 +411,8 @@ public partial class ApiConfigModal : Window
 
     private void SaveCurrent()
     {
-        if (_currentEngine == "DeepL")        DeepLApiKey   = ApiKeyBox.Password;
+        if (_currentEngine == "MyMemory")     MyMemoryEmail = EmailBox.Text.Trim();
+        else if (_currentEngine == "DeepL")   DeepLApiKey   = ApiKeyBox.Password;
         else if (_currentEngine == "Gemini")  GeminiApiKey  = ApiKeyBox.Password;
         else                                  LangblyApiKey = ApiKeyBox.Password;
     }

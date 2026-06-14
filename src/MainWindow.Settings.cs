@@ -120,6 +120,19 @@ public partial class MainWindow
             SaveAppSetting("LangblyApiKey", key);
         };
 
+        _settings.MyMemoryEmailChanged += email =>
+        {
+            _myMemoryEmail = email;
+            if (_voiceEngine == TranslationEngine.MyMemory)
+            {
+                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, email);
+                _voiceQuotaBlockedUntil = DateTime.MinValue;  // 이메일 등록 = 한도 상향, 기존 한도 차단 해제
+            }
+            if (_textEngine == TranslationEngine.MyMemory)
+                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, email);
+            SaveAppSetting("MyMemoryEmail", email);
+        };
+
         _settings.VoiceEngineChanged += engine =>
         {
             _voiceEngine = engine;
