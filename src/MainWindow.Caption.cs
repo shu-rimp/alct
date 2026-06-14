@@ -8,7 +8,7 @@ namespace AlctClient;
 
 public partial class MainWindow
 {
-    private const int CAPTION_CONTEXT_SIZE = 4; // 번역 컨텍스트로 보낼 직전 발화 수
+    private const int CAPTION_CONTEXT_SIZE = 5; // 번역 컨텍스트로 보낼 직전 발화 수
 
     private readonly CaptionMonitorService _captionMonitor = new();
     private readonly SemaphoreSlim _captionLock = new(1, 1);

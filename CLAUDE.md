@@ -16,8 +16,7 @@ C# .NET 8 WPF overlay for real-time game translation (WPF-UI 3.0, xUnit in `Test
 ## Gotchas (not obvious from code)
 - `TranslationEngineFactory.Create()` wraps every engine in `GlossaryTranslationDecorator`; two engine slots: voice vs text
 - MyMemory deletes inline Korean from responses — `<x>` segments are split out, preserved, reassembled
-- Glossary terms must match what STT/OCR actually outputs (check `[Glossary]` log lines), not pronunciation — exception: ja homophone-kanji STT variants (切る/着る←キル) go in the `readings` section, matched by kana reading via NMeCab (`{n}` prefix = only right after a digit; `*` suffix = may end mid-word, default is morpheme-boundary end so にぱ won't cut 次にパスファインダー)
-- NMeCab dictionary publishes as `IpaDic\` (~50MB) beside the exe; if missing, reading match silently degrades to surface-only (error logged once)
+- Glossary terms must match what STT/OCR actually outputs (check `[Glossary]` log lines), not pronunciation
 - Glossary load priority: server `/glossary` → `%APPDATA%` cache → embedded resource (rebuild needed after editing `assets/glossary_data.json`)
 - Live Captions restart watched via WMI — `Process.EnableRaisingEvents`/`WaitForExitAsync` do NOT work for UWP
 - Server connection errors are silent by design (no overlay)

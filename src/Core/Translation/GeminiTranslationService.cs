@@ -60,7 +60,7 @@ public sealed class GeminiTranslationService : ITranslationService
         {
             system_instruction = new { parts = new[] { new { text = systemInstruction } } },
             contents = new[] { new { parts = new[] { new { text = userContent } } } },
-            generationConfig = new { temperature = 0.1, maxOutputTokens = 512 },
+            generationConfig = new { temperature = 0.1, maxOutputTokens = 512, thinkingConfig = new { thinkingBudget = 0 } },
         };
 
         var response = await _http.PostAsync(_endpoint, JsonContent.Create(payload), ct);
