@@ -1,33 +1,15 @@
-# ==================== CLIENT (C# / .NET) ====================
-client/**/bin/
-client/**/obj/
-client/**/*.user
-client/**/*wpftmp.csproj
-client/.vs/
+# ==================== .NET ====================
+**/bin/
+**/obj/
+**/*.user
+**/*wpftmp.csproj
+.vs/
 
 # 캡처 디버그 이미지
-client/src/bin/**/capture_debug*.png
-
-# ==================== SERVER (Python) ====================
-# 바이트코드 캐시
-__pycache__/
-*.pyc
-*.pyo
-
-# 테스트 캐시
-.pytest_cache/
-
-# 가상환경
-.venv/
-venv/
-env/
-
-# 원격서버 부하 테스트 결과 raw data
-server/test/results/scenario_*.csv
+src/bin/**/capture_debug*.png
 
 # ==================== 문서 ====================
-server/GUIDE.txt
-client/docs
+docs/
 plan.md
 
 # ==================== 환경 설정 ====================
@@ -36,7 +18,7 @@ plan.md
 *.key
 *.pem
 secrets.json
-client/src/appsettings.json
+src/appsettings.json
 
 # ==================== OS / 편집기 ====================
 .DS_Store
