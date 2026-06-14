@@ -65,20 +65,44 @@ public sealed class MyMemoryTranslationService : ITranslationService
     {
         var url = $"{BaseUrl}?q={Uri.EscapeDataString(text)}&langpair={from}|{to}";
         var response = await _http.GetAsync(url, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        // HTTP 429면 본문이 JSON이 아닐 수 있으므로 파싱 전에 한도 초과로 처리 (재개 시각은 본문에서 best-effort 추출)
+        if ((int)response.StatusCode == 429)
+            throw QuotaException(body);
         response.EnsureSuccessStatusCode();
 
-        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+        using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
 
-        if (root.TryGetProperty("quotaFinished", out var quota) && quota.GetBoolean())
-            throw new InvalidOperationException("MyMemory 일일 번역 한도를 초과했습니다.");
-
-        var status = root.TryGetProperty("responseStatus", out var s) ? s.GetInt32() : 200;
+        var quotaFinished = root.TryGetProperty("quotaFinished", out var quota) && quota.ValueKind == JsonValueKind.True;
+        var status = root.TryGetProperty("responseStatus", out var s) ? StatusCode(s) : 200;
+        if (quotaFinished || status == 429)
+            throw QuotaException(body);
         if (status != 200)
             throw new InvalidOperationException($"MyMemory 오류: {status}");
 
         return root.GetProperty("responseData")
                    .GetProperty("translatedText")
                    .GetString() ?? string.Empty;
+    }
+
+    // responseStatus는 숫자 또는 문자열("200")로 올 수 있음
+    private static int StatusCode(JsonElement s) =>
+        s.ValueKind == JsonValueKind.Number ? s.GetInt32()
+        : int.TryParse(s.GetString(), out var v) ? v : 200;
+
+    // MyMemory는 일일 한도뿐 — 재개 시각은 본문에서 파싱, 없으면 1시간 뒤로 보수적 폴백
+    private static TranslationRateLimitException QuotaException(string body) =>
+        new("[MyMemory] 일일 번역 한도를 소진했어요.", ParseNextAvailable(body) ?? DateTime.UtcNow.AddHours(1));
+
+    // "...NEXT AVAILABLE IN 07 HOURS 12 MINUTES..." → 지금부터 그만큼 뒤의 UTC 시각. 없으면 null
+    private static DateTime? ParseNextAvailable(string? body)
+    {
+        if (string.IsNullOrEmpty(body)) return null;
+        var m = Regex.Match(body, @"NEXT AVAILABLE IN\s+(\d+)\s+HOURS?\s+(\d+)\s+MINUTES?", RegexOptions.IgnoreCase);
+        return m.Success
+            ? DateTime.UtcNow.AddHours(int.Parse(m.Groups[1].Value)).AddMinutes(int.Parse(m.Groups[2].Value))
+            : null;
     }
 }

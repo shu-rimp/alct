@@ -72,6 +72,11 @@ public sealed class DeepLTranslationService : ITranslationService
     private static string StripXTags(string text) =>
         WebUtility.HtmlDecode(text.Replace("<x>", "").Replace("</x>", "").Trim());
 
+    // DeepL 무료 한도(계정당 평생 100만 자)는 소진 시 갱신되지 않음 — HTTP 456.
+    // 재개 시각이 없으므로 영구 차단(MaxValue)으로 신호 → 음성 핸들러가 1회 안내 후 요청 중단
+    private static TranslationRateLimitException QuotaException() =>
+        new("[DeepL] 무료 번역 한도(100만 자)를 모두 소진했어요.", DateTime.MaxValue);
+
     private async Task<string> CallDeepLAsync(object payload, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, _baseUrl)
@@ -81,6 +86,7 @@ public sealed class DeepLTranslationService : ITranslationService
         request.Headers.Add("Authorization", $"DeepL-Auth-Key {_apiKey}");
 
         var response = await _http.SendAsync(request, ct);
+        if ((int)response.StatusCode == 456) throw QuotaException();
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
@@ -99,6 +105,7 @@ public sealed class DeepLTranslationService : ITranslationService
         request.Headers.Add("Authorization", $"DeepL-Auth-Key {_apiKey}");
 
         var response = await _http.SendAsync(request, ct);
+        if ((int)response.StatusCode == 456) throw QuotaException();
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
