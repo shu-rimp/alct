@@ -43,29 +43,41 @@ class TestMaskCyanText:
 
 # ── extractText tests ──────────────────────────────────────────
 
-def _makeLine(y: float, text: str, score: float):
-    box = [[0, y], [100, y], [100, y + 20], [0, y + 20]]
-    return [box, text, str(score)]
+def _box(left: float, top: float, width: float = 100, height: float = 20):
+    return [[left, top], [left + width, top], [left + width, top + height], [left, top + height]]
 
 
 class TestExtractText:
-    def _mockEngine(self, txts):
+    def _mockEngine(self, boxes, txts):
         output = MagicMock()
+        output.boxes = boxes
         output.txts = txts
         return MagicMock(return_value=MagicMock(return_value=output))
 
     def test_returnsEmptyWhenNoText(self, blankPngBytes):
-        with patch("core.ocr_service._getEngine", self._mockEngine([])):
+        with patch("core.ocr_service._getEngine", self._mockEngine([], [])):
             assert extractText(blankPngBytes) == ""
 
     def test_appliesCyanMaskBeforeOcr(self, blankPngBytes):
         with (
             patch("core.ocr_service.maskCyanText", wraps=maskCyanText) as spyMask,
-            patch("core.ocr_service._getEngine", self._mockEngine([])),
+            patch("core.ocr_service._getEngine", self._mockEngine([], [])),
         ):
             extractText(blankPngBytes)
             spyMask.assert_called_once()
 
-    def test_returnsJoinedLines(self, blankPngBytes):
-        with patch("core.ocr_service._getEngine", self._mockEngine(["Hello", "こんにちは"])):
+    def test_separateRowsAreJoinedWithNewline(self, blankPngBytes):
+        boxes = [_box(0, 0), _box(0, 40)]
+        with patch("core.ocr_service._getEngine", self._mockEngine(boxes, ["Hello", "こんにちは"])):
             assert extractText(blankPngBytes) == "Hello\nこんにちは"
+
+    def test_sameRowBoxesBecomeOneLineOrderedByX(self, blankPngBytes):
+        # Two boxes vertically overlapping (same row) → one line, left-to-right
+        boxes = [_box(120, 0), _box(0, 2)]
+        with patch("core.ocr_service._getEngine", self._mockEngine(boxes, ["world", "Hello"])):
+            assert extractText(blankPngBytes) == "Hello world"
+
+    def test_outOfOrderRowsAreSortedTopToBottom(self, blankPngBytes):
+        boxes = [_box(0, 80), _box(0, 0), _box(0, 40)]
+        with patch("core.ocr_service._getEngine", self._mockEngine(boxes, ["third", "first", "second"])):
+            assert extractText(blankPngBytes) == "first\nsecond\nthird"

@@ -67,10 +67,52 @@ def maskCyanText(imageArray: np.ndarray) -> np.ndarray:
     return masked
 
 
+def _reconstructLines(boxes, txts) -> str:
+    """Merge OCR boxes that share a horizontal row into single lines.
+
+    RapidOCR often splits one visual line of chat into several detection
+    boxes; joining every box with '\\n' then produces spurious line breaks.
+    We cluster boxes by vertical overlap so that boxes on the same row become
+    one line (ordered left-to-right), and only break lines between genuinely
+    different rows (ordered top-to-bottom).
+    """
+    items = []
+    for box, txt in zip(boxes, txts):
+        ys = [float(p[1]) for p in box]
+        xs = [float(p[0]) for p in box]
+        items.append({"top": min(ys), "bottom": max(ys), "left": min(xs), "txt": txt})
+    items.sort(key=lambda it: it["top"])
+
+    lines: list[dict] = []  # each: {"top", "bottom", "parts": [(left, txt), ...]}
+    for item in items:
+        target = None
+        for line in lines:
+            overlap = min(line["bottom"], item["bottom"]) - max(line["top"], item["top"])
+            minHeight = min(line["bottom"] - line["top"], item["bottom"] - item["top"])
+            if minHeight > 0 and overlap > minHeight * 0.5:
+                target = line
+                break
+        if target is None:
+            lines.append({"top": item["top"], "bottom": item["bottom"], "parts": [(item["left"], item["txt"])]})
+        else:
+            target["parts"].append((item["left"], item["txt"]))
+            target["top"] = min(target["top"], item["top"])
+            target["bottom"] = max(target["bottom"], item["bottom"])
+
+    return "\n".join(
+        " ".join(txt for _, txt in sorted(line["parts"], key=lambda p: p[0]))
+        for line in lines
+    )
+
+
 def extractText(imageBytes: bytes) -> str:
     image = Image.open(io.BytesIO(imageBytes)).convert("RGB")
     imageArray = np.array(image)
     maskedArray = maskCyanText(imageArray)
 
     output = _getEngine()(maskedArray)
-    return "\n".join(output.txts) if output.txts else ""
+    if not output.txts:
+        return ""
+    if output.boxes is None:
+        return "\n".join(output.txts)
+    return _reconstructLines(output.boxes, output.txts)
