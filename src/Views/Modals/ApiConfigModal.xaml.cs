@@ -344,13 +344,18 @@ public partial class ApiConfigModal : Window
     private static async Task<bool> ValidateGeminiAsync(string apiKey)
     {
         const string model = "gemini-3.1-flash-lite";
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
         var payload = new
         {
             contents = new[] { new { parts = new[] { new { text = "hi" } } } },
             generationConfig = new { maxOutputTokens = 1 },
         };
-        var response = await _validationHttp.PostAsync(url, JsonContent.Create(payload));
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = JsonContent.Create(payload),
+        };
+        request.Headers.Add("x-goog-api-key", apiKey);  
+        var response = await _validationHttp.SendAsync(request);
         return response.IsSuccessStatusCode;
     }
 

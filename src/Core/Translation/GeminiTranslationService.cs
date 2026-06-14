@@ -23,7 +23,7 @@ public sealed class GeminiTranslationService : ITranslationService
     {
         _apiKey = apiKey;
         _http = http;
-        _endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={apiKey}";
+        _endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
     }
 
     public string MapLanguageCode(string bcp47) => bcp47 switch
@@ -65,7 +65,13 @@ public sealed class GeminiTranslationService : ITranslationService
             generationConfig = new { temperature = 0.1, maxOutputTokens = 512, thinkingConfig = new { thinkingBudget = 0 } },
         };
 
-        var response = await _http.PostAsync(_endpoint, JsonContent.Create(payload), ct);
+        using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
+        {
+            Content = JsonContent.Create(payload),
+        };
+        request.Headers.Add("x-goog-api-key", _apiKey);  // 쿼리스트링(?key=) 대신 헤더 인증 — DeepL/Langbly와 일관
+
+        var response = await _http.SendAsync(request, ct);
         if ((int)response.StatusCode == 429)
             throw RateLimitException(await response.Content.ReadAsStringAsync(ct));
         response.EnsureSuccessStatusCode();
