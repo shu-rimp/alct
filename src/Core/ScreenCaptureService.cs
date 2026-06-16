@@ -51,9 +51,17 @@ public class ScreenCaptureService
     internal Bitmap CaptureRegion(Rectangle region)
     {
         var bitmap = new Bitmap(region.Width, region.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        using var graphics = Graphics.FromImage(bitmap);
-        graphics.CopyFromScreen(region.Location, Point.Empty, region.Size);
-        return bitmap;
+        try
+        {
+            using var graphics = Graphics.FromImage(bitmap);
+            graphics.CopyFromScreen(region.Location, Point.Empty, region.Size);
+            return bitmap;
+        }
+        catch  // CopyFromScreen 등 실패 시 bitmap 누수 방지 후 재던짐
+        {
+            bitmap.Dispose();
+            throw;
+        }
     }
 
     internal static byte[] EncodeToPng(Bitmap bitmap)
