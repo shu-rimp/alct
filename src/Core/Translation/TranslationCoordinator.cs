@@ -45,16 +45,16 @@ public sealed class TranslationCoordinator
         _                          => string.Empty,
     };
 
-    // 키/이메일 변경: 해당 엔진을 쓰는 슬롯만 재생성. DeepL/MyMemory는 새 자격증명=새(상향) 할당량이라 음성 차단 해제.
-    // (Gemini/Langbly는 기존 동작대로 차단을 유지 — 키 교체가 할당량 컨텍스트를 바꾸지 않음)
+    // 키/이메일 변경: 해당 엔진을 쓰는 슬롯만 재생성. 활성 음성 엔진의 자격증명이 바뀌면 차단 해제(낙관적).
+    // 새 자격증명은 새/상향 할당량일 수 있음(DeepL 새 키, MyMemory 이메일, Gemini는 별도 GCP 프로젝트 키 등).
+    // 여전히 한도 초과면 다음 요청에서 엔진이 다시 차단하므로 안전.
     public void UpdateCredential(TranslationEngine engine, string credential)
     {
         SetCredential(engine, credential);
         if (_voiceEngine == engine)
         {
             _voiceService = TranslationEngineFactory.Create(engine, credential);
-            if (engine is TranslationEngine.DeepL or TranslationEngine.MyMemory)
-                _voiceQuotaBlockedUntil = DateTime.MinValue;
+            _voiceQuotaBlockedUntil = DateTime.MinValue;
         }
         if (_textEngine == engine)
             _textService = TranslationEngineFactory.Create(engine, credential);

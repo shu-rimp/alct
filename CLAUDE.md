@@ -15,6 +15,7 @@ C# .NET 8 WPF overlay for real-time game translation (WPF-UI 3.0, xUnit in `Test
 
 ## Gotchas (not obvious from code)
 - `TranslationEngineFactory.Create()` wraps every engine in `GlossaryTranslationDecorator`; two engine slots: voice vs text
+- `TranslationCoordinator` owns all translation state (per-engine credentials, voice/text engine selection + service instances, voice quota block); MainWindow/Settings/Onboarding mutate it via `UpdateCredential`/`SetVoiceEngine`/`SetTextEngine`, never raw fields
 - MyMemory deletes inline Korean from responses — `<x>` segments are split out, preserved, reassembled
 - Glossary terms must match what STT/OCR actually outputs (check `[Glossary]` log lines), not pronunciation
 - Glossary load priority: server `/glossary` → `%APPDATA%` cache → embedded resource (rebuild needed after editing `assets/glossary_data.json`)

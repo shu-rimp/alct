@@ -72,7 +72,7 @@ public sealed class OcrHttpClient
             413 => new("캡처 영역이 너무 커요. 영역을 줄여서 다시 시도해주세요."),
             429 => RateLimited(response),
             503 => new("서버가 바빠요. 잠시 후 다시 시도해주세요."),
-            504 => new("이미지 처리 시간이 초과됐어요. 다시 시도해주세요."),
+            504 => new("이미지 처리 시간이 초과됐어요. 캡처 영역을 줄여서 다시 시도해주세요."),
             _   => new("서버 오류가 발생했어요. 잠시 후 다시 시도해주세요."), // status code in log
         };
         ex.StatusCode = status;

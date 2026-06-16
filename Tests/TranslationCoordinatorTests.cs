@@ -67,14 +67,14 @@ public class TranslationCoordinatorTests
     [Theory]
     [InlineData(TranslationEngine.Gemini)]
     [InlineData(TranslationEngine.Langbly)]
-    public void UpdateCredential_GeminiOrLangbly_KeepsVoiceQuotaBlock(TranslationEngine engine)
+    public void UpdateCredential_AnyVoiceEngine_ClearsVoiceQuotaBlock(TranslationEngine engine)
     {
         var c = Make(voice: engine);
         c.BlockVoiceQuotaUntil(DateTime.UtcNow.AddHours(1));
 
         c.UpdateCredential(engine, "new-key");
 
-        Assert.True(c.IsVoiceQuotaBlocked);  // 키 교체가 할당량 컨텍스트를 바꾸지 않음
+        Assert.False(c.IsVoiceQuotaBlocked);  // 새 자격증명 = 새 할당량일 수 있음 → 낙관적 해제
     }
 
     [Fact]
