@@ -12,6 +12,7 @@ public partial class MainWindow
     private ScreenCaptureService _screenCapture = new();
     private readonly SemaphoreSlim _ocrLock = new(1, 1);
     private bool _screenCaptureLogged;
+    private DateTime _ocrBlockedUntil = DateTime.MinValue;  // 서버 429(Retry-After) 동안 OCR 요청 억제
 
     private void InitHotkeys()
     {
@@ -68,6 +69,12 @@ public partial class MainWindow
 
     private void OnHotkeyPressed()
     {
+        if (DateTime.UtcNow < _ocrBlockedUntil)
+        {
+            var seconds = Math.Max(1, (int)Math.Ceiling((_ocrBlockedUntil - DateTime.UtcNow).TotalSeconds));
+            _overlay.ShowNotice($"요청이 많아 잠시 제한됐어요. {seconds}초 후 다시 시도해주세요.");
+            return;
+        }
         if (!_ocrLock.Wait(0)) return;
         _ = Task.Run(async () =>
         {
@@ -91,6 +98,13 @@ public partial class MainWindow
                 }
                 // SaveDebugCapture(imageBytes); 실제 캡쳐이미지 확인(디버그용)
                 await _ocrClient.SendImageAsync(imageBytes);
+            }
+            catch (OcrRequestException ex)
+            {
+                // 서버가 코드별로 구분한 거부(400/403/413/429/503/504) — 안내만, 연결 장애 아님
+                if (ex.RetryAtUtc is { } until) _ocrBlockedUntil = until;
+                Logger.Info("OcrRequest", $"{ex.Message} (HTTP {ex.StatusCode})");
+                _overlay.ShowNotice(ex.Message);
             }
             catch (HttpRequestException ex)
             {

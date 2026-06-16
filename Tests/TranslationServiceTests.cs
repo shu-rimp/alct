@@ -130,13 +130,71 @@ public class OcrHttpClientTests
     }
 
     [Fact]
-    public async Task SendImageAsync_Throws_OnHttpError()
+    public async Task SendImageAsync_Throws_OcrRequestException_OnHttpError()
     {
         var client = new OcrHttpClient("http://localhost:8000",
             MakeClient("{}", HttpStatusCode.InternalServerError));
 
-        await Assert.ThrowsAsync<HttpRequestException>(
+        await Assert.ThrowsAsync<OcrRequestException>(
             () => client.SendImageAsync(new byte[] { 1 }));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]                        // 400 인식 실패
+    [InlineData(HttpStatusCode.Forbidden)]                        // 403 인증
+    [InlineData(HttpStatusCode.RequestEntityTooLarge)]            // 413 용량/픽셀 초과
+    [InlineData(HttpStatusCode.GatewayTimeout)]                   // 504 OCR 타임아웃 (503은 재시도 테스트에서 별도 검증)
+    public async Task SendImageAsync_MapsServerCodes_ToOcrRequestException(HttpStatusCode status)
+    {
+        var client = new OcrHttpClient("http://localhost:8000", MakeClient("{}", status));
+
+        var ex = await Assert.ThrowsAsync<OcrRequestException>(
+            () => client.SendImageAsync(new byte[] { 1 }));
+        Assert.False(string.IsNullOrWhiteSpace(ex.Message));
+        Assert.Null(ex.RetryAtUtc);  // 429 외에는 차단 힌트 없음
+    }
+
+    [Fact]
+    public async Task SendImageAsync_429_CarriesRetryAtUtc_FromRetryAfter()
+    {
+        var handler = new FakeHttpMessageHandler("{}", HttpStatusCode.TooManyRequests,
+            retryAfter: TimeSpan.FromSeconds(5));
+        var client = new OcrHttpClient("http://localhost:8000", new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<OcrRequestException>(
+            () => client.SendImageAsync(new byte[] { 1 }));
+        Assert.NotNull(ex.RetryAtUtc);
+        Assert.True(ex.RetryAtUtc > DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task SendImageAsync_Retries_On503_ThenSucceeds()
+    {
+        var fast = TimeSpan.FromMilliseconds(1);
+        var handler = new SequencedHttpMessageHandler(
+            (HttpStatusCode.ServiceUnavailable, "{}", fast),
+            (HttpStatusCode.OK, """{"normalizedText":"성공"}""", null));
+        var client = new OcrHttpClient("http://localhost:8000", new HttpClient(handler));
+        string? received = null;
+        client.OcrTextReceived += (normalized, _) => received = normalized;
+
+        await client.SendImageAsync(new byte[] { 1 });
+
+        Assert.Equal("성공", received);
+        Assert.Equal(2, handler.CallCount);  // 503 1회 + 성공 1회
+    }
+
+    [Fact]
+    public async Task SendImageAsync_ExhaustsRetries_On503_ThenThrows()
+    {
+        var fast = TimeSpan.FromMilliseconds(1);
+        var handler = new SequencedHttpMessageHandler((HttpStatusCode.ServiceUnavailable, "{}", fast));
+        var client = new OcrHttpClient("http://localhost:8000", new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<OcrRequestException>(
+            () => client.SendImageAsync(new byte[] { 1 }));
+        Assert.Equal(503, ex.StatusCode);
+        Assert.Equal(3, handler.CallCount);  // 최초 1회 + 재시도 2회 (OCR_MAX_RETRIES)
     }
 
     [Fact]
@@ -155,7 +213,7 @@ public class OcrHttpClientTests
 
 // Test helpers
 
-internal sealed class FakeHttpMessageHandler(string responseJson, HttpStatusCode status) : HttpMessageHandler
+internal sealed class FakeHttpMessageHandler(string responseJson, HttpStatusCode status, TimeSpan? retryAfter = null) : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
@@ -163,6 +221,33 @@ internal sealed class FakeHttpMessageHandler(string responseJson, HttpStatusCode
         {
             Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
         };
+        if (retryAfter is { } delta)
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(delta);
+        return Task.FromResult(response);
+    }
+}
+
+// 호출마다 큐에서 다음 응답 스펙을 꺼내 새 응답을 생성(재시도 경로 검증용). 큐가 비면 마지막 스펙을 반복
+internal sealed class SequencedHttpMessageHandler : HttpMessageHandler
+{
+    private readonly Queue<(HttpStatusCode status, string json, TimeSpan? retryAfter)> _queue;
+    private (HttpStatusCode status, string json, TimeSpan? retryAfter) _last;
+    public int CallCount { get; private set; }
+
+    public SequencedHttpMessageHandler(params (HttpStatusCode, string, TimeSpan?)[] responses)
+        => _queue = new Queue<(HttpStatusCode, string, TimeSpan?)>(responses);
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        CallCount++;
+        if (_queue.Count > 0) _last = _queue.Dequeue();
+        var (status, json, retryAfter) = _last;
+        var response = new HttpResponseMessage(status)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
+        if (retryAfter is { } delta)
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(delta);
         return Task.FromResult(response);
     }
 }
