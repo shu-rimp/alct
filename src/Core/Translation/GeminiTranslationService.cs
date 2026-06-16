@@ -15,7 +15,11 @@ public sealed class GeminiTranslationService : ITranslationService
     private readonly HttpClient _http;
     private readonly string _apiKey;
     private readonly string _endpoint;
-    private const string Model = "gemini-3.1-flash-lite";
+
+    public const string Model = "gemini-3.1-flash-lite";
+    // 서비스와 키 검증(ApiConfigModal)이 공유 — 모델 ID/엔드포인트 단일 출처
+    public const string GenerateContentEndpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/" + Model + ":generateContent";
 
     public GeminiTranslationService(string apiKey) : this(apiKey, _defaultHttp) { }
 
@@ -23,7 +27,7 @@ public sealed class GeminiTranslationService : ITranslationService
     {
         _apiKey = apiKey;
         _http = http;
-        _endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
+        _endpoint = GenerateContentEndpoint;
     }
 
     public string MapLanguageCode(string bcp47) => bcp47 switch

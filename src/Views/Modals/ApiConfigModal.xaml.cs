@@ -344,8 +344,7 @@ public partial class ApiConfigModal : Window
 
     private static async Task<bool> ValidateGeminiAsync(string apiKey)
     {
-        const string model = "gemini-3.1-flash-lite";
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
+        var url = GeminiTranslationService.GenerateContentEndpoint;
         var payload = new
         {
             contents = new[] { new { parts = new[] { new { text = "hi" } } } },

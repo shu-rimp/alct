@@ -6,6 +6,7 @@ using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows;
 
 namespace AlctClient;
@@ -75,23 +76,15 @@ public partial class MainWindow : Window
         try
         {
             MigrateAppSettingsIfNeeded();
-            var path = _appSettingsPath;
-            using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            var root = doc.RootElement;
-            var customUrl  = root.TryGetProperty("ServerUrl", out var p1) ? p1.GetString() : null;
-            var url        = string.IsNullOrWhiteSpace(customUrl) ? fallbackUrl : customUrl;
-            var deepLKey   = DpapiHelper.Decrypt(root.TryGetProperty("DeepLApiKey",   out var p2) ? p2.GetString() ?? string.Empty : string.Empty);
-            var geminiKey  = DpapiHelper.Decrypt(root.TryGetProperty("GeminiApiKey",  out var p3) ? p3.GetString() ?? string.Empty : string.Empty);
-            var langblyKey = DpapiHelper.Decrypt(root.TryGetProperty("LangblyApiKey", out var p4) ? p4.GetString() ?? string.Empty : string.Empty);
-            var myMemoryEmail = root.TryGetProperty("MyMemoryEmail", out var p5) ? p5.GetString() ?? string.Empty : string.Empty;  // 평문(민감정보 아님)
+            var s = LoadAppSettingsModel();
+            var url = string.IsNullOrWhiteSpace(s.ServerUrl) ? fallbackUrl : s.ServerUrl;
+            var deepLKey   = DpapiHelper.Decrypt(s.DeepLApiKey   ?? string.Empty);
+            var geminiKey  = DpapiHelper.Decrypt(s.GeminiApiKey  ?? string.Empty);
+            var langblyKey = DpapiHelper.Decrypt(s.LangblyApiKey ?? string.Empty);
+            var myMemoryEmail = s.MyMemoryEmail ?? string.Empty;  // 평문(민감정보 아님)
 
-            // 구버전 단일 엔진 설정 폴백
-            string? legacyEngine = root.TryGetProperty("TranslationEngine", out var leg) ? leg.GetString() : null;
-            string? voiceStr = root.TryGetProperty("VoiceTranslationEngine", out var ve) ? ve.GetString() : legacyEngine;
-            string? textStr  = root.TryGetProperty("TextTranslationEngine",  out var te) ? te.GetString()
-                             : root.TryGetProperty("OcrTranslationEngine",   out var oe) ? oe.GetString() : legacyEngine;
-
-            return (url, deepLKey, geminiKey, langblyKey, myMemoryEmail, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(textStr));
+            return (url, deepLKey, geminiKey, langblyKey, myMemoryEmail,
+                TranslationEngineFactory.Parse(s.VoiceTranslationEngine), TranslationEngineFactory.Parse(s.TextTranslationEngine));
         }
         catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
     }
@@ -105,24 +98,60 @@ public partial class MainWindow : Window
         File.Copy(legacyPath, _appSettingsPath);
     }
 
+    // appsettings.json 스키마. API 키 3종은 DPAPI 암호화 저장, 나머지는 평문. 미설정 필드는 직렬화에서 생략(WhenWritingNull)
+    private sealed class AppSettings
+    {
+        public string? ServerUrl { get; set; }
+        public string? DeepLApiKey { get; set; }
+        public string? GeminiApiKey { get; set; }
+        public string? LangblyApiKey { get; set; }
+        public string? MyMemoryEmail { get; set; }
+        public string? VoiceTranslationEngine { get; set; }
+        public string? TextTranslationEngine { get; set; }
+    }
+
+    private static readonly JsonSerializerOptions _appSettingsJson = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private static readonly HashSet<string> _encryptedFields = ["DeepLApiKey", "GeminiApiKey", "LangblyApiKey"];
+
+    // 파일이 없으면 빈 모델, 깨졌으면 예외 전파(호출부 catch가 처리: 읽기=폴백, 쓰기=중단+로그)
+    private static AppSettings LoadAppSettingsModel()
+    {
+        if (!File.Exists(_appSettingsPath)) return new AppSettings();
+        return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_appSettingsPath), _appSettingsJson) ?? new AppSettings();
+    }
 
     private static void SaveAppSetting(string settingKey, string value)
     {
         try
         {
-            var storedValue = _encryptedFields.Contains(settingKey) ? DpapiHelper.Encrypt(value) : value;
-            var path = _appSettingsPath;
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var existing = File.Exists(path) ? File.ReadAllText(path) : "{}";
-            using var doc = JsonDocument.Parse(existing);
-            var dict = new Dictionary<string, string?>();
-            foreach (var prop in doc.RootElement.EnumerateObject())
-                dict[prop.Name] = prop.Value.GetString();
-            dict[settingKey] = storedValue;
-            File.WriteAllText(path, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+            // 타입드 모델로 라운드트립 — 기존 머지가 모든 값을 GetString()으로 강제 변환해 비문자열 필드에서 조용히 실패하던 문제 방지
+            var settings = LoadAppSettingsModel();
+            SetField(settings, settingKey, _encryptedFields.Contains(settingKey) ? DpapiHelper.Encrypt(value) : value);
+            Directory.CreateDirectory(Path.GetDirectoryName(_appSettingsPath)!);
+            File.WriteAllText(_appSettingsPath, JsonSerializer.Serialize(settings, _appSettingsJson));
         }
         catch (Exception ex) { Logger.Error("SaveAppSettings", ex); }
+    }
+
+    private static void SetField(AppSettings s, string settingKey, string value)
+    {
+        switch (settingKey)
+        {
+            case "ServerUrl":              s.ServerUrl = value; break;
+            case "DeepLApiKey":            s.DeepLApiKey = value; break;
+            case "GeminiApiKey":           s.GeminiApiKey = value; break;
+            case "LangblyApiKey":          s.LangblyApiKey = value; break;
+            case "MyMemoryEmail":          s.MyMemoryEmail = value; break;
+            case "VoiceTranslationEngine": s.VoiceTranslationEngine = value; break;
+            case "TextTranslationEngine":  s.TextTranslationEngine = value; break;
+            default: throw new ArgumentException($"Unknown setting key: {settingKey}");
+        }
     }
 
     private void ShutdownApp()
