@@ -15,8 +15,11 @@ public sealed class TranslationCoordinator
     private TranslationEngine _textEngine;
     private DateTime _voiceQuotaBlockedUntil = DateTime.MinValue;  // 이 UTC 시각까지 음성 번역 요청 차단
 
-    public ITranslationService VoiceService { get; private set; }
-    public ITranslationService TextService { get; private set; }
+    // 백그라운드 핸들러(읽기) ↔ UI 스레드(키/엔진 변경 시 재할당) 교차 접근 → 최신 참조 가시성 보장 (GlossaryService와 동일)
+    private volatile ITranslationService _voiceService;
+    private volatile ITranslationService _textService;
+    public ITranslationService VoiceService => _voiceService;
+    public ITranslationService TextService => _textService;
 
     public TranslationCoordinator(
         TranslationEngine voiceEngine, TranslationEngine textEngine,
@@ -28,8 +31,8 @@ public sealed class TranslationCoordinator
         _geminiKey     = geminiKey;
         _langblyKey    = langblyKey;
         _myMemoryEmail = myMemoryEmail;
-        VoiceService = TranslationEngineFactory.Create(voiceEngine, GetCredential(voiceEngine));
-        TextService  = TranslationEngineFactory.Create(textEngine,  GetCredential(textEngine));
+        _voiceService = TranslationEngineFactory.Create(voiceEngine, GetCredential(voiceEngine));
+        _textService  = TranslationEngineFactory.Create(textEngine,  GetCredential(textEngine));
     }
 
     // 엔진별 자격증명 — API 키(DeepL/Gemini/Langbly) 또는 MyMemory의 de 파라미터용 이메일
@@ -49,25 +52,25 @@ public sealed class TranslationCoordinator
         SetCredential(engine, credential);
         if (_voiceEngine == engine)
         {
-            VoiceService = TranslationEngineFactory.Create(engine, credential);
+            _voiceService = TranslationEngineFactory.Create(engine, credential);
             if (engine is TranslationEngine.DeepL or TranslationEngine.MyMemory)
                 _voiceQuotaBlockedUntil = DateTime.MinValue;
         }
         if (_textEngine == engine)
-            TextService = TranslationEngineFactory.Create(engine, credential);
+            _textService = TranslationEngineFactory.Create(engine, credential);
     }
 
     public void SetVoiceEngine(TranslationEngine engine)
     {
         _voiceEngine = engine;
-        VoiceService = TranslationEngineFactory.Create(engine, GetCredential(engine));
+        _voiceService = TranslationEngineFactory.Create(engine, GetCredential(engine));
         _voiceQuotaBlockedUntil = DateTime.MinValue;  // 엔진 변경 = 새 할당량 컨텍스트
     }
 
     public void SetTextEngine(TranslationEngine engine)
     {
         _textEngine = engine;
-        TextService = TranslationEngineFactory.Create(engine, GetCredential(engine));
+        _textService = TranslationEngineFactory.Create(engine, GetCredential(engine));
     }
 
     // 음성 할당량 차단(한도 초과 시 재개 시각까지 요청 억제). 텍스트 경로엔 적용 안 함
