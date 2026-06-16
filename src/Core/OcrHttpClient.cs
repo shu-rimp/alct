@@ -8,7 +8,10 @@ public sealed class OcrHttpClient
     private const int OCR_MAX_RETRIES = 2;                          // 503(동시성 풀) 한정 재시도 횟수
     private static readonly TimeSpan DEFAULT_RETRY_DELAY = TimeSpan.FromSeconds(1);  // Retry-After 헤더 없을 때 폴백
 
-    private static readonly HttpClient _defaultHttp = new();
+    private static readonly HttpClient _defaultHttp = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),  // 다른 번역 서비스와 동일 — DNS/커넥션 갱신
+    });
     private readonly HttpClient _http;
     private readonly string _ocrUrl;
 
