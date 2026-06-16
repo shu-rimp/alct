@@ -35,45 +35,26 @@ public partial class MainWindow
     {
         if (!string.IsNullOrEmpty(deepLKey))
         {
-            _deepLKey = deepLKey;
+            _translation.UpdateCredential(TranslationEngine.DeepL, deepLKey);
             SaveAppSetting("DeepLApiKey", deepLKey);
-            if (_voiceEngine == TranslationEngine.DeepL)
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, deepLKey);
-            if (_textEngine == TranslationEngine.DeepL)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, deepLKey);
             _settings.SetDeepLApiKey(deepLKey);
         }
         if (!string.IsNullOrEmpty(geminiKey))
         {
-            _geminiKey = geminiKey;
+            _translation.UpdateCredential(TranslationEngine.Gemini, geminiKey);
             SaveAppSetting("GeminiApiKey", geminiKey);
-            if (_voiceEngine == TranslationEngine.Gemini)
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, geminiKey);
-            if (_textEngine == TranslationEngine.Gemini)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, geminiKey);
             _settings.SetGeminiApiKey(geminiKey);
         }
         if (!string.IsNullOrEmpty(langblyKey))
         {
-            _langblyKey = langblyKey;
+            _translation.UpdateCredential(TranslationEngine.Langbly, langblyKey);
             SaveAppSetting("LangblyApiKey", langblyKey);
-            if (_voiceEngine == TranslationEngine.Langbly)
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, langblyKey);
-            if (_textEngine == TranslationEngine.Langbly)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, langblyKey);
             _settings.SetLangblyApiKey(langblyKey);
         }
         if (!string.IsNullOrEmpty(myMemoryEmail))
         {
-            _myMemoryEmail = myMemoryEmail;
+            _translation.UpdateCredential(TranslationEngine.MyMemory, myMemoryEmail);
             SaveAppSetting("MyMemoryEmail", myMemoryEmail);
-            if (_voiceEngine == TranslationEngine.MyMemory)
-            {
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, myMemoryEmail);
-                _voiceQuotaBlockedUntil = DateTime.MinValue;
-            }
-            if (_textEngine == TranslationEngine.MyMemory)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, myMemoryEmail);
             _settings.SetMyMemoryEmail(myMemoryEmail);
         }
     }

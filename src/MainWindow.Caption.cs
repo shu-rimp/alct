@@ -15,7 +15,6 @@ public partial class MainWindow
     private readonly SemaphoreSlim _translateQueue = new(1, 1);
     private readonly Queue<string> _captionContext = new();
     private ManagementEventWatcher? _liveCaptionsWatcher;
-    private DateTime _voiceQuotaBlockedUntil = DateTime.MinValue;  // 번역 API 한도 초과 시 이 UTC 시각까지 음성 번역 요청 차단
 
     private void InitOcrHandler()
     {
@@ -24,7 +23,7 @@ public partial class MainWindow
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _textTranslationService.TranslateToKoreanAsync(normalizedText, sourceLang);
+                var translation = await _translation.TextService.TranslateToKoreanAsync(normalizedText, sourceLang);
                 _overlay.ShowTranslation(translation, rawText);
             }
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
@@ -40,7 +39,7 @@ public partial class MainWindow
         {
             // 번역 엔진 한도 초과 후 재개 시각까지: 요청도 오버레이 갱신도 하지 않음
             // (계속 보내봐야 매번 실패해 에러 로그만 쌓이고, 번역 안 된 원문만 덮어씀)
-            if (DateTime.UtcNow < _voiceQuotaBlockedUntil) return;
+            if (_translation.IsVoiceQuotaBlocked) return;
 
             _voiceOverlay.ShowOriginal(text);
             var context = BuildCaptionContext(text);
@@ -48,7 +47,7 @@ public partial class MainWindow
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _voiceTranslationService.TranslateToKoreanAsync(text, sourceLang, context);
+                var translation = await _translation.VoiceService.TranslateToKoreanAsync(text, sourceLang, context);
                 _voiceOverlay.ShowTranslation(translation);
             }
             catch (TranslationRateLimitException ex) when (ex.RetryAtUtc - DateTime.UtcNow <= TimeSpan.FromMinutes(10))
@@ -59,12 +58,12 @@ public partial class MainWindow
             catch (TranslationRateLimitException ex)
             {
                 // 일일 한도류는 재개 시각까지, 영구 소진(DeepL 평생 한도)은 사실상 무기한 차단 + 1회 안내
-                _voiceQuotaBlockedUntil = ex.RetryAtUtc;
+                _translation.BlockVoiceQuotaUntil(ex.RetryAtUtc);
                 var msg = ex.RetryAtUtc - DateTime.UtcNow > TimeSpan.FromDays(30)
                     ? ex.Message  // 재개 시각이 없는 영구 소진 — 사유만
                     : $"{ex.Message} — {ex.RetryAtUtc.ToLocalTime():HH:mm} 이후 다시 사용할 수 있어요.";
                 _voiceOverlay.ShowTranslation(msg);
-                Logger.Info("CaptionTranslation", $"{ex.Message} — {_voiceQuotaBlockedUntil:u}까지 음성 번역 차단");
+                Logger.Info("CaptionTranslation", $"{ex.Message} — {ex.RetryAtUtc:u}까지 음성 번역 차단");
             }
             catch (Exception ex)
             {

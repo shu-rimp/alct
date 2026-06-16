@@ -17,15 +17,8 @@ public partial class MainWindow : Window
     private readonly QuickSettingsOverlay _langOverlay = new();
     private readonly SettingsWindow _settings = new();
     private readonly OcrHttpClient _ocrClient;
-    private ITranslationService _voiceTranslationService;
-    private ITranslationService _textTranslationService;
+    private readonly TranslationCoordinator _translation;
     private readonly UserSettings _userSettings;
-    private string _deepLKey   = string.Empty;
-    private string _geminiKey  = string.Empty;
-    private string _langblyKey = string.Empty;
-    private string _myMemoryEmail = string.Empty;  
-    private TranslationEngine _voiceEngine = TranslationEngine.MyMemory;
-    private TranslationEngine _textEngine  = TranslationEngine.MyMemory;
 
     public MainWindow()
     {
@@ -34,14 +27,8 @@ public partial class MainWindow : Window
         _userSettings = UserSettingsService.Load();
         _ocrClient    = new OcrHttpClient(serverUrl);
         _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl);
-        _deepLKey     = deepLApiKey;
-        _geminiKey    = geminiApiKey;
-        _langblyKey   = langblyApiKey;
-        _myMemoryEmail = myMemoryEmail;
-        _voiceEngine  = voiceEngine;
-        _textEngine   = textEngine;
-        _voiceTranslationService = TranslationEngineFactory.Create(voiceEngine, GetApiKey(voiceEngine));
-        _textTranslationService  = TranslationEngineFactory.Create(textEngine,  GetApiKey(textEngine));
+        _translation  = new TranslationCoordinator(
+            voiceEngine, textEngine, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail);
 
         _settings.SetDeepLApiKey(deepLApiKey);
         _settings.SetGeminiApiKey(geminiApiKey);
@@ -108,15 +95,6 @@ public partial class MainWindow : Window
         }
         catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
     }
-
-    private string GetApiKey(TranslationEngine engine) => engine switch
-    {
-        TranslationEngine.DeepL   => _deepLKey,
-        TranslationEngine.Gemini  => _geminiKey,
-        TranslationEngine.Langbly => _langblyKey,
-        TranslationEngine.MyMemory => _myMemoryEmail,  // de 파라미터용 이메일을 키 슬롯으로 전달
-        _                         => string.Empty,
-    };
 
     private static void MigrateAppSettingsIfNeeded()
     {
