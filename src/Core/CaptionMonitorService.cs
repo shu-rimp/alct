@@ -20,7 +20,7 @@ namespace AlctClient.Core;
 //   3차: partial이 계속 자라기만 함 → stable prefix를 경계 기준으로 부분 커밋 (연속 발화 케이스)
 public sealed class CaptionMonitorService : IDisposable
 {
-    private const int POLL_MS = 25;
+    private const int POLL_MS = 50;
     private const int DEBOUNCE_MS = 800;       // 발화 중간 숨 고르기(~0.8초)에 조각이 발사되지 않도록 여유 있게
     private const int MIN_COMMIT_LENGTH = 100;  // uncommitted가 이 가중 길이(CJK=2) 이상 쌓이면 강제 커밋 고려 — CJK ~50자, 라틴 ~100자
     private const int PREFIX_STABLE_COUNT = 3;  // 앞부분이 이 횟수만큼 연속 안정이면 확정으로 간주
@@ -267,6 +267,9 @@ public sealed class CaptionMonitorService : IDisposable
         var lines = text.Split('\n');
         _firedLineCount = lines.Length - 1;
         _lastPartialLine = lines[^1].Trim();
+        // 시작 시 심은 partial에 변경 시각을 찍어줌 — 안 찍으면 MinValue라 첫 Poll의 CheckDebounce가
+        // DEBOUNCE_MS를 안 기다리고 즉시 발사(앱 실행 직후 첫 발화 선두가 단독 발송되던 버그)
+        _lastPartialChangeTime = DateTime.UtcNow;
         ResetStableState();
     }
 
