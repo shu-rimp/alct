@@ -1,3 +1,4 @@
+using AlctClient.Utils;
 using System.Diagnostics;
 using System.Windows.Automation;
 
@@ -48,7 +49,9 @@ public sealed class CaptionMonitorService : IDisposable
     private bool _debounceFired;
 
     // --- stable prefix 커밋 상태 ---
-    private int _committedOffset;          // 현재 partial 중 이미 번역 발송된 앞부분의 문자 수
+    // 현재 partial 중 이미 번역 발송된 앞부분 "텍스트". 원시 문자 인덱스(offset)가 아니라 텍스트로 들고 있어야
+    // STT가 줄을 재작성(후행 수정)했을 때 prefix 불일치를 감지해 잘림을 막을 수 있다.
+    private string _committedText = "";
     private string _lastRemaining = "";    // 직전 poll의 uncommitted remaining
     private int _stableCount;             // 앞부분이 변화 없이 뒤만 늘어난 연속 횟수
     private DateTime _partialStartTime = DateTime.MinValue;
@@ -127,6 +130,9 @@ public sealed class CaptionMonitorService : IDisposable
         var completedCount = lines.Length - 1; // 마지막 요소는 현재 진행 중인 partial
         var partialLine = lines[^1].Trim();
 
+        // [DEBUG] 첫 단어 잘림 진단 — 원시 텍스트가 커밋 prefix에 의해 어떻게 잘리는지 추적 (필요 시 주석 해제)
+        // Logger.Info("Caption", $"raw=[{text.Replace("\n", "\\n")}] committed=[{_committedText}] lastPartial=[{_lastPartialLine}] newPartial=[{partialLine}]");
+
         // Live Captions가 초기화돼 줄 수가 줄었을 경우 — 현재 위치로 맞춤
         if (completedCount < _firedLineCount)
             _firedLineCount = completedCount;
@@ -157,12 +163,10 @@ public sealed class CaptionMonitorService : IDisposable
             {
                 _lastPartialChangeTime = DateTime.UtcNow;
                 _debounceFired = false;
-                CheckStablePrefix(partialLine); // _committedOffset 갱신될 수 있음
+                CheckStablePrefix(partialLine); // _committedText 갱신될 수 있음
             }
             // 커밋된 앞부분을 제외한 remaining만 pending에 표시 (전부 커밋이면 빈 문자열)
-            var pending = _committedOffset >= partialLine.Length
-                ? ""
-                : partialLine[_committedOffset..].TrimStart();
+            var pending = GetRemaining(partialLine).TrimStart();
             CaptionUpdating?.Invoke(pending);
         }
     }
@@ -178,8 +182,9 @@ public sealed class CaptionMonitorService : IDisposable
         TryFireLine(StripCommittedLine(_lastPartialLine));
 
         // 줄은 아직 살아있음 — 발화 재개 시 같은 줄에 이어붙을 수 있으므로
-        // 오프셋을 리셋하지 않고 현재까지 전체를 커밋 처리 (앞부분 재발송 방지)
-        _committedOffset = _lastPartialLine.Length;
+        // 현재까지 전체를 커밋 처리 (앞부분 재발송 방지). 단 STT가 줄을 재작성하면
+        // GetRemaining이 prefix 불일치를 감지해 커밋을 무효화하므로 잘림이 발생하지 않는다.
+        _committedText = _lastPartialLine;
         _lastRemaining = "";
         _stableCount = 0;
         _partialStartTime = DateTime.UtcNow;
@@ -191,12 +196,8 @@ public sealed class CaptionMonitorService : IDisposable
     // partial이 계속 자라기만 할 때: stable prefix를 경계 기준으로 부분 커밋
     private void CheckStablePrefix(string partialLine)
     {
-        // STT 후행 수정으로 줄이 커밋 지점보다 짧아진 경우 — 리셋하면
-        // 이미 번역된 앞부분 전체가 재발송되므로 클램프로 처리
-        if (_committedOffset > partialLine.Length)
-            _committedOffset = partialLine.Length;
-
-        var remaining = partialLine[_committedOffset..];
+        // GetRemaining: 줄이 커밋 prefix로 시작하면 그 뒤만, 재작성됐으면 커밋을 무효화하고 전체 반환
+        var remaining = GetRemaining(partialLine);
 
         // 앞부분 유지된 채 뒤만 늘어났는지 확인
         var common = CommonPrefixLength(_lastRemaining, remaining);
@@ -224,23 +225,31 @@ public sealed class CaptionMonitorService : IDisposable
         if (string.IsNullOrWhiteSpace(chunk)) return;
 
         TryFireLine(chunk);
-        _committedOffset += cut;
+        _committedText += remaining[..cut];   // 커밋 prefix를 누적 (항상 현재 partialLine의 실제 접두사)
         _lastRemaining = remaining[cut..];
         _stableCount = 0;
         _partialStartTime = DateTime.UtcNow;
     }
 
-    // 완성 줄에서 이미 커밋된 앞부분을 제거. 전부 커밋됐으면 빈 문자열
-    private string StripCommittedLine(string line)
+    // 줄에서 이미 커밋된 앞부분(_committedText)을 제거한 나머지를 반환.
+    // 줄이 더 이상 커밋 prefix로 시작하지 않으면(STT 후행 수정) 커밋을 무효화하고 전체를 반환한다.
+    //   → 원시 offset 슬라이싱이 수정된 줄의 첫 단어를 잘라먹던 버그(예: "Throwing our star."→"ar.")를 방지.
+    // 재발송이 생겨도 TryFireLine의 dedup + 내용 비교가 기계적 중복을 막아준다.
+    private string GetRemaining(string line)
     {
-        if (_committedOffset <= 0) return line;
-        if (_committedOffset >= line.Length) return "";
-        return line[_committedOffset..].TrimStart();
+        if (_committedText.Length == 0) return line;
+        if (line.StartsWith(_committedText, StringComparison.Ordinal))
+            return line[_committedText.Length..];
+        _committedText = "";   // prefix 불일치 = 줄이 재작성됨 → 커밋 무효화
+        return line;
     }
+
+    // 완성 줄에서 이미 커밋된 앞부분을 제거. 전부 커밋됐으면 빈 문자열
+    private string StripCommittedLine(string line) => GetRemaining(line).TrimStart();
 
     private void ResetStableState()
     {
-        _committedOffset = 0;
+        _committedText = "";
         _lastRemaining = "";
         _stableCount = 0;
         _partialStartTime = DateTime.UtcNow;
@@ -259,6 +268,8 @@ public sealed class CaptionMonitorService : IDisposable
 
         _lastFiredLine = line;
         _lastFiredTime = now;
+        // [DEBUG] 실제 발송되는 줄 — raw 로그와 대조하면 잘림 여부를 즉시 확인 (필요 시 주석 해제)
+        // Logger.Info("Caption", $"FIRE committed=[{_committedText}] line=[{line}]");
         CaptionStabilized?.Invoke(line);
     }
 
@@ -369,5 +380,27 @@ public sealed class CaptionMonitorService : IDisposable
         if (_disposed) return;
         Stop();
         _disposed = true;
+    }
+
+    // ── 테스트 전용 시드 ── UIA 폴링 없이 텍스트 변화/디바운스를 결정적으로 주입한다.
+    internal void InitForTest(string text)
+    {
+        _lastText = text;
+        InitLineState(text);
+    }
+
+    // Poll()의 "텍스트 변경" 분기와 동일 — 새 캡션 텍스트를 주입한다.
+    internal void FeedForTest(string text)
+    {
+        if (text == _lastText) return;
+        _lastText = text;
+        ProcessTextChange(text);
+    }
+
+    // 발화 멈춤(디바운스 경과)을 강제로 트리거한다 — 시간 의존성 제거용.
+    internal void ForceDebounceForTest()
+    {
+        _lastPartialChangeTime = DateTime.MinValue;
+        CheckDebounce();
     }
 }
