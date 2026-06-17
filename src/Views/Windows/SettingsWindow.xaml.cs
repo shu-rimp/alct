@@ -1,4 +1,5 @@
 using AlctClient.Core;
+using AlctClient.Utils;
 using AlctClient.Views.Modals;
 using System.ComponentModel;
 using System.IO;
@@ -73,17 +74,24 @@ public partial class SettingsWindow : Window
     {
         SetWindowIcon();
         LoadMonitors();
+        _ = LoadWordmarkAsync();
     }
 
     private void SetWindowIcon()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "assets", "alct.ico");
-        if (!File.Exists(path)) return;
-        using var icon = new System.Drawing.Icon(path, 32, 32);
+        var resource = Application.GetResourceStream(new Uri("pack://application:,,,/assets/alct.ico"));
+        if (resource is null) return;
+        using var icon = new System.Drawing.Icon(resource.Stream);
         Icon = Imaging.CreateBitmapSourceFromHIcon(
             icon.Handle,
             Int32Rect.Empty,
             System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+    }
+
+    private async Task LoadWordmarkAsync()
+    {
+        var image = await AssetCache.GetImageAsync("alct-wordmark.png");
+        if (image is not null) WordmarkImage.Source = image;
     }
 
     private void LoadMonitors()

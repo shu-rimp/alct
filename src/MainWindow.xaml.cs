@@ -1,5 +1,6 @@
 using AlctClient.Core;
 using AlctClient.Utils;
+using AlctClient.Views.Modals;
 using AlctClient.Views.Overlays;
 using AlctClient.Views.Windows;
 using Microsoft.Win32;
@@ -23,6 +24,7 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        AssetCache.InvalidateIfVersionChanged();
         InitializeComponent();
         var (serverUrl, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail, voiceEngine, textEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
@@ -57,6 +59,7 @@ public partial class MainWindow : Window
         InitOcrHandler();
         InitVoiceHandler();
         RunOnboardingIfNeeded();
+        _ = CheckForUpdateAsync();
         InitTray();
         InitHotkeys();
         _settings.Show();
@@ -182,6 +185,13 @@ public partial class MainWindow : Window
         string build   = key?.GetValue("CurrentBuild")    as string ?? "unknown";
         string display = key?.GetValue("DisplayVersion")  as string ?? "unknown";
         Logger.Info("Preflight", $"Windows build={build} ({display}), LiveCaption={liveCaption}");
+    }
+
+    private async Task CheckForUpdateAsync()
+    {
+        var info = await UpdateChecker.CheckAsync();
+        if (info is null) return;
+        new UpdateModal(info) { Owner = _settings }.ShowDialog();
     }
 
     private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용

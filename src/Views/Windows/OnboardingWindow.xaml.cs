@@ -4,7 +4,6 @@ using AlctClient.Views.Modals;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
@@ -66,8 +65,15 @@ public partial class OnboardingWindow : Window
 
     public static OnboardingWindow ForLanguagePackInstall() => new();
 
+    private async Task LoadLogoAsync()
+    {
+        var image = await AssetCache.GetImageAsync("alct.png");
+        if (image is not null) LogoImage.Source = image;
+    }
+
     private void OnWindowLoaded(object sender, RoutedEventArgs e)
     {
+        _ = LoadLogoAsync();
         _panels = new FrameworkElement[]
         {
             Step0Panel, StepChatPanel, StepInputPanel,
@@ -91,7 +97,7 @@ public partial class OnboardingWindow : Window
         LoadDemoVideo(ChatDemoMedia,  "chat-translation-demo.mp4");
         LoadDemoVideo(InputDemoMedia, "input-translation-demo.mp4");
         LoadDemoVideo(VoiceDemoMedia, "voice-translation-demo.mp4");
-        LoadQualityImage();
+        _ = LoadQualityImageAsync();
     }
 
     private void GoToStep(int step)
@@ -284,19 +290,19 @@ public partial class OnboardingWindow : Window
 
     // ── Video helpers ──
 
+    private static string AssetsBaseUrl =>
+        BuildConstants.ASSETS_BASE_URL.Contains("#{")
+            ? BuildConstants.ASSETS_BASE_URL.Replace("#{ALCT_VERSION_TAG}#", "main")
+            : BuildConstants.ASSETS_BASE_URL;
+
     private static void LoadDemoVideo(MediaElement media, string filename)
     {
-        var path = IOPath.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", filename);
-        if (!IOFile.Exists(path)) return;
-        media.Source = new Uri(path, UriKind.Absolute);
+        media.Source = new Uri(AssetsBaseUrl.TrimEnd('/') + "/" + filename, UriKind.Absolute);
     }
 
     private void StartInstallGuideVideo()
     {
-        var path = IOPath.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                                  "assets", "livecaptions-install.mp4");
-        if (!IOFile.Exists(path)) return;
-        InstallGuideMedia.Source = new Uri(path, UriKind.Absolute);
+        InstallGuideMedia.Source = new Uri(AssetsBaseUrl.TrimEnd('/') + "/livecaptions-install.mp4", UriKind.Absolute);
         InstallGuideMedia.Play();
     }
 
@@ -312,12 +318,10 @@ public partial class OnboardingWindow : Window
         InstallGuideMedia.Source = null;
     }
 
-    private void LoadQualityImage()
+    private async Task LoadQualityImageAsync()
     {
-        var path = IOPath.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                                  "assets", "translation-quality-compare.png");
-        if (!IOFile.Exists(path)) return;
-        QualityCompareImage.Source = new BitmapImage(new Uri(path, UriKind.Absolute));
+        var image = await AssetCache.GetImageAsync("translation-quality-compare.png");
+        if (image is not null) QualityCompareImage.Source = image;
     }
 
     private static void LaunchLiveCaptions()

@@ -259,7 +259,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <Image Source="/assets/alct-wordmark.png" Height="32"
+                <Image x:Name="WordmarkImage" Height="32"
                        RenderOptions.BitmapScalingMode="HighQuality"
                        VerticalAlignment="Center" HorizontalAlignment="Left"/>
 
