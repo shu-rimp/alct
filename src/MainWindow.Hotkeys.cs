@@ -94,7 +94,7 @@ public partial class MainWindow
                 if (!_screenCaptureLogged)
                 {
                     _screenCaptureLogged = true;
-                    Logger.Info("Preflight", "화면 캡처: GDI 사용 가능");
+                    Logger.Info("Preflight", "Screen capture: GDI available");
                 }
                 // SaveDebugCapture(imageBytes); 실제 캡쳐이미지 확인(디버그용)
                 await _ocrClient.SendImageAsync(imageBytes);
@@ -113,7 +113,7 @@ public partial class MainWindow
             }
             catch (Exception ex)
             {
-                if (!_screenCaptureLogged) { _screenCaptureLogged = true; Logger.Info("Preflight", "화면 캡처: GDI 사용 불가"); }
+                if (!_screenCaptureLogged) { _screenCaptureLogged = true; Logger.Info("Preflight", "Screen capture: GDI unavailable"); }
                 Logger.Error("OcrCapture", ex);
                 _overlay.ShowNotice("이 기기는 화면 캡처를 지원하지 않아 채팅 번역을 사용할 수 없어요.");
             }
@@ -123,6 +123,9 @@ public partial class MainWindow
 
     private void OnInputTranslationHotkeyPressed()
     {
+        // 사용자가 입력한 채팅을 선택·복사(Shift+Home&Ctrl+C, read 주입)로 가져온 뒤, 번역문을 클립보드에 올려두기만 한다.
+        // 게임에 글자를 써넣는 자동 붙여넣기(Ctrl+V, write 주입)는 하지 않음 — 사용자가 직접 Ctrl+V로 붙여넣는다.
+        // 번역 완료 전에 채팅창을 닫아도 클립보드에 남아 나중에 붙여넣을 수 있다는 부수적인 이점이 생김.
         // 복사 시뮬레이션이 사용자의 원본 클립보드를 덮어쓰기 전에 백업 (UI/STA 스레드)
         var clipboardBackup = WindowsApiHelper.BackupClipboard();
 
@@ -130,6 +133,7 @@ public partial class MainWindow
         WindowsApiHelper.SimulateCopy();
         _ = Task.Run(async () =>
         {
+            var success = false;
             try
             {
                 var text = await WaitForClipboardTextAsync();
@@ -137,16 +141,20 @@ public partial class MainWindow
 
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _translation.TextService.TranslateFromKoreanAsync(text, sourceLang);
-                Dispatcher.Invoke(() => Clipboard.SetText(translation));
-                await Task.Delay(50);
-                WindowsApiHelper.SimulatePaste();
-                await Task.Delay(100); // 대상 앱이 붙여넣기를 소화할 시간 확보 후 원복
+                Dispatcher.Invoke(() =>
+                {
+                    Clipboard.SetText(translation);
+                    _overlay.ShowNotice("번역 완료! Ctrl+V로 붙여넣으세요.");
+                });
+                success = true;
             }
             catch (Exception ex) { Logger.Error("InputTranslation", ex); }
             finally
             {
-                // 성공·실패·빈 입력 모두 원본 클립보드로 복원 (임시 복사본·번역문 잔류 방지)
-                Dispatcher.Invoke(() => WindowsApiHelper.RestoreClipboard(clipboardBackup));
+                // 성공 시 번역문을 클립보드에 남겨 사용자가 직접 붙여넣게 한다.
+                // 실패·빈 입력이면 복사 단계가 덮어쓴 원본 클립보드를 되돌린다.
+                if (!success)
+                    Dispatcher.Invoke(() => WindowsApiHelper.RestoreClipboard(clipboardBackup));
             }
         });
     }

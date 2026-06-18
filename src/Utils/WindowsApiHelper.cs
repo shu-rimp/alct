@@ -27,7 +27,6 @@ public static class WindowsApiHelper
     private const ushort VK_SHIFT   = 0x10;
     private const ushort VK_HOME    = 0x24;
     private const ushort VK_C = 0x43;
-    private const ushort VK_V = 0x56;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct INPUT { public uint type; public InputUnion U; }
@@ -64,16 +63,12 @@ public static class WindowsApiHelper
     public static void SimulateCopy() =>
         Send(KeyDown(VK_CONTROL), KeyDown(VK_C), KeyUp(VK_C), KeyUp(VK_CONTROL));
 
-    public static void SimulatePaste() =>
-        // Trailing Ctrl Down+Up releases the stuck Ctrl state in the game after paste.
-        Send(KeyDown(VK_CONTROL), KeyDown(VK_V), KeyUp(VK_V), KeyUp(VK_CONTROL), KeyDown(VK_CONTROL), KeyUp(VK_CONTROL));
-
     private static void Send(params INPUT[] inputs) =>
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
 
     // ── 클립보드 백업/복원 ──────────────────────────────────────────────
-    // 입력창 번역은 복사·붙여넣기로 클립보드를 덮어쓰므로, 사용자의 원본 내용을
-    // 작업 전에 스냅샷했다가 작업 후 되돌린다. 모든 포맷을 best-effort로 보존.
+    // 입력창 번역은 복사 시뮬레이션으로 클립보드를 덮어쓰므로, 사용자의 원본 내용을
+    // 작업 전에 스냅샷했다가 실패·빈 입력 시 되돌린다(성공 시엔 번역문을 클립보드에 남김). 모든 포맷을 best-effort로 보존.
     // 반드시 STA(UI) 스레드에서 호출해야 함.
     public static System.Windows.IDataObject? BackupClipboard()
     {
