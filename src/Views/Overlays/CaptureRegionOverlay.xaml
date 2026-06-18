@@ -43,7 +43,7 @@
                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>
                 </TextBlock.Effect>
             </TextBlock>
-            <TextBlock Text="스크롤바 · 텍스트 입력창 등을 제외해야 정확해요."
+            <TextBlock Text="인원수에 따라 채팅 위치가 달라질 수 있어요. 높이는 넉넉하게 잡아주세요."
                        Foreground="#BBBBBB" FontSize="11" HorizontalAlignment="Center" Margin="0,3,0,0">
                 <TextBlock.Effect>
                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>

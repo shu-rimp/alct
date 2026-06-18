@@ -4,7 +4,6 @@ using AlctClient.Views.Modals;
 using AlctClient.Views.Overlays;
 using AlctClient.Views.Windows;
 using Microsoft.Win32;
-using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -196,8 +195,9 @@ public partial class MainWindow : Window
 
     private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "capture_debug.png");
+        var dir = Path.Combine(AppContext.BaseDirectory, "capture_debug");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"capture_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png");
         File.WriteAllBytes(path, imageBytes);
-        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 }

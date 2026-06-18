@@ -3,6 +3,7 @@ using AlctClient.Utils;
 using AlctClient.Views.Windows;
 using System.Diagnostics;
 using System.Management;
+using System.Text.RegularExpressions;
 
 namespace AlctClient;
 
@@ -16,15 +17,25 @@ public partial class MainWindow
     private readonly Queue<string> _captionContext = new();
     private ManagementEventWatcher? _liveCaptionsWatcher;
 
+    // 채팅 입력창 노이즈("채팅:KR", ":KR", "KR") — 3인 위치에선 캡쳐 하단에 입력창까지 들어와 번역 노이즈가 됨.
+    // 항상 단독 줄 + 대문자 KR로만 인식되므로, 소문자 kr이나 "KR player" 같은 실제 채팅은 보존됨(대소문자 구분).
+    private static readonly Regex ChatInputPromptRegex =
+        new(@"^\s*(채팅)?\s*[:：]?\s*KR\s*$", RegexOptions.Compiled);
+
+    private static string StripChatInputPrompt(string text) =>
+        string.Join("\n", text.Split('\n').Where(line => !ChatInputPromptRegex.IsMatch(line))).Trim();
+
     private void InitOcrHandler()
     {
         _ocrClient.OcrTextReceived += async (normalizedText, rawText) =>
         {
             try
             {
+                var cleaned = StripChatInputPrompt(normalizedText);
+                if (string.IsNullOrWhiteSpace(cleaned)) return; // 입력창 프롬프트만 잡힌 경우 — 번역할 내용 없음
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _translation.TextService.TranslateToKoreanAsync(normalizedText, sourceLang);
-                _overlay.ShowTranslation(translation, rawText);
+                var translation = await _translation.TextService.TranslateToKoreanAsync(cleaned, sourceLang);
+                _overlay.ShowTranslation(translation, StripChatInputPrompt(rawText));
             }
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
         };
