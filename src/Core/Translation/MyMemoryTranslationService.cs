@@ -87,7 +87,7 @@ public sealed class MyMemoryTranslationService : ITranslationService
         if (quotaFinished || status == 429)
             throw QuotaException(body);
         if (status != 200)
-            throw new InvalidOperationException($"MyMemory 오류: {status}");
+            throw new InvalidOperationException($"MyMemory error: {status}");
 
         return root.GetProperty("responseData")
                    .GetProperty("translatedText")

@@ -167,7 +167,7 @@
                 <TextBlock Text="💬 채팅창 번역"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="상대방의 채팅을 한국어로 번역해 화면에 띄워줘요."
+                <TextBlock Text="상대방의 채팅을 한국어로 화면에 띄워줘요."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
@@ -202,7 +202,7 @@
                         CornerRadius="{StaticResource CardRadius}"
                         Padding="{StaticResource CardPadding}"
                         Margin="0,0,0,0">
-                    <TextBlock Text="단축키를 누르면 채팅창 번역 결과를 오버레이로 보여줘요."
+                    <TextBlock Text="단축키를 누르면 채팅을 번역해 오버레이로 보여줘요."
                                FontSize="12" TextWrapping="Wrap"
                                Foreground="{StaticResource TextSecondaryBrush}"/>
                 </Border>
@@ -224,7 +224,7 @@
                 <TextBlock Text="⌨️ 입력창 번역"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="내가 쓴 한국어 채팅을 상대 언어로 번역해요."
+                <TextBlock Text="내가 쓴 채팅을 상대 언어로 번역해요."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
@@ -256,7 +256,7 @@
                 <Border Background="{StaticResource CardBgBrush}"
                         CornerRadius="{StaticResource CardRadius}"
                         Padding="{StaticResource CardPadding}">
-                    <TextBlock Text="한국어 입력 후 단축키를 누르면 번역돼요."
+                    <TextBlock Text="채팅을 입력하고 단축키를 누르면 번역문이 클립보드에 복사돼요. Ctrl+V로 붙여넣으세요."
                                FontSize="12" TextWrapping="Wrap"
                                Foreground="{StaticResource TextSecondaryBrush}"/>
                 </Border>
@@ -283,7 +283,7 @@
                 </StackPanel>
                 <TextBlock Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14">
-                    음성 채팅을 실시간으로 번역해 보여줘요. <Run Foreground="{StaticResource TextMutedBrush}">(Windows 11 22H2 이상 필수)</Run>
+                    음성 채팅을 실시간으로 번역해요. 음성이 감지되면 자동으로 자막이 생겨요.<Run Foreground="{StaticResource TextMutedBrush}"></Run>
                 </TextBlock>
 
                 <Border Background="{StaticResource CardBgBrush}"
@@ -299,7 +299,7 @@
                 <Border Background="{StaticResource CardBgBrush}"
                         CornerRadius="{StaticResource CardRadius}"
                         Padding="{StaticResource CardPadding}">
-                    <TextBlock Text="사용하려면 Windows Live Captions 언어팩 설치가 필요해요. 지금 설정할까요?"
+                    <TextBlock Text="사용하려면 Windows 11 Live Captions 언어팩 설치가 필요해요. 지금 설정할까요?"
                                FontSize="12" TextWrapping="Wrap"
                                Foreground="{StaticResource TextSecondaryBrush}"/>
                 </Border>
@@ -439,9 +439,11 @@
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    Margin="0,0,0,10"/>
                         <Border Background="{StaticResource InputBgBrush}"
-                                CornerRadius="8" Height="130" Margin="0,0,0,10"
+                                CornerRadius="8" Height="180" Margin="0,0,0,10"
                                 ClipToBounds="True">
-                            <Image x:Name="QualityCompareImage" Stretch="UniformToFill"/>
+                            <Image x:Name="QualityCompareImage" Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   Margin="8"/>
                         </Border>
                         <TextBlock FontSize="12" TextWrapping="Wrap"
                                    Foreground="{StaticResource TextSecondaryBrush}"

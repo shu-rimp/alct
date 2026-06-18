@@ -70,4 +70,12 @@ internal static class AssetCache
         }
         catch { return null; }
     }
+
+    // 다운로드 안거치고 수동으로 에셋파일 넣었을때 가져오기(그냥 로컬 확인용).
+    internal static Uri ResolveMediaUri(string filename)
+    {
+        var localPath = Path.Combine(_cacheDir, filename);
+        if (File.Exists(localPath)) return new Uri(localPath, UriKind.Absolute);
+        return new Uri(BaseUrl.TrimEnd('/') + "/" + filename, UriKind.Absolute);
+    }
 }

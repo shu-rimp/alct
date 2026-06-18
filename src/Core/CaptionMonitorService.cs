@@ -16,13 +16,12 @@ namespace AlctClient.Core;
 //
 // 탐지 전략:
 //   1차: \n 추가 시 완성 줄 즉시 발송
-//   2차: partial 줄이 DEBOUNCE_MS 동안 변화 없으면 발송
-//       (마지막 발화 fallback — Live Captions가 마지막 발화에 \n을 붙이지 않는 경우 대비)
-//   3차: partial이 계속 자라기만 함 → stable prefix를 경계 기준으로 부분 커밋 (연속 발화 케이스)
+//   2차: partial 줄이 DEBOUNCE_MS 동안 변화 없으면 발송(마지막 발화)
+//   3차: partial이 계속 자라기만 함 → stable prefix를 경계 기준으로 MIN_COMMIT_LENGTH만큼의 텍스트를 부분 커밋 (연속 발화)
 public sealed class CaptionMonitorService : IDisposable
 {
-    private const int POLL_MS = 50;
-    private const int DEBOUNCE_MS = 800;       // 발화 중간 숨 고르기(~0.8초)에 조각이 발사되지 않도록 여유 있게
+    private const int POLL_MS = 50;            // Live Captions 텍스트를 가져오는 주기. 낮출수록 시각적 피드백이 빨라지지만 cpu 사용량이 증가함(미미한 수준이긴 함), 25미만은 의미 없음
+    private const int DEBOUNCE_MS = 800;       // 이 시간동안 발화가 없으면 마지막 발화로 간주하고 번역을 보냄. 너무 낮추면 발화 중간 숨 고르기(~0.8초)에 조각이 발사되므로 여유있게. 너무 늘리면 번역이 느리다고 느껴짐.
     private const int MIN_COMMIT_LENGTH = 100;  // uncommitted가 이 가중 길이(CJK=2) 이상 쌓이면 강제 커밋 고려 — CJK ~50자, 라틴 ~100자
     private const int PREFIX_STABLE_COUNT = 3;  // 앞부분이 이 횟수만큼 연속 안정이면 확정으로 간주
     private const int MAX_PARTIAL_MS = 6000;    // 이 시간 초과 시 무조건 flush
@@ -233,7 +232,7 @@ public sealed class CaptionMonitorService : IDisposable
 
     // 줄에서 이미 커밋된 앞부분(_committedText)을 제거한 나머지를 반환.
     // 줄이 더 이상 커밋 prefix로 시작하지 않으면(STT 후행 수정) 커밋을 무효화하고 전체를 반환한다.
-    //   → 원시 offset 슬라이싱이 수정된 줄의 첫 단어를 잘라먹던 버그(예: "Throwing our star."→"ar.")를 방지.
+    //   → 원시 offset 슬라이싱이 수정된 줄의 첫 단어를 잘라먹던 버그(예: "Throwing arc star."→"ar.")를 방지.
     // 재발송이 생겨도 TryFireLine의 dedup + 내용 비교가 기계적 중복을 막아준다.
     private string GetRemaining(string line)
     {
@@ -257,7 +256,7 @@ public sealed class CaptionMonitorService : IDisposable
 
     // 중복 발송 방지 후 CaptionStabilized 발생
     // FIRE_DEDUP_MS(짧은 윈도우) 이내 동일 문장만 차단 — 기계적 재발사만 막고,
-    // 발화 내 의도적 단어 반복("가자 가자")은 정상 입력이므로 재발송 허용
+    // 발화 내 의도적 단어 반복(예: "가자 가자")은 정상 입력이므로 재발송 허용
     private void TryFireLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line)) return;
@@ -279,14 +278,13 @@ public sealed class CaptionMonitorService : IDisposable
         _firedLineCount = lines.Length - 1;
         _lastPartialLine = lines[^1].Trim();
         // 시작 시 심은 partial에 변경 시각을 찍어줌 — 안 찍으면 MinValue라 첫 Poll의 CheckDebounce가
-        // DEBOUNCE_MS를 안 기다리고 즉시 발사(앱 실행 직후 첫 발화 선두가 단독 발송되던 버그)
+        // DEBOUNCE_MS를 안 기다리고 즉시 발사해버림(앱 실행 직후 첫 발화 선두가 단독 발송되던 버그)
         _lastPartialChangeTime = DateTime.UtcNow;
         ResetStableState();
     }
 
     // text 내에서 maxPos 이전의 마지막 안전한 잘라내기 위치 반환
     // 우선순위: 문장 종결부호 > 절 구분(쉼표류) > 공백(단어 경계)
-    // CJK(중/일)는 공백이 없으므로 전각 부호가 유일한 경계
     private static int FindLastBoundary(string text, int maxPos)
     {
         maxPos = Math.Min(maxPos, text.Length);
@@ -382,7 +380,7 @@ public sealed class CaptionMonitorService : IDisposable
         _disposed = true;
     }
 
-    // ── 테스트 전용 시드 ── UIA 폴링 없이 텍스트 변화/디바운스를 결정적으로 주입한다.
+    // ── 여기서부터는 테스트 전용 ── UIA 폴링 없이 텍스트 변화/디바운스를 결정적으로 주입한다.
     internal void InitForTest(string text)
     {
         _lastText = text;

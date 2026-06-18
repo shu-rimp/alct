@@ -26,3 +26,4 @@ C# .NET 8 WPF overlay for real-time game translation (WPF-UI 3.0, xUnit in `Test
 
 ## Code Style
 camelCase variables, UPPER_SNAKE_CASE constants, one function = one responsibility, prefer LINQ.
+Log messages (`Logger.Info`/`Logger.Error`) are always English — UI strings stay Korean.

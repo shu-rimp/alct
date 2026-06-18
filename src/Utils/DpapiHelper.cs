@@ -18,8 +18,18 @@ internal static class DpapiHelper
     internal static string Decrypt(string value)
     {
         if (string.IsNullOrEmpty(value) || !value.StartsWith(_prefix)) return value;
-        var decrypted = ProtectedData.Unprotect(
-            Convert.FromBase64String(value[_prefix.Length..]), null, DataProtectionScope.CurrentUser);
-        return Encoding.UTF8.GetString(decrypted);
+        try
+        {
+            var decrypted = ProtectedData.Unprotect(
+                Convert.FromBase64String(value[_prefix.Length..]), null, DataProtectionScope.CurrentUser);
+            return Encoding.UTF8.GetString(decrypted);
+        }
+        catch (Exception ex)
+        {
+            // 정상적인 사용에서 이 예외가 터질일은 없지만
+            // 사용자가 직접 appsettings.json을 복사해서 다른 pc에 넣을때 일어날 수 있음.
+            Logger.Error("Dpapi", ex);
+            return string.Empty;
+        }
     }
 }

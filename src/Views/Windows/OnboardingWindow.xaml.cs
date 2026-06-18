@@ -240,7 +240,7 @@ public partial class OnboardingWindow : Window
         _installStatus["zh-CN"] = zh;
 
         if (jpChanged || zhChanged)
-            Logger.Info("Preflight", $"언어팩 상태 변경 — ja-JP={jp}, zh-CN={zh}");
+            Logger.Info("Preflight", $"Language pack status changed — ja-JP={jp}, zh-CN={zh}");
 
         Dispatcher.Invoke(() => UpdateInstallStatusUI(jp, zh));
     }
@@ -290,19 +290,14 @@ public partial class OnboardingWindow : Window
 
     // ── Video helpers ──
 
-    private static string AssetsBaseUrl =>
-        BuildConstants.ASSETS_BASE_URL.Contains("#{")
-            ? BuildConstants.ASSETS_BASE_URL.Replace("#{ALCT_VERSION_TAG}#", "main")
-            : BuildConstants.ASSETS_BASE_URL;
-
     private static void LoadDemoVideo(MediaElement media, string filename)
     {
-        media.Source = new Uri(AssetsBaseUrl.TrimEnd('/') + "/" + filename, UriKind.Absolute);
+        media.Source = AssetCache.ResolveMediaUri(filename);
     }
 
     private void StartInstallGuideVideo()
     {
-        InstallGuideMedia.Source = new Uri(AssetsBaseUrl.TrimEnd('/') + "/livecaptions-install.mp4", UriKind.Absolute);
+        InstallGuideMedia.Source = AssetCache.ResolveMediaUri("livecaptions-install.mp4");
         InstallGuideMedia.Play();
     }
 

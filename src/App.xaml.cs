@@ -33,7 +33,7 @@ public partial class App : Application
                 using var handle = EventWaitHandle.OpenExisting(ActivateEvent);
                 handle.Set();
             }
-            catch { }
+            catch (Exception ex) { Logger.Error("SingleInstanceActivate", ex); }  
             Shutdown();
             return;
         }

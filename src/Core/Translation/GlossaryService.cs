@@ -62,11 +62,11 @@ public sealed class GlossaryService
 
             Directory.CreateDirectory(Path.GetDirectoryName(_cachePath)!);
             await File.WriteAllTextAsync(_cachePath, json);
-            Logger.Info("Glossary", $"서버 용어집 갱신 완료 — {_entries.Sum(e => e.Value.Count)}개 용어");
+            Logger.Info("Glossary", $"Server glossary updated — {_entries.Sum(e => e.Value.Count)} terms");
         }
         catch (Exception ex)
         {
-            Logger.Info("Glossary", $"서버 용어집 갱신 실패({ex.GetType().Name}) — 캐시/내장본 사용");
+            Logger.Info("Glossary", $"Server glossary update failed ({ex.GetType().Name}) — using cache/embedded");
         }
     }
 

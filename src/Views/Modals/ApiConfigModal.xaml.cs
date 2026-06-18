@@ -1,4 +1,5 @@
 using AlctClient.Core;
+using AlctClient.Utils;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -411,7 +412,7 @@ public partial class ApiConfigModal : Window
             request.Headers.Add("X-API-Key", apiKey);
             await _validationHttp.SendAsync(request);
         }
-        catch { }
+        catch (Exception ex) { Logger.Error("LangblySpendingCap", ex); }  // 상한 0이 실제로 먹히지 않을때, 현재 langbly는 노출하지 않고 있으니 나중에 확인 필요.
     }
 
     private void SaveCurrent()

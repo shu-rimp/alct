@@ -63,7 +63,7 @@ public partial class MainWindow
                     ? ex.Message  // 재개 시각이 없는 영구 소진 — 사유만
                     : $"{ex.Message} — {ex.RetryAtUtc.ToLocalTime():HH:mm} 이후 다시 사용할 수 있어요.";
                 _voiceOverlay.ShowTranslation(msg);
-                Logger.Info("CaptionTranslation", $"{ex.Message} — {ex.RetryAtUtc:u}까지 음성 번역 차단");
+                Logger.Info("CaptionTranslation", $"Voice translation blocked until {ex.RetryAtUtc:u} — reason: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -222,7 +222,7 @@ public partial class MainWindow
         var jp = LanguagePackService.IsInstalledAsync("ja-JP");
         var zh = LanguagePackService.IsInstalledAsync("zh-CN");
         await Task.WhenAll(jp, zh);
-        Logger.Info("Preflight", $"언어팩 설치 상태 — ja-JP={jp.Result}, zh-CN={zh.Result}");
+        Logger.Info("Preflight", $"Language pack install status — ja-JP={jp.Result}, zh-CN={zh.Result}");
         return jp.Result && zh.Result;
     }
 
