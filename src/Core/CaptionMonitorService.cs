@@ -62,6 +62,7 @@ public sealed class CaptionMonitorService : IDisposable
     private CancellationTokenSource? _cts;
     private bool _disposed;
     private AutomationElement? _captionsWindow;
+    private AutomationElement? _captionsTextBlock;
 
     public event Action<string>? CaptionUpdating;
     public event Action<string>? CaptionStabilized;
@@ -81,6 +82,7 @@ public sealed class CaptionMonitorService : IDisposable
         _debounceFired = false;
         ResetStableState();
         _captionsWindow = null;
+        _captionsTextBlock = null;
     }
 
     private async Task RunAsync(CancellationToken ct)
@@ -345,18 +347,33 @@ public sealed class CaptionMonitorService : IDisposable
     {
         try
         {
+            // 캐싱된 CaptionsTextBlock이 있으면 트리 탐색 없이 Name만 갱신.
+            // 매 poll(50ms)마다 FindFirst(Descendants)로 트리를 훑으면 대상(LiveCaptions)이
+            // 그때마다 UIA peer를 새로 만들어 메모리가 계속 증가한다(측정상 +1.7MB/분 vs 단독 +0.5MB/분).
+            // GetUpdatedCache는 동일 element의 캐시 속성만 새로고침하므로 provider 측 누적이 없다.
+            if (_captionsTextBlock is not null)
+            {
+                var refreshed = _captionsTextBlock.GetUpdatedCache(_nameCache);
+                var cachedName = refreshed.Cached.Name;
+                return string.IsNullOrEmpty(cachedName) ? null : cachedName;
+            }
+
             _captionsWindow ??= FindLiveCaptionsWindow();
             if (_captionsWindow is null) return null;
 
             using (_nameCache.Activate())
             {
                 var el = _captionsWindow.FindFirst(TreeScope.Descendants, _captionsTextBlockCondition);
-                var name = el?.Cached.Name;
+                if (el is null) return null;
+                _captionsTextBlock = el;   // 최초 1회만 탐색, 이후엔 GetUpdatedCache로 재사용
+                var name = el.Cached.Name;
                 return string.IsNullOrEmpty(name) ? null : name;
             }
         }
         catch
         {
+            // element 무효화(창 닫힘/재생성, LiveCaptions 재시작) — 캐시 비우고 다음 poll에 재탐색
+            _captionsTextBlock = null;
             _captionsWindow = null;
             return null;
         }
