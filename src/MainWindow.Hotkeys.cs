@@ -147,7 +147,8 @@ public partial class MainWindow
         }
 
         // 글자수 제한: 게임 입력창 한도를 넘는 텍스트(브라우저 등에서 복사한 대량 텍스트)는 번역 요청 전에 차단한다.
-        if (text.Trim().Length > MAX_INPUT_CHARS)
+        var trimmed = text.Trim();
+        if (trimmed.Length > MAX_INPUT_CHARS)
         {
             _inputOverlay.ShowNotice($"{MAX_INPUT_CHARS}자 이하만 번역할 수 있어요.");
             return;
@@ -159,7 +160,7 @@ public partial class MainWindow
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _translation.TextService.TranslateFromKoreanAsync(text, sourceLang);
+                var translation = await _translation.TextService.TranslateFromKoreanAsync(trimmed, sourceLang);
                 Dispatcher.Invoke(() =>
                 {
                     // 성공 시 번역문을 클립보드에 남겨 사용자가 직접 Ctrl+V로 붙여넣게 한다.

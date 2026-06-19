@@ -20,12 +20,16 @@ public class ScreenCaptureService
         => GetDefaultCaptureRegion(System.Windows.Forms.Screen.PrimaryScreen!);
 
     public static Rectangle GetDefaultCaptureRegion(System.Windows.Forms.Screen screen)
+        => ScaleRegionToScreen(screen.Bounds);
+
+    // FHD 기준 영역을 화면 해상도에 비례해 스케일. Screen 의존이 없는 순수 함수라 단위 테스트 가능.
+    internal static Rectangle ScaleRegionToScreen(Rectangle screenBounds)
     {
-        double sx = (double)screen.Bounds.Width  / 1920;
-        double sy = (double)screen.Bounds.Height / 1080;
+        double sx = (double)screenBounds.Width  / 1920;
+        double sy = (double)screenBounds.Height / 1080;
         return new Rectangle(
-            screen.Bounds.X + (int)Math.Round(FHD_CAPTURE_REGION.X * sx),
-            screen.Bounds.Y + (int)Math.Round(FHD_CAPTURE_REGION.Y * sy),
+            screenBounds.X + (int)Math.Round(FHD_CAPTURE_REGION.X * sx),
+            screenBounds.Y + (int)Math.Round(FHD_CAPTURE_REGION.Y * sy),
             (int)Math.Round(FHD_CAPTURE_REGION.Width  * sx),
             (int)Math.Round(FHD_CAPTURE_REGION.Height * sy));
     }

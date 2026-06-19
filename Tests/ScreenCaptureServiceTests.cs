@@ -6,15 +6,34 @@ namespace AlctClient.Tests;
 public class ScreenCaptureServiceTests
 {
     [Fact]
-    public void GetCaptureRegion_DefaultRegion_HasExpectedDimensions()
+    public void ScaleRegionToScreen_AtFhd_ReturnsBaseRegion()
     {
-        var service = new ScreenCaptureService();
-        var region = service.GetCaptureRegion();
+        // 1920x1080에서는 스케일 1.0 → FHD 기준 영역 그대로
+        var region = ScreenCaptureService.ScaleRegionToScreen(new Rectangle(0, 0, 1920, 1080));
 
-        Assert.Equal(50, region.X);
-        Assert.Equal(513, region.Y);
-        Assert.Equal(600, region.Width);
-        Assert.Equal(167, region.Height);
+        Assert.Equal(new Rectangle(50, 433, 600, 250), region);
+    }
+
+    [Fact]
+    public void ScaleRegionToScreen_AtQhd_ScalesProportionally()
+    {
+        // 2560x1440 → 가로·세로 모두 1.3333배
+        var region = ScreenCaptureService.ScaleRegionToScreen(new Rectangle(0, 0, 2560, 1440));
+
+        Assert.Equal(67, region.X);        // 50  * 4/3 = 66.67 → 67
+        Assert.Equal(577, region.Y);       // 433 * 4/3 = 577.33 → 577
+        Assert.Equal(800, region.Width);   // 600 * 4/3 = 800
+        Assert.Equal(333, region.Height);  // 250 * 4/3 = 333.33 → 333
+    }
+
+    [Fact]
+    public void ScaleRegionToScreen_OffsetScreen_AddsBoundsOrigin()
+    {
+        // 멀티모니터: 보조 화면 원점(X/Y 오프셋)이 더해진다
+        var region = ScreenCaptureService.ScaleRegionToScreen(new Rectangle(1920, 0, 1920, 1080));
+
+        Assert.Equal(1970, region.X);  // 1920 + 50
+        Assert.Equal(433, region.Y);
     }
 
     [Fact]

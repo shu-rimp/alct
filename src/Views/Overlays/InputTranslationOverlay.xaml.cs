@@ -151,13 +151,13 @@ public partial class InputTranslationOverlay : Window
 
     private void ScheduleAutoHide()
     {
-        _hideTimer?.Stop();
-        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AUTO_HIDE_DELAY_MS) };
-        _hideTimer.Tick += (_, _) =>
+        // 단일 타이머를 재사용 — 호출마다 새로 만들지 않고 인터벌만 재시작한다.
+        if (_hideTimer is null)
         {
-            _hideTimer.Stop();
-            Hide();
-        };
+            _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AUTO_HIDE_DELAY_MS) };
+            _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); Hide(); };
+        }
+        _hideTimer.Stop();
         _hideTimer.Start();
     }
 

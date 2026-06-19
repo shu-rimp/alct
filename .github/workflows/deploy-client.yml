@@ -63,5 +63,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/AlctClient.exe
+          files: dist/ALCT.exe
           generate_release_notes: false
