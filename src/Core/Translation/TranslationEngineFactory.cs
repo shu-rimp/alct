@@ -2,6 +2,9 @@ namespace AlctClient.Core;
 
 public static class TranslationEngineFactory
 {
+    // 기본 번역 엔진 — 키 없이 바로 쓸 수 있는 MyMemory. 엔진 기본값의 단일 출처.
+    public const TranslationEngine Default = TranslationEngine.MyMemory;
+
     public static ITranslationService Create(TranslationEngine engine, string apiKey = "")
     {
         ITranslationService inner = engine switch
@@ -19,6 +22,6 @@ public static class TranslationEngineFactory
         "DeepL"   => TranslationEngine.DeepL,
         "Gemini"  => TranslationEngine.Gemini,
         "Langbly" => TranslationEngine.Langbly,
-        _         => TranslationEngine.MyMemory,
+        _         => Default,
     };
 }

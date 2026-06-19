@@ -5,8 +5,8 @@ public class UserSettings
     public string SourceLang { get; set; } = "ja-JP";
     public bool CaptionModeEnabled { get; set; } = false;
     public double OverlayOpacity { get; set; } = 0.85;
-    public double OverlayFontSize { get; set; } = 13;
-    public bool ShowLanguageOverlay { get; set; } = false;
+    public double OverlayFontSize { get; set; } = 14;
+    public bool ShowLanguageOverlay { get; set; } = true;
 
     public double VoiceOverlayLeft  { get; set; } = -1;
     public double VoiceOverlayTop   { get; set; } = 30;

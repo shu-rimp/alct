@@ -46,7 +46,7 @@ public partial class ApiConfigModal : Window
         _deeplState   = string.IsNullOrEmpty(deepLKey)   ? KeyState.None : KeyState.Valid;
         _geminiState  = string.IsNullOrEmpty(geminiKey)  ? KeyState.None : KeyState.Valid;
         _langblyState = string.IsNullOrEmpty(langblyKey) ? KeyState.None : KeyState.Valid;
-        Loaded += (_, _) => SelectEngine(TranslationEngine.DeepL);
+        Loaded += (_, _) => SelectEngine(TranslationEngine.MyMemory);
     }
 
     private void SelectEngine(TranslationEngine engine)

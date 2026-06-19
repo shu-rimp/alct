@@ -6,7 +6,7 @@ namespace AlctClient.Core;
 
 public class ScreenCaptureService
 {
-    // Apex Legends chat area on 1920x1080 — base reference for proportional scaling.
+    // chat area on 1920x1080 — base reference for proportional scaling.
     // Tall enough to span both vertical positions: 3-player (higher) and 1/2-player (lower).
     private static readonly Rectangle FHD_CAPTURE_REGION = new(50, 433, 600, 250);
 
