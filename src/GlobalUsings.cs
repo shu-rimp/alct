@@ -1,6 +1,7 @@
 // 모호한 참조 충돌 방지용 (빌드 에러 #CS0104)
 global using Application = System.Windows.Application;
 global using CheckBox    = System.Windows.Controls.CheckBox;
+global using Clipboard   = System.Windows.Clipboard;
 global using WpfSize     = System.Windows.Size;
 global using IOPath        = System.IO.Path;
 global using IOFile        = System.IO.File;

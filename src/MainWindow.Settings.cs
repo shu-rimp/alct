@@ -121,6 +121,7 @@ public partial class MainWindow
         {
             _translation.SetTextEngine(engine);
             SaveAppSetting("TextTranslationEngine", engine.ToString());
+            _lastInputTranslation = null;  // 엔진이 바뀌면 같은 원문도 번역 결과가 달라지므로 직전 번역 비교값 초기화
         };
     }
 }

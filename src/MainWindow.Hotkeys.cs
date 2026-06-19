@@ -2,7 +2,6 @@ using AlctClient.Core;
 using AlctClient.Utils;
 using AlctClient.Views.Modals;
 using System.Net.Http;
-using Clipboard = System.Windows.Clipboard;
 
 namespace AlctClient;
 
@@ -13,6 +12,8 @@ public partial class MainWindow
     private readonly SemaphoreSlim _ocrLock = new(1, 1);
     private bool _screenCaptureLogged;
     private DateTime _ocrBlockedUntil = DateTime.MinValue;  // 서버 429(Retry-After) 동안 OCR 요청 억제
+    private string? _lastInputTranslation;  // 직전 입력 번역 결과 — 복사를 누락하고 핫키만 누른 경우(클립보드에 이전 번역문이 그대로) 감지용
+    private const int MAX_INPUT_CHARS = 70;  // 입력 번역 최대 글자수 — 게임 입력창 한도(알파벳·한글 동일 63자)에 약간의 여유. 브라우저 등에서 대량 텍스트가 번역 요청으로 새는 것 방지
 
     private void InitHotkeys()
     {
@@ -27,6 +28,7 @@ public partial class MainWindow
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
         _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;
+        _hotkeyManager.ClipboardUpdated += OnClipboardUpdated;
         _hotkeyManager.Register(_userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey);
         _hotkeyManager.RegisterInputTranslation(_userSettings.InputHotkeyModifiers, _userSettings.InputHotkeyVKey);
 
@@ -123,51 +125,65 @@ public partial class MainWindow
 
     private void OnInputTranslationHotkeyPressed()
     {
-        // 사용자가 입력한 채팅을 선택·복사(Shift+Home&Ctrl+C, read 주입)로 가져온 뒤, 번역문을 클립보드에 올려두기만 한다.
-        // 게임에 글자를 써넣는 자동 붙여넣기(Ctrl+V, write 주입)는 하지 않음 — 사용자가 직접 Ctrl+V로 붙여넣는다.
-        // 번역 완료 전에 채팅창을 닫아도 클립보드에 남아 나중에 붙여넣을 수 있다는 부수적인 이점이 생김.
-        // 복사 시뮬레이션이 사용자의 원본 클립보드를 덮어쓰기 전에 백업 (UI/STA 스레드)
-        var clipboardBackup = WindowsApiHelper.BackupClipboard();
+        // 가상 키보드 입력 주입 방식 모두 제거.
+        // 또한, 게임은 독자적인 렌더링(예: DirectX)을 사용하는 경우가 많으므로, UI Automation의 Selection으로는 텍스트를 읽어올 수 없음.
+        // 텍스트 선택(Shift+Home)·복사(Ctrl+C)·붙여넣기(Ctrl+V)를 전부 사용자의 물리 입력으로 변경한다.
+        // 대신 저하된 ux는 ui로 보강한다.(Overlays/InputTransltationOverlay)
+        
+        // 사용자가 이미 클립보드에 올려둔 텍스트를 읽기만 해서 번역문으로 바꿔준다.
+        _inputOverlay.SetCaptureAnchor(_screenCapture.GetCaptureRegion());
+        var text = ClipboardHelper.TryGetText();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            _inputOverlay.ShowNotice("문장을 복사한 뒤 다시 눌러주세요.");
+            return;
+        }
 
-        WindowsApiHelper.SimulateSelectToLineStart();
-        WindowsApiHelper.SimulateCopy();
+        // 복사를 깜빡하고 핫키만 누를경우: 직전 번역 텍스트와 비교.
+        if (text == _lastInputTranslation)
+        {
+            _inputOverlay.ShowNotice("새 문장을 복사한 뒤 다시 눌러주세요.");
+            return;
+        }
+
+        // 글자수 제한: 게임 입력창 한도를 넘는 텍스트(브라우저 등에서 복사한 대량 텍스트)는 번역 요청 전에 차단한다.
+        if (text.Trim().Length > MAX_INPUT_CHARS)
+        {
+            _inputOverlay.ShowNotice($"{MAX_INPUT_CHARS}자 이하만 번역할 수 있어요.");
+            return;
+        }
+
+        _inputOverlay.ShowLoading();
         _ = Task.Run(async () =>
         {
-            var success = false;
             try
             {
-                var text = await WaitForClipboardTextAsync();
-                if (string.IsNullOrWhiteSpace(text)) return;
-
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _translation.TextService.TranslateFromKoreanAsync(text, sourceLang);
                 Dispatcher.Invoke(() =>
                 {
-                    Clipboard.SetText(translation);
-                    _overlay.ShowNotice("번역 완료! Ctrl+V로 붙여넣으세요.");
+                    // 성공 시 번역문을 클립보드에 남겨 사용자가 직접 Ctrl+V로 붙여넣게 한다.
+                    // 클립보드 쓰기 전에 기록 — 우리 쓰기가 일으킬 클립보드 알림을 "준비 완료" 힌트에서 걸러내기 위함.
+                    _lastInputTranslation = translation;
+                    ClipboardHelper.TrySetText(translation);
+                    _inputOverlay.ShowResult(translation);
                 });
-                success = true;
             }
-            catch (Exception ex) { Logger.Error("InputTranslation", ex); }
-            finally
+            catch (Exception ex)
             {
-                // 성공 시 번역문을 클립보드에 남겨 사용자가 직접 붙여넣게 한다.
-                // 실패·빈 입력이면 복사 단계가 덮어쓴 원본 클립보드를 되돌린다.
-                if (!success)
-                    Dispatcher.Invoke(() => WindowsApiHelper.RestoreClipboard(clipboardBackup));
+                Logger.Error("InputTranslation", ex);
+                _inputOverlay.ShowNotice("번역에 실패했어요. 잠시 후 다시 시도해주세요.");
             }
         });
     }
 
-    private async Task<string?> WaitForClipboardTextAsync()
+    // 사용자가 무언가 복사하면 "번역 준비 완료"를 띄워 단축키 사용을 유도한다.
+    // 우리가 직접 클립보드에 올린 번역문(직전 결과)이 일으킨 알림은 제외 — 자기 쓰기로 인한 재표시 방지.
+    private void OnClipboardUpdated()
     {
-        for (int i = 0; i < 10; i++)
-        {
-            await Task.Delay(30);
-            var text = Dispatcher.Invoke(() =>
-                Clipboard.ContainsText() ? Clipboard.GetText() : null);
-            if (!string.IsNullOrWhiteSpace(text)) return text;
-        }
-        return null;
+        var text = ClipboardHelper.TryGetText();
+        if (string.IsNullOrWhiteSpace(text) || text == _lastInputTranslation) return;
+        _inputOverlay.SetCaptureAnchor(_screenCapture.GetCaptureRegion());
+        _inputOverlay.ShowReady();
     }
 }

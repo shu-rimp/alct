@@ -143,6 +143,7 @@
             <StackPanel x:Name="Step0Panel" Grid.Row="0"
                         Margin="40,0" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Image x:Name="LogoImage" Width="72" Height="72"
+                       RenderOptions.BitmapScalingMode="HighQuality"
                        HorizontalAlignment="Center" Margin="0,0,0,20"/>
                 <TextBlock Text="ALCT에 오신 것을 환영합니다"
                            Foreground="{StaticResource TextPrimaryBrush}"
@@ -256,9 +257,21 @@
                 <Border Background="{StaticResource CardBgBrush}"
                         CornerRadius="{StaticResource CardRadius}"
                         Padding="{StaticResource CardPadding}">
-                    <TextBlock Text="채팅을 입력하고 단축키를 누르면 번역문이 클립보드에 복사돼요. Ctrl+V로 붙여넣으세요."
-                               FontSize="12" TextWrapping="Wrap"
-                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <StackPanel>
+                        <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3">
+                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">①</Run> 채팅을 복사해요.
+                        </TextBlock>
+                        <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3">
+                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">②</Run> 단축키를 눌러요.
+                        </TextBlock>
+                        <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}">
+                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">③</Run> Ctrl+V로 붙여넣어요.
+                        </TextBlock>
+                        <TextBlock Text="Tip: 번역은 단축키를 누를 때만 실행돼요. 기존 복사/붙여넣기에 영향을 주지 않아요."
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Margin="0,8,0,0"/>
+                    </StackPanel>
                 </Border>
 
                 <Grid Margin="0,20,0,0">

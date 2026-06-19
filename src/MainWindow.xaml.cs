@@ -15,6 +15,7 @@ public partial class MainWindow : Window
 {
     private readonly ChatTranslationOverlay _overlay = new();
     private readonly VoiceTranslationOverlay _voiceOverlay = new();
+    private readonly InputTranslationOverlay _inputOverlay = new();
     private readonly QuickSettingsOverlay _langOverlay = new();
     private readonly SettingsWindow _settings = new();
     private readonly OcrHttpClient _ocrClient;
@@ -88,7 +89,7 @@ public partial class MainWindow : Window
             return (url, deepLKey, geminiKey, langblyKey, myMemoryEmail,
                 TranslationEngineFactory.Parse(s.VoiceTranslationEngine), TranslationEngineFactory.Parse(s.TextTranslationEngine));
         }
-        catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
+        catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngineFactory.Default, TranslationEngineFactory.Default); }
     }
 
     private static void MigrateAppSettingsIfNeeded()
@@ -167,6 +168,7 @@ public partial class MainWindow : Window
         _settings.AllowClose();
         _langOverlay.Close();
         _voiceOverlay.Close();
+        _inputOverlay.Close();
         _editPanel.Close();
         _captureRegionOverlay.Close();
         StopLiveCaptionsWatcher();

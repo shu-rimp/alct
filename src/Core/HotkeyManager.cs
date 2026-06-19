@@ -7,6 +7,7 @@ namespace AlctClient.Core;
 public sealed class HotkeyManager : IDisposable
 {
     private const int WM_HOTKEY = 0x0312;
+    private const int WM_CLIPBOARDUPDATE = 0x031D;
     private const int HOTKEY_ID = 9000;
     private const int INPUT_TRANSLATION_HOTKEY_ID = 9001;
     private const int COOLDOWN_MS = 1000;
@@ -17,12 +18,19 @@ public sealed class HotkeyManager : IDisposable
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AddClipboardFormatListener(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RemoveClipboardFormatListener(IntPtr hWnd);
+
     private readonly IntPtr _hwnd;
     private DateTime _lastTriggerTime = DateTime.MinValue;
     private bool _disposed;
 
     public event Action? HotkeyPressed;
     public event Action? InputTranslationHotkeyPressed;
+    public event Action? ClipboardUpdated;  // 사용자가 무언가 복사함 — 입력창 번역 "준비 완료" 힌트용(키 주입 아님, 수동 알림)
 
     public HotkeyManager(Window window)
     {
@@ -30,6 +38,7 @@ public sealed class HotkeyManager : IDisposable
         helper.EnsureHandle();
         _hwnd = helper.Handle;
         HwndSource.FromHwnd(_hwnd)?.AddHook(WndProc);
+        AddClipboardFormatListener(_hwnd);
     }
 
     public bool Register(uint modifiers, uint virtualKey) =>
@@ -90,6 +99,10 @@ public sealed class HotkeyManager : IDisposable
                 handled = true;
             }
         }
+        else if (msg == WM_CLIPBOARDUPDATE)
+        {
+            ClipboardUpdated?.Invoke();
+        }
         return IntPtr.Zero;
     }
 
@@ -100,6 +113,7 @@ public sealed class HotkeyManager : IDisposable
     {
         if (_disposed) return;
         Unregister();
+        RemoveClipboardFormatListener(_hwnd);
         _disposed = true;
     }
 }
