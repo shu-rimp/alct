@@ -176,10 +176,25 @@ public partial class MainWindow
         finally { _captionLock.Release(); }
     }
 
-    private async Task HandleCaptionModeChangedAsync(bool enabled)
+    private async Task HandleCaptionModeChangedAsync(bool enabled, bool fromQuickOverlay = false)
     {
         if (enabled && !await AllLanguagePacksInstalledAsync())
         {
+            // 음성팩 미설치 상태에서 빠른 설정 오버레이의 음성 번역 토글을 킨 경우: 게임의 몰입을 해치는 팝업창 대신 오버레이로 안내하고 토글을 되돌린다.
+            // 입력 번역 오버레이 재사용
+            if (fromQuickOverlay)
+            {
+                _updatingCaption = true;
+                Dispatcher.Invoke(() =>
+                {
+                    _settings.SetCaptionMode(false);
+                    _langOverlay.SetCaptionMode(false);
+                    _inputOverlay.ShowNotice("먼저 언어팩 설치가 필요해요. 설정에서 설치해주세요.");
+                });
+                _updatingCaption = false;
+                return;
+            }
+
             bool confirmed = await Dispatcher.InvokeAsync(() =>
             {
                 var window = OnboardingWindow.ForLanguagePackInstall();

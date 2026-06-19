@@ -49,7 +49,7 @@ public partial class MainWindow
             _updatingCaption = true;
             Dispatcher.Invoke(() => _settings.SetCaptionMode(enabled));
             _updatingCaption = false;
-            await HandleCaptionModeChangedAsync(enabled);
+            await HandleCaptionModeChangedAsync(enabled, fromQuickOverlay: true);
         };
 
         _settings.ShowLanguageOverlayChanged += show =>
