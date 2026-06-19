@@ -59,6 +59,10 @@ public partial class MainWindow : Window
         InitOcrHandler();
         InitVoiceHandler();
         RunOnboardingIfNeeded();
+        // 온보딩을 완료하지 않고 닫으면 OnboardingWindow가 Application.Current.Shutdown()을 호출한다.
+        // 그 뒤 남은 초기화(트레이 아이콘 등)는 종료 중인 Application에서 실행되어 예외를 던지므로 중단한다.
+        // (종료가 진행되면 Application.Current 자체가 null이 될 수 있어 null도 "종료 중"으로 간주)
+        if (Application.Current is not { } app || app.Dispatcher.HasShutdownStarted) return;
         _ = CheckForUpdateAsync();
         InitTray();
         InitHotkeys();

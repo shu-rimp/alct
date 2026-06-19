@@ -45,8 +45,15 @@ public class TrayIconManager : IDisposable
 
     public static Icon CreateIcon()
     {
-        var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/assets/alct.ico"));
-        return resource is not null ? new Icon(resource.Stream) : FallbackIcon();
+        try
+        {
+            var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/assets/alct.ico"));
+            return resource is not null ? new Icon(resource.Stream) : FallbackIcon();
+        }
+        catch (InvalidOperationException)  // 앱 종료 중에는 리소스 시스템이 닫혀 GetResourceStream이 예외를 던진다
+        {
+            return FallbackIcon();
+        }
     }
 
     private static Icon FallbackIcon()
