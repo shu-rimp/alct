@@ -3,19 +3,27 @@ using AlctClient.Utils;
 using AlctClient.Views.Windows;
 using System.Diagnostics;
 using System.Management;
+using System.Text.RegularExpressions;
 
 namespace AlctClient;
 
 public partial class MainWindow
 {
-    private const int CAPTION_CONTEXT_SIZE = 5; // 번역 컨텍스트로 보낼 직전 발화 수
+    private const int CAPTION_CONTEXT_SIZE = 3; // 번역 컨텍스트로 보낼 직전 발화 수
 
     private readonly CaptionMonitorService _captionMonitor = new();
     private readonly SemaphoreSlim _captionLock = new(1, 1);
     private readonly SemaphoreSlim _translateQueue = new(1, 1);
     private readonly Queue<string> _captionContext = new();
     private ManagementEventWatcher? _liveCaptionsWatcher;
-    private DateTime _voiceQuotaBlockedUntil = DateTime.MinValue;  // 번역 API 한도 초과 시 이 UTC 시각까지 음성 번역 요청 차단
+
+    // 채팅 입력창 노이즈("채팅:KR", ":KR", "KR") — 3인 위치에선 캡쳐 하단에 입력창까지 들어와 번역 노이즈가 됨.
+    // 항상 단독 줄 + 대문자 KR로만 인식되므로, 소문자 kr이나 "KR player" 같은 실제 채팅은 보존됨(대소문자 구분).
+    private static readonly Regex ChatInputPromptRegex =
+        new(@"^\s*(채팅)?\s*[:：]?\s*KR\s*$", RegexOptions.Compiled);
+
+    private static string StripChatInputPrompt(string text) =>
+        string.Join("\n", text.Split('\n').Where(line => !ChatInputPromptRegex.IsMatch(line))).Trim();
 
     private void InitOcrHandler()
     {
@@ -23,9 +31,11 @@ public partial class MainWindow
         {
             try
             {
+                var cleaned = StripChatInputPrompt(normalizedText);
+                if (string.IsNullOrWhiteSpace(cleaned)) return; // 입력창 프롬프트만 잡힌 경우 — 번역할 내용 없음
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _textTranslationService.TranslateToKoreanAsync(normalizedText, sourceLang);
-                _overlay.ShowTranslation(translation, rawText);
+                var translation = await _translation.TextService.TranslateToKoreanAsync(cleaned, sourceLang);
+                _overlay.ShowTranslation(translation, StripChatInputPrompt(rawText));
             }
             catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
         };
@@ -40,7 +50,7 @@ public partial class MainWindow
         {
             // 번역 엔진 한도 초과 후 재개 시각까지: 요청도 오버레이 갱신도 하지 않음
             // (계속 보내봐야 매번 실패해 에러 로그만 쌓이고, 번역 안 된 원문만 덮어씀)
-            if (DateTime.UtcNow < _voiceQuotaBlockedUntil) return;
+            if (_translation.IsVoiceQuotaBlocked) return;
 
             _voiceOverlay.ShowOriginal(text);
             var context = BuildCaptionContext(text);
@@ -48,7 +58,7 @@ public partial class MainWindow
             try
             {
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _voiceTranslationService.TranslateToKoreanAsync(text, sourceLang, context);
+                var translation = await _translation.VoiceService.TranslateToKoreanAsync(text, sourceLang, context);
                 _voiceOverlay.ShowTranslation(translation);
             }
             catch (TranslationRateLimitException ex) when (ex.RetryAtUtc - DateTime.UtcNow <= TimeSpan.FromMinutes(10))
@@ -58,13 +68,13 @@ public partial class MainWindow
             }
             catch (TranslationRateLimitException ex)
             {
-                // 일일 한도류는 재개 시각까지, 영구 소진(DeepL 평생 한도)은 사실상 무기한 차단 + 1회 안내
-                _voiceQuotaBlockedUntil = ex.RetryAtUtc;
+                // 일일 한도류는 재개 시각까지, 영구 소진(DeepL 무료 요금제의 일회성 한도)은 사실상 무기한 차단 + 1회 안내
+                _translation.BlockVoiceQuotaUntil(ex.RetryAtUtc);
                 var msg = ex.RetryAtUtc - DateTime.UtcNow > TimeSpan.FromDays(30)
                     ? ex.Message  // 재개 시각이 없는 영구 소진 — 사유만
                     : $"{ex.Message} — {ex.RetryAtUtc.ToLocalTime():HH:mm} 이후 다시 사용할 수 있어요.";
                 _voiceOverlay.ShowTranslation(msg);
-                Logger.Info("CaptionTranslation", $"{ex.Message} — {_voiceQuotaBlockedUntil:u}까지 음성 번역 차단");
+                Logger.Info("CaptionTranslation", $"Voice translation blocked until {ex.RetryAtUtc:u} — reason: {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -166,10 +176,25 @@ public partial class MainWindow
         finally { _captionLock.Release(); }
     }
 
-    private async Task HandleCaptionModeChangedAsync(bool enabled)
+    private async Task HandleCaptionModeChangedAsync(bool enabled, bool fromQuickOverlay = false)
     {
         if (enabled && !await AllLanguagePacksInstalledAsync())
         {
+            // 음성팩 미설치 상태에서 빠른 설정 오버레이의 음성 번역 토글을 킨 경우: 게임의 몰입을 해치는 팝업창 대신 오버레이로 안내하고 토글을 되돌린다.
+            // 입력 번역 오버레이 재사용
+            if (fromQuickOverlay)
+            {
+                _updatingCaption = true;
+                Dispatcher.Invoke(() =>
+                {
+                    _settings.SetCaptionMode(false);
+                    _langOverlay.SetCaptionMode(false);
+                    _inputOverlay.ShowNotice("먼저 언어팩 설치가 필요해요. 설정에서 설치해주세요.");
+                });
+                _updatingCaption = false;
+                return;
+            }
+
             bool confirmed = await Dispatcher.InvokeAsync(() =>
             {
                 var window = OnboardingWindow.ForLanguagePackInstall();
@@ -223,7 +248,7 @@ public partial class MainWindow
         var jp = LanguagePackService.IsInstalledAsync("ja-JP");
         var zh = LanguagePackService.IsInstalledAsync("zh-CN");
         await Task.WhenAll(jp, zh);
-        Logger.Info("Preflight", $"언어팩 설치 상태 — ja-JP={jp.Result}, zh-CN={zh.Result}");
+        Logger.Info("Preflight", $"Language pack install status — ja-JP={jp.Result}, zh-CN={zh.Result}");
         return jp.Result && zh.Result;
     }
 

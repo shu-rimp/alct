@@ -49,7 +49,7 @@ public partial class MainWindow
             _updatingCaption = true;
             Dispatcher.Invoke(() => _settings.SetCaptionMode(enabled));
             _updatingCaption = false;
-            await HandleCaptionModeChangedAsync(enabled);
+            await HandleCaptionModeChangedAsync(enabled, fromQuickOverlay: true);
         };
 
         _settings.ShowLanguageOverlayChanged += show =>
@@ -89,63 +89,39 @@ public partial class MainWindow
 
         _settings.DeepLApiKeyChanged += key =>
         {
-            _deepLKey = key;
-            if (_voiceEngine == TranslationEngine.DeepL)
-            {
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, key);
-                _voiceQuotaBlockedUntil = DateTime.MinValue;  // 새 키 = 새 할당량 → 한도 차단 해제
-            }
-            if (_textEngine == TranslationEngine.DeepL)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.DeepL, key);
+            _translation.UpdateCredential(TranslationEngine.DeepL, key);
             SaveAppSetting("DeepLApiKey", key);
         };
 
         _settings.GeminiApiKeyChanged += key =>
         {
-            _geminiKey = key;
-            if (_voiceEngine == TranslationEngine.Gemini)
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, key);
-            if (_textEngine == TranslationEngine.Gemini)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Gemini, key);
+            _translation.UpdateCredential(TranslationEngine.Gemini, key);
             SaveAppSetting("GeminiApiKey", key);
         };
 
         _settings.LangblyApiKeyChanged += key =>
         {
-            _langblyKey = key;
-            if (_voiceEngine == TranslationEngine.Langbly)
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, key);
-            if (_textEngine == TranslationEngine.Langbly)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.Langbly, key);
+            _translation.UpdateCredential(TranslationEngine.Langbly, key);
             SaveAppSetting("LangblyApiKey", key);
         };
 
         _settings.MyMemoryEmailChanged += email =>
         {
-            _myMemoryEmail = email;
-            if (_voiceEngine == TranslationEngine.MyMemory)
-            {
-                _voiceTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, email);
-                _voiceQuotaBlockedUntil = DateTime.MinValue;  // 이메일 등록 = 한도 상향, 기존 한도 차단 해제
-            }
-            if (_textEngine == TranslationEngine.MyMemory)
-                _textTranslationService = TranslationEngineFactory.Create(TranslationEngine.MyMemory, email);
+            _translation.UpdateCredential(TranslationEngine.MyMemory, email);
             SaveAppSetting("MyMemoryEmail", email);
         };
 
         _settings.VoiceEngineChanged += engine =>
         {
-            _voiceEngine = engine;
-            _voiceTranslationService = TranslationEngineFactory.Create(engine, GetApiKey(engine));
-            _voiceQuotaBlockedUntil = DateTime.MinValue;  // 엔진 변경 시 MyMemory 한도 차단 해제
+            _translation.SetVoiceEngine(engine);
             SaveAppSetting("VoiceTranslationEngine", engine.ToString());
         };
 
         _settings.TextEngineChanged += engine =>
         {
-            _textEngine = engine;
-            _textTranslationService = TranslationEngineFactory.Create(engine, GetApiKey(engine));
+            _translation.SetTextEngine(engine);
             SaveAppSetting("TextTranslationEngine", engine.ToString());
+            _lastInputTranslation = null;  // 엔진이 바뀌면 같은 원문도 번역 결과가 달라지므로 직전 번역 비교값 초기화
         };
     }
 }

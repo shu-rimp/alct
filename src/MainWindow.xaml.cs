@@ -1,11 +1,12 @@
 using AlctClient.Core;
 using AlctClient.Utils;
+using AlctClient.Views.Modals;
 using AlctClient.Views.Overlays;
 using AlctClient.Views.Windows;
 using Microsoft.Win32;
-using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows;
 
 namespace AlctClient;
@@ -14,34 +15,23 @@ public partial class MainWindow : Window
 {
     private readonly ChatTranslationOverlay _overlay = new();
     private readonly VoiceTranslationOverlay _voiceOverlay = new();
+    private readonly InputTranslationOverlay _inputOverlay = new();
     private readonly QuickSettingsOverlay _langOverlay = new();
     private readonly SettingsWindow _settings = new();
     private readonly OcrHttpClient _ocrClient;
-    private ITranslationService _voiceTranslationService;
-    private ITranslationService _textTranslationService;
+    private readonly TranslationCoordinator _translation;
     private readonly UserSettings _userSettings;
-    private string _deepLKey   = string.Empty;
-    private string _geminiKey  = string.Empty;
-    private string _langblyKey = string.Empty;
-    private string _myMemoryEmail = string.Empty;  
-    private TranslationEngine _voiceEngine = TranslationEngine.MyMemory;
-    private TranslationEngine _textEngine  = TranslationEngine.MyMemory;
 
     public MainWindow()
     {
+        AssetCache.InvalidateIfVersionChanged();
         InitializeComponent();
-        var (serverUrl, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail, voiceEngine, textEngine) = LoadAppSettings();
+        var (serverUrl, serverToken, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail, voiceEngine, textEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
-        _ocrClient    = new OcrHttpClient(serverUrl);
-        _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl);
-        _deepLKey     = deepLApiKey;
-        _geminiKey    = geminiApiKey;
-        _langblyKey   = langblyApiKey;
-        _myMemoryEmail = myMemoryEmail;
-        _voiceEngine  = voiceEngine;
-        _textEngine   = textEngine;
-        _voiceTranslationService = TranslationEngineFactory.Create(voiceEngine, GetApiKey(voiceEngine));
-        _textTranslationService  = TranslationEngineFactory.Create(textEngine,  GetApiKey(textEngine));
+        _ocrClient    = new OcrHttpClient(serverUrl, serverToken);
+        _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl, serverToken);
+        _translation  = new TranslationCoordinator(
+            voiceEngine, textEngine, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail);
 
         _settings.SetDeepLApiKey(deepLApiKey);
         _settings.SetGeminiApiKey(geminiApiKey);
@@ -69,6 +59,11 @@ public partial class MainWindow : Window
         InitOcrHandler();
         InitVoiceHandler();
         RunOnboardingIfNeeded();
+        // 온보딩을 완료하지 않고 닫으면 OnboardingWindow가 Application.Current.Shutdown()을 호출한다.
+        // 그 뒤 남은 초기화(트레이 아이콘 등)는 종료 중인 Application에서 실행되어 예외를 던지므로 중단한다.
+        // (종료가 진행되면 Application.Current 자체가 null이 될 수 있어 null도 "종료 중"으로 간주)
+        if (Application.Current is not { } app || app.Dispatcher.HasShutdownStarted) return;
+        _ = CheckForUpdateAsync();
         InitTray();
         InitHotkeys();
         _settings.Show();
@@ -82,41 +77,25 @@ public partial class MainWindow : Window
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ALCT", "appsettings.json");
 
-    private static (string serverUrl, string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
+    private static (string serverUrl, string serverToken, string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
     {
         var fallbackUrl = BuildConstants.SERVER_URL;
         try
         {
             MigrateAppSettingsIfNeeded();
-            var path = _appSettingsPath;
-            using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            var root = doc.RootElement;
-            var customUrl  = root.TryGetProperty("ServerUrl", out var p1) ? p1.GetString() : null;
-            var url        = string.IsNullOrWhiteSpace(customUrl) ? fallbackUrl : customUrl;
-            var deepLKey   = DpapiHelper.Decrypt(root.TryGetProperty("DeepLApiKey",   out var p2) ? p2.GetString() ?? string.Empty : string.Empty);
-            var geminiKey  = DpapiHelper.Decrypt(root.TryGetProperty("GeminiApiKey",  out var p3) ? p3.GetString() ?? string.Empty : string.Empty);
-            var langblyKey = DpapiHelper.Decrypt(root.TryGetProperty("LangblyApiKey", out var p4) ? p4.GetString() ?? string.Empty : string.Empty);
-            var myMemoryEmail = root.TryGetProperty("MyMemoryEmail", out var p5) ? p5.GetString() ?? string.Empty : string.Empty;  // 평문(민감정보 아님)
+            var s = LoadAppSettingsModel();
+            var url = string.IsNullOrWhiteSpace(s.ServerUrl) ? fallbackUrl : s.ServerUrl;
+            var token = string.IsNullOrWhiteSpace(s.ServerToken) ? BuildConstants.SERVER_TOKEN : s.ServerToken;  // 평문(본인 서버 토큰 — 셀프 호스팅 override)
+            var deepLKey   = DpapiHelper.Decrypt(s.DeepLApiKey   ?? string.Empty);
+            var geminiKey  = DpapiHelper.Decrypt(s.GeminiApiKey  ?? string.Empty);
+            var langblyKey = DpapiHelper.Decrypt(s.LangblyApiKey ?? string.Empty);
+            var myMemoryEmail = s.MyMemoryEmail ?? string.Empty;  // 평문(민감정보 아님)
 
-            // 구버전 단일 엔진 설정 폴백
-            string? legacyEngine = root.TryGetProperty("TranslationEngine", out var leg) ? leg.GetString() : null;
-            string? voiceStr = root.TryGetProperty("VoiceTranslationEngine", out var ve) ? ve.GetString() : legacyEngine;
-            string? textStr  = root.TryGetProperty("TextTranslationEngine",  out var te) ? te.GetString()
-                             : root.TryGetProperty("OcrTranslationEngine",   out var oe) ? oe.GetString() : legacyEngine;
-
-            return (url, deepLKey, geminiKey, langblyKey, myMemoryEmail, TranslationEngineFactory.Parse(voiceStr), TranslationEngineFactory.Parse(textStr));
+            return (url, token, deepLKey, geminiKey, langblyKey, myMemoryEmail,
+                TranslationEngineFactory.Parse(s.VoiceTranslationEngine), TranslationEngineFactory.Parse(s.TextTranslationEngine));
         }
-        catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngine.MyMemory, TranslationEngine.MyMemory); }
+        catch { return (fallbackUrl, BuildConstants.SERVER_TOKEN, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngineFactory.Default, TranslationEngineFactory.Default); }
     }
-
-    private string GetApiKey(TranslationEngine engine) => engine switch
-    {
-        TranslationEngine.DeepL   => _deepLKey,
-        TranslationEngine.Gemini  => _geminiKey,
-        TranslationEngine.Langbly => _langblyKey,
-        TranslationEngine.MyMemory => _myMemoryEmail,  // de 파라미터용 이메일을 키 슬롯으로 전달
-        _                         => string.Empty,
-    };
 
     private static void MigrateAppSettingsIfNeeded()
     {
@@ -127,24 +106,61 @@ public partial class MainWindow : Window
         File.Copy(legacyPath, _appSettingsPath);
     }
 
+    // appsettings.json 스키마. API 키 3종은 DPAPI 암호화 저장, 나머지는 평문. 미설정 필드는 직렬화에서 생략(WhenWritingNull)
+    private sealed class AppSettings
+    {
+        public string? ServerUrl { get; set; }
+        public string? ServerToken { get; set; }
+        public string? DeepLApiKey { get; set; }
+        public string? GeminiApiKey { get; set; }
+        public string? LangblyApiKey { get; set; }
+        public string? MyMemoryEmail { get; set; }
+        public string? VoiceTranslationEngine { get; set; }
+        public string? TextTranslationEngine { get; set; }
+    }
+
+    private static readonly JsonSerializerOptions _appSettingsJson = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private static readonly HashSet<string> _encryptedFields = ["DeepLApiKey", "GeminiApiKey", "LangblyApiKey"];
+
+    // 파일이 없으면 빈 모델, 깨졌으면 예외 전파(호출부 catch가 처리: 읽기=폴백, 쓰기=중단+로그)
+    private static AppSettings LoadAppSettingsModel()
+    {
+        if (!File.Exists(_appSettingsPath)) return new AppSettings();
+        return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_appSettingsPath), _appSettingsJson) ?? new AppSettings();
+    }
 
     private static void SaveAppSetting(string settingKey, string value)
     {
         try
         {
-            var storedValue = _encryptedFields.Contains(settingKey) ? DpapiHelper.Encrypt(value) : value;
-            var path = _appSettingsPath;
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var existing = File.Exists(path) ? File.ReadAllText(path) : "{}";
-            using var doc = JsonDocument.Parse(existing);
-            var dict = new Dictionary<string, string?>();
-            foreach (var prop in doc.RootElement.EnumerateObject())
-                dict[prop.Name] = prop.Value.GetString();
-            dict[settingKey] = storedValue;
-            File.WriteAllText(path, JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true }));
+            // 타입드 모델로 라운드트립 — 기존 머지가 모든 값을 GetString()으로 강제 변환해 비문자열 필드에서 조용히 실패하던 문제 방지
+            var settings = LoadAppSettingsModel();
+            SetField(settings, settingKey, _encryptedFields.Contains(settingKey) ? DpapiHelper.Encrypt(value) : value);
+            Directory.CreateDirectory(Path.GetDirectoryName(_appSettingsPath)!);
+            File.WriteAllText(_appSettingsPath, JsonSerializer.Serialize(settings, _appSettingsJson));
         }
         catch (Exception ex) { Logger.Error("SaveAppSettings", ex); }
+    }
+
+    private static void SetField(AppSettings s, string settingKey, string value)
+    {
+        switch (settingKey)
+        {
+            case "ServerUrl":              s.ServerUrl = value; break;
+            case "DeepLApiKey":            s.DeepLApiKey = value; break;
+            case "GeminiApiKey":           s.GeminiApiKey = value; break;
+            case "LangblyApiKey":          s.LangblyApiKey = value; break;
+            case "MyMemoryEmail":          s.MyMemoryEmail = value; break;
+            case "VoiceTranslationEngine": s.VoiceTranslationEngine = value; break;
+            case "TextTranslationEngine":  s.TextTranslationEngine = value; break;
+            default: throw new ArgumentException($"Unknown setting key: {settingKey}");
+        }
     }
 
     private void ShutdownApp()
@@ -158,6 +174,7 @@ public partial class MainWindow : Window
         _settings.AllowClose();
         _langOverlay.Close();
         _voiceOverlay.Close();
+        _inputOverlay.Close();
         _editPanel.Close();
         _captureRegionOverlay.Close();
         StopLiveCaptionsWatcher();
@@ -177,10 +194,18 @@ public partial class MainWindow : Window
         Logger.Info("Preflight", $"Windows build={build} ({display}), LiveCaption={liveCaption}");
     }
 
+    private async Task CheckForUpdateAsync()
+    {
+        var info = await UpdateChecker.CheckAsync();
+        if (info is null) return;
+        new UpdateModal(info) { Owner = _settings }.ShowDialog();
+    }
+
     private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "capture_debug.png");
+        var dir = Path.Combine(AppContext.BaseDirectory, "capture_debug");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"capture_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png");
         File.WriteAllBytes(path, imageBytes);
-        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 }

@@ -1,3 +1,4 @@
+using AlctClient.Utils;
 using System.IO;
 using System.Text.Json;
 
@@ -17,7 +18,11 @@ public static class UserSettingsService
             if (!File.Exists(_path)) return new();
             return JsonSerializer.Deserialize<UserSettings>(File.ReadAllText(_path)) ?? new();
         }
-        catch { return new(); }
+        catch (Exception ex)
+        {
+            Logger.Error("UserSettings", ex);  // corrupt/unreadable file — settings silently reset to defaults
+            return new();
+        }
     }
 
     public static void Save(UserSettings settings)
@@ -29,7 +34,7 @@ public static class UserSettingsService
                 Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
                 File.WriteAllText(_path, JsonSerializer.Serialize(settings));
             }
-            catch { }
+            catch (Exception ex) { Logger.Error("UserSettings", ex); }  // save failed — settings won't persist
         }
     }
 }

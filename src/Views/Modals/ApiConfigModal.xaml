@@ -365,6 +365,12 @@
                                        Foreground="#F0A868"
                                        FontSize="11" TextWrapping="Wrap" LineHeight="18"/>
                         </Border>
+
+                        <TextBlock Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="11" Margin="0,16,0,0"
+                                   TextWrapping="Wrap" LineHeight="17">
+                            <Run Text="번역 서비스의 무료 요금제는 입력 내용이 품질 개선·학습이나 번역 메모리 보관에 쓰일 수 있어요. "/><Hyperlink Click="OnOpenTerms" Foreground="{StaticResource AccentBrush}">자세히 보기</Hyperlink>
+                        </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

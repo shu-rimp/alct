@@ -21,33 +21,6 @@ public static class WindowsApiHelper
 
     private static System.Drawing.Point? _liveCaptionsOriginalPos;
 
-    private const uint INPUT_KEYBOARD = 1;
-    private const uint KEYEVENTF_KEYUP = 0x0002;
-    private const ushort VK_CONTROL = 0x11;
-    private const ushort VK_SHIFT   = 0x10;
-    private const ushort VK_HOME    = 0x24;
-    private const ushort VK_C = 0x43;
-    private const ushort VK_V = 0x56;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct INPUT { public uint type; public InputUnion U; }
-
-    [StructLayout(LayoutKind.Explicit)]
-    private struct InputUnion
-    {
-        [FieldOffset(0)] public MOUSEINPUT mi;
-        [FieldOffset(0)] public KEYBDINPUT ki;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MOUSEINPUT { public int dx, dy; public uint mouseData, dwFlags, time; public IntPtr dwExtraInfo; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KEYBDINPUT { public ushort wVk, wScan; public uint dwFlags, time; public IntPtr dwExtraInfo; }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
@@ -56,26 +29,6 @@ public static class WindowsApiHelper
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
-
-    public static void SimulateSelectToLineStart() =>
-        // Ctrl-up first: hotkey modifier may still be logically down, causing Ctrl+Shift+Home (select to doc start) instead of Shift+Home
-        Send(KeyUp(VK_CONTROL), KeyDown(VK_SHIFT), KeyDown(VK_HOME), KeyUp(VK_HOME), KeyUp(VK_SHIFT));
-
-    public static void SimulateCopy() =>
-        Send(KeyDown(VK_CONTROL), KeyDown(VK_C), KeyUp(VK_C), KeyUp(VK_CONTROL));
-
-    public static void SimulatePaste() =>
-        // Trailing Ctrl Down+Up releases the stuck Ctrl state in the game after paste.
-        Send(KeyDown(VK_CONTROL), KeyDown(VK_V), KeyUp(VK_V), KeyUp(VK_CONTROL), KeyDown(VK_CONTROL), KeyUp(VK_CONTROL));
-
-    private static void Send(params INPUT[] inputs) =>
-        SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
-
-    private static INPUT KeyDown(ushort vk) =>
-        new() { type = INPUT_KEYBOARD, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk } } };
-
-    private static INPUT KeyUp(ushort vk) =>
-        new() { type = INPUT_KEYBOARD, U = new InputUnion { ki = new KEYBDINPUT { wVk = vk, dwFlags = KEYEVENTF_KEYUP } } };
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left, Top, Right, Bottom; }

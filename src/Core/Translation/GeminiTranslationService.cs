@@ -15,7 +15,11 @@ public sealed class GeminiTranslationService : ITranslationService
     private readonly HttpClient _http;
     private readonly string _apiKey;
     private readonly string _endpoint;
-    private const string Model = "gemini-3.1-flash-lite";
+
+    public const string Model = "gemini-3.1-flash-lite";
+    // 서비스와 키 검증(ApiConfigModal)이 공유 — 모델 ID/엔드포인트 단일 출처
+    public const string GenerateContentEndpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/" + Model + ":generateContent";
 
     public GeminiTranslationService(string apiKey) : this(apiKey, _defaultHttp) { }
 
@@ -23,14 +27,15 @@ public sealed class GeminiTranslationService : ITranslationService
     {
         _apiKey = apiKey;
         _http = http;
-        _endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={apiKey}";
+        _endpoint = GenerateContentEndpoint;
     }
 
+    // LLM 프롬프트에 들어갈 타깃 언어명 — 한국어 명("일본어")을 쓰면 입력에 섞인 한국어와 충돌해 모델이 한국어로 번역해버려 영어로 명시
     public string MapLanguageCode(string bcp47) => bcp47 switch
     {
-        "ja-JP" => "일본어",
-        "zh-CN" => "중국어(간체)",
-        "en-US" => "영어",
+        "ja-JP" => "Japanese",
+        "zh-CN" => "Simplified Chinese",
+        "en-US" => "English",
         _       => bcp47,
     };
 
@@ -43,7 +48,7 @@ public sealed class GeminiTranslationService : ITranslationService
             : $"Recent utterances for context (reference only, do NOT translate):\n{context}\n\n";
 
         return await CallAsync(
-            systemInstruction: "You are translating in-game chat messages from Apex Legends. The text may contain gaming slang, or abbreviations. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
+            systemInstruction: "You are a translation engine for fps in-game chat. The input may contain gaming slang, abbreviations, or several languages mixed together. Translate each line separately and output exactly the same number of lines as the input. Only output the translated text.",
             userContent: $"{contextBlock}Translate each line below to Korean, outputting the same number of lines:\n\n{ITranslationService.StripXmlTags(text)}",
             ct);
     }
@@ -52,8 +57,8 @@ public sealed class GeminiTranslationService : ITranslationService
     {
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;
         return await CallAsync(
-            systemInstruction: "You are translating in-game chat messages. The text may contain gaming slang or abbreviations. Only output the translated text.",
-            userContent: $"Translate the following Korean text to {MapLanguageCode(targetLang)}:\n\n{text}");
+            systemInstruction: "You are a translation engine for fps in-game chat. The input may contain gaming slang, abbreviations, or several languages mixed together. Translate the entire input into the target language faithfully and completely, preserving every sentence — never merge, summarize, deduplicate, or drop any part, even if some sentences share the same meaning. Only output the translated text.",
+            userContent: $"Translate the following text into {MapLanguageCode(targetLang)}, translating every sentence separately:\n\n{text}");
     }
 
     private async Task<string> CallAsync(string systemInstruction, string userContent, CancellationToken ct = default)
@@ -65,7 +70,13 @@ public sealed class GeminiTranslationService : ITranslationService
             generationConfig = new { temperature = 0.1, maxOutputTokens = 512, thinkingConfig = new { thinkingBudget = 0 } },
         };
 
-        var response = await _http.PostAsync(_endpoint, JsonContent.Create(payload), ct);
+        using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
+        {
+            Content = JsonContent.Create(payload),
+        };
+        request.Headers.Add("x-goog-api-key", _apiKey);  // 쿼리스트링(?key=) 대신 헤더 인증 — DeepL/Langbly와 일관
+
+        var response = await _http.SendAsync(request, ct);
         if ((int)response.StatusCode == 429)
             throw RateLimitException(await response.Content.ReadAsStringAsync(ct));
         response.EnsureSuccessStatusCode();

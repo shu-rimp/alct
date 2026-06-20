@@ -1,16 +1,9 @@
 using Microsoft.Win32;
-using System.Diagnostics;
 
 namespace AlctClient.Core;
 
 public static class LanguagePackService
 {
-    private static readonly Dictionary<string, string> Capabilities = new()
-    {
-        ["ja-JP"] = "Language.Speech~~~ja-JP~0.0.1.0",
-        ["zh-CN"] = "Language.Speech~~~zh-CN~0.0.1.0",
-    };
-
     // DEBUG: set to true to force all packs as uninstalled (remove after testing)
     public static bool ForceUninstalled { get; set; } = false;
 

@@ -22,6 +22,7 @@ public partial class HotkeyRecorderModal : Window
         ((uint)HotkeyModifiers.Ctrl, 0x56), // Ctrl+V
         ((uint)HotkeyModifiers.Ctrl, 0x58), // Ctrl+X
         ((uint)HotkeyModifiers.Ctrl, 0x5A), // Ctrl+Z
+        ((uint)HotkeyModifiers.Alt,  0x73), // Alt+F4
     };
 
     public HotkeyRecorderModal(string title, uint currentModifiers, uint currentVKey, uint otherModifiers, uint otherVKey)
@@ -67,13 +68,6 @@ public partial class HotkeyRecorderModal : Window
         }
 
         e.Handled = true;
-
-        if (key == Key.F4 && modifiers == ModifierKeys.Alt)
-        {
-            OnCancel(this, new RoutedEventArgs());
-            return;
-        }
-
         RecordCombo(modifiers, key);
     }
 
@@ -161,6 +155,15 @@ public partial class HotkeyRecorderModal : Window
         (key >= Key.D0 && key <= Key.D9) ||
         (key >= Key.NumPad0 && key <= Key.NumPad9);
 
-    private void OnConfirm(object sender, RoutedEventArgs e) { DialogResult = true;  Close(); }
-    private void OnCancel(object sender, RoutedEventArgs e)  { DialogResult = false; Close(); }
+    private bool _allowClose;
+
+    // 단축키 변경 모달에서 Alt+F4 입력 시 모달이 닫히는 것을 차단 — 확인/취소(Esc 포함)로만 닫히게 한다.
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_allowClose) { e.Cancel = true; return; }
+        base.OnClosing(e);
+    }
+
+    private void OnConfirm(object sender, RoutedEventArgs e) { _allowClose = true; DialogResult = true;  Close(); }
+    private void OnCancel(object sender, RoutedEventArgs e)  { _allowClose = true; DialogResult = false; Close(); }
 }

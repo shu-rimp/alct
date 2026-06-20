@@ -20,10 +20,13 @@ public sealed class GlossaryService
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ALCT", "glossary_data.json");
 
-    // 언어 → (원어 용어, 한국어) 목록. 긴 용어 우선 정렬 — 부분 문자열 중복 매칭 방지
+    // 로드 시점에 1회 만들어 캐시하는 치환 단위. Pattern!=null이면 정규식(ASCII 단어경계), null이면 단순 부분문자열 치환(CJK)
+    private readonly record struct GlossaryTerm(string Term, string Replacement, Regex? Pattern);
+
+    // 언어 → 치환 목록. 긴 용어 우선 정렬 — 부분 문자열 중복 매칭 방지
     // 각 언어 목록에는 common(언어 무관 영문 표기) 용어가 병합돼 있음
-    private volatile Dictionary<string, List<KeyValuePair<string, string>>> _entries = new();
-    private volatile List<KeyValuePair<string, string>> _commonOnly = new();  // 미등록 언어용 폴백
+    private volatile Dictionary<string, List<GlossaryTerm>> _entries = new();
+    private volatile List<GlossaryTerm> _commonOnly = new();  // 미등록 언어용 폴백
 
     private GlossaryService()
     {
@@ -38,25 +41,20 @@ public sealed class GlossaryService
         if (string.IsNullOrEmpty(text)) return text;
         if (!_entries.TryGetValue(sourceLang, out var terms)) terms = _commonOnly;
 
-        foreach (var (term, target) in terms)
-        {
-            // CJK는 띄어쓰기가 없어 부분일치로 치환.
-            // 영문 용어는 영숫자 인접만 차단(\b는 CJK도 단어 문자로 취급해 "wraith来了"를 놓침)
-            text = IsAsciiTerm(term)
-                ? Regex.Replace(text, $@"(?<![A-Za-z0-9]){Regex.Escape(term)}(?![A-Za-z0-9])", $"<x>{target}</x>", RegexOptions.IgnoreCase)
-                : text.Replace(term, $"<x>{target}</x>");
-        }
+        foreach (var t in terms)
+            text = t.Pattern is null ? text.Replace(t.Term, t.Replacement) : t.Pattern.Replace(text, t.Replacement);
         return text;
     }
 
     // 서버 용어집으로 갱신 — 성공 시 캐시 저장, 실패해도 기존(캐시/내장본) 유지
-    public async Task RefreshFromServerAsync(string serverUrl)
+    public async Task RefreshFromServerAsync(string serverUrl, string? token = null)
     {
         try
         {
+            var serverToken = string.IsNullOrEmpty(token) ? BuildConstants.SERVER_TOKEN : token;
             using var request = new HttpRequestMessage(HttpMethod.Get, serverUrl.TrimEnd('/') + "/glossary");
-            if (!BuildConstants.SERVER_TOKEN.StartsWith("#{"))
-                request.Headers.Add("X-ALCT-Token", BuildConstants.SERVER_TOKEN);
+            if (!serverToken.StartsWith("#{"))
+                request.Headers.Add("X-ALCT-Token", serverToken);
             var response = await _http.SendAsync(request);
             if (!response.IsSuccessStatusCode) return;
 
@@ -65,11 +63,11 @@ public sealed class GlossaryService
 
             Directory.CreateDirectory(Path.GetDirectoryName(_cachePath)!);
             await File.WriteAllTextAsync(_cachePath, json);
-            Logger.Info("Glossary", $"서버 용어집 갱신 완료 — {_entries.Sum(e => e.Value.Count)}개 용어");
+            Logger.Info("Glossary", $"Server glossary updated — {_entries.Sum(e => e.Value.Count)} terms");
         }
         catch (Exception ex)
         {
-            Logger.Info("Glossary", $"서버 용어집 갱신 실패({ex.GetType().Name}) — 캐시/내장본 사용");
+            Logger.Info("Glossary", $"Server glossary update failed ({ex.GetType().Name}) — using cache/embedded");
         }
     }
 
@@ -81,16 +79,16 @@ public sealed class GlossaryService
             var root = doc.RootElement;
             var common = root.TryGetProperty("common", out var c) ? ParseTerms(c) : new Dictionary<string, string>();
 
-            var dict = new Dictionary<string, List<KeyValuePair<string, string>>>();
+            var dict = new Dictionary<string, List<GlossaryTerm>>();
             foreach (var lang in root.GetProperty("languages").EnumerateObject())
             {
                 var merged = new Dictionary<string, string>(common);
                 foreach (var (term, target) in ParseTerms(lang.Value))
                     merged[term] = target;  // 언어별 용어가 common보다 우선
-                dict[lang.Name] = SortLongestFirst(merged);
+                dict[lang.Name] = BuildTerms(merged);
             }
 
-            _commonOnly = SortLongestFirst(common);
+            _commonOnly = BuildTerms(common);
             _entries = dict;
             return true;
         }
@@ -115,8 +113,17 @@ public sealed class GlossaryService
         return terms;
     }
 
-    private static List<KeyValuePair<string, string>> SortLongestFirst(Dictionary<string, string> terms) =>
-        terms.OrderByDescending(kv => kv.Key.Length).ToList();
+    // 긴 용어 우선 정렬 후 치환 단위로 변환. ASCII 용어만 Regex를 1회 생성·캐시(핫패스에서 재컴파일 방지).
+    // 영문 용어는 영숫자 인접만 차단(\b는 CJK도 단어 문자로 취급해 "wraith来了"를 놓침), CJK는 단순 부분일치 치환.
+    private static List<GlossaryTerm> BuildTerms(Dictionary<string, string> terms) =>
+        terms.OrderByDescending(kv => kv.Key.Length)
+            .Select(kv => new GlossaryTerm(
+                kv.Key,
+                $"<x>{kv.Value}</x>",
+                IsAsciiTerm(kv.Key)
+                    ? new Regex($@"(?<![A-Za-z0-9]){Regex.Escape(kv.Key)}(?![A-Za-z0-9])", RegexOptions.IgnoreCase)
+                    : null))
+            .ToList();
 
     private static string? LoadCacheFile()
     {

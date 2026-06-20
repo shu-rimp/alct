@@ -1,6 +1,5 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.IO;
 using System.Windows.Forms;
 
 namespace AlctClient.Utils;
@@ -10,11 +9,7 @@ public class TrayIconManager : IDisposable
     private readonly NotifyIcon _notifyIcon;
 
     public event Action? OpenSettingsRequested;
-    public event Action<bool>? OverlayToggleRequested;
     public event Action? ExitRequested;
-
-    private bool _overlayVisible;
-    private ToolStripMenuItem? _overlayItem;
 
     public TrayIconManager()
     {
@@ -39,28 +34,6 @@ public class TrayIconManager : IDisposable
     {
         var menu = new ContextMenuStrip();
 
-        var header = new ToolStripLabel("ALCT") { Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
-        menu.Items.Add(header);
-        menu.Items.Add(new ToolStripSeparator());
-
-        var openSettings = new ToolStripMenuItem("설정 열기");
-        openSettings.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.Invoke(
-                () => OpenSettingsRequested?.Invoke());
-        menu.Items.Add(openSettings);
-
-        _overlayItem = new ToolStripMenuItem("오버레이 메뉴 표시");
-        _overlayItem.Click += (_, _) =>
-        {
-            _overlayVisible = !_overlayVisible;
-            _overlayItem.Text = _overlayVisible ? "오버레이 메뉴 숨김" : "오버레이 메뉴 표시";
-            System.Windows.Application.Current.Dispatcher.Invoke(
-                () => OverlayToggleRequested?.Invoke(_overlayVisible));
-        };
-        menu.Items.Add(_overlayItem);
-
-        menu.Items.Add(new ToolStripSeparator());
-
         var exit = new ToolStripMenuItem("종료");
         exit.Click += (_, _) =>
             System.Windows.Application.Current.Dispatcher.Invoke(
@@ -70,21 +43,18 @@ public class TrayIconManager : IDisposable
         return menu;
     }
 
-    public void SetOverlayVisible(bool visible)
-    {
-        _overlayVisible = visible;
-        if (_overlayItem != null)
-            _overlayItem.Text = visible ? "오버레이 메뉴 숨김" : "오버레이 메뉴 표시";
-    }
-
     public static Icon CreateIcon()
     {
-        var path = IcoPath();
-        return File.Exists(path) ? new Icon(path) : FallbackIcon();
+        try
+        {
+            var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/assets/alct.ico"));
+            return resource is not null ? new Icon(resource.Stream) : FallbackIcon();
+        }
+        catch (InvalidOperationException)  // 앱 종료 중에는 리소스 시스템이 닫혀 GetResourceStream이 예외를 던진다
+        {
+            return FallbackIcon();
+        }
     }
-
-    private static string IcoPath() =>
-        Path.Combine(AppContext.BaseDirectory, "assets", "alct.ico");
 
     private static Icon FallbackIcon()
     {

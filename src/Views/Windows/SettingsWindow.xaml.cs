@@ -1,4 +1,5 @@
 using AlctClient.Core;
+using AlctClient.Utils;
 using AlctClient.Views.Modals;
 using System.ComponentModel;
 using System.IO;
@@ -46,22 +47,10 @@ public partial class SettingsWindow : Window
     public string MyMemoryEmail => _myMemoryEmail;
 
     public TranslationEngine SelectedVoiceEngine =>
-        ((VoiceEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
-        {
-            "DeepL"   => TranslationEngine.DeepL,
-            "Gemini"  => TranslationEngine.Gemini,
-            "Langbly" => TranslationEngine.Langbly,
-            _         => TranslationEngine.MyMemory,
-        };
+        TranslationEngineFactory.Parse((VoiceEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string);
 
     public TranslationEngine SelectedTextEngine =>
-        ((TextEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string) switch
-        {
-            "DeepL"   => TranslationEngine.DeepL,
-            "Gemini"  => TranslationEngine.Gemini,
-            "Langbly" => TranslationEngine.Langbly,
-            _         => TranslationEngine.MyMemory,
-        };
+        TranslationEngineFactory.Parse((TextEngineCombo.SelectedItem as ComboBoxItem)?.Tag as string);
 
     public SettingsWindow()
     {
@@ -73,17 +62,24 @@ public partial class SettingsWindow : Window
     {
         SetWindowIcon();
         LoadMonitors();
+        _ = LoadWordmarkAsync();
     }
 
     private void SetWindowIcon()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "assets", "alct.ico");
-        if (!File.Exists(path)) return;
-        using var icon = new System.Drawing.Icon(path, 32, 32);
+        var resource = Application.GetResourceStream(new Uri("pack://application:,,,/assets/alct.ico"));
+        if (resource is null) return;
+        using var icon = new System.Drawing.Icon(resource.Stream);
         Icon = Imaging.CreateBitmapSourceFromHIcon(
             icon.Handle,
             Int32Rect.Empty,
             System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
+    }
+
+    private async Task LoadWordmarkAsync()
+    {
+        var image = await AssetCache.GetImageAsync("alct-wordmark.png");
+        if (image is not null) WordmarkImage.Source = image;
     }
 
     private void LoadMonitors()
@@ -172,27 +168,18 @@ public partial class SettingsWindow : Window
     public void SetCaptureHotkeyLabel(string text) => CaptureHotkeyLabel.Text = text;
     public void SetInputHotkeyLabel(string text)   => InputHotkeyLabel.Text   = text;
 
-    public void SetVoiceEngine(TranslationEngine engine)
-    {
-        VoiceEngineCombo.SelectedIndex = engine switch
-        {
-            TranslationEngine.DeepL   => 1,
-            TranslationEngine.Gemini  => 2,
-            TranslationEngine.Langbly => 3,
-            _                         => 0,
-        };
-    }
+    public void SetVoiceEngine(TranslationEngine engine) => VoiceEngineCombo.SelectedIndex = EngineToComboIndex(engine);
 
-    public void SetTextEngine(TranslationEngine engine)
+    public void SetTextEngine(TranslationEngine engine) => TextEngineCombo.SelectedIndex = EngineToComboIndex(engine);
+
+    // ComboBox 항목 순서(MyMemory, DeepL, Gemini, Langbly)에 대응
+    private static int EngineToComboIndex(TranslationEngine engine) => engine switch
     {
-        TextEngineCombo.SelectedIndex = engine switch
-        {
-            TranslationEngine.DeepL   => 1,
-            TranslationEngine.Gemini  => 2,
-            TranslationEngine.Langbly => 3,
-            _                         => 0,
-        };
-    }
+        TranslationEngine.DeepL   => 1,
+        TranslationEngine.Gemini  => 2,
+        TranslationEngine.Langbly => 3,
+        _                         => 0,
+    };
 
     internal void AllowClose() => _allowClose = true;
 
