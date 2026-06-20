@@ -47,13 +47,14 @@ public sealed class GlossaryService
     }
 
     // 서버 용어집으로 갱신 — 성공 시 캐시 저장, 실패해도 기존(캐시/내장본) 유지
-    public async Task RefreshFromServerAsync(string serverUrl)
+    public async Task RefreshFromServerAsync(string serverUrl, string? token = null)
     {
         try
         {
+            var serverToken = string.IsNullOrEmpty(token) ? BuildConstants.SERVER_TOKEN : token;
             using var request = new HttpRequestMessage(HttpMethod.Get, serverUrl.TrimEnd('/') + "/glossary");
-            if (!BuildConstants.SERVER_TOKEN.StartsWith("#{"))
-                request.Headers.Add("X-ALCT-Token", BuildConstants.SERVER_TOKEN);
+            if (!serverToken.StartsWith("#{"))
+                request.Headers.Add("X-ALCT-Token", serverToken);
             var response = await _http.SendAsync(request);
             if (!response.IsSuccessStatusCode) return;
 

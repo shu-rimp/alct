@@ -26,10 +26,10 @@ public partial class MainWindow : Window
     {
         AssetCache.InvalidateIfVersionChanged();
         InitializeComponent();
-        var (serverUrl, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail, voiceEngine, textEngine) = LoadAppSettings();
+        var (serverUrl, serverToken, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail, voiceEngine, textEngine) = LoadAppSettings();
         _userSettings = UserSettingsService.Load();
-        _ocrClient    = new OcrHttpClient(serverUrl);
-        _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl);
+        _ocrClient    = new OcrHttpClient(serverUrl, serverToken);
+        _ = GlossaryService.Instance.RefreshFromServerAsync(serverUrl, serverToken);
         _translation  = new TranslationCoordinator(
             voiceEngine, textEngine, deepLApiKey, geminiApiKey, langblyApiKey, myMemoryEmail);
 
@@ -77,7 +77,7 @@ public partial class MainWindow : Window
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ALCT", "appsettings.json");
 
-    private static (string serverUrl, string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
+    private static (string serverUrl, string serverToken, string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail, TranslationEngine voiceEngine, TranslationEngine textEngine) LoadAppSettings()
     {
         var fallbackUrl = BuildConstants.SERVER_URL;
         try
@@ -85,15 +85,16 @@ public partial class MainWindow : Window
             MigrateAppSettingsIfNeeded();
             var s = LoadAppSettingsModel();
             var url = string.IsNullOrWhiteSpace(s.ServerUrl) ? fallbackUrl : s.ServerUrl;
+            var token = string.IsNullOrWhiteSpace(s.ServerToken) ? BuildConstants.SERVER_TOKEN : s.ServerToken;  // 평문(본인 서버 토큰 — 셀프 호스팅 override)
             var deepLKey   = DpapiHelper.Decrypt(s.DeepLApiKey   ?? string.Empty);
             var geminiKey  = DpapiHelper.Decrypt(s.GeminiApiKey  ?? string.Empty);
             var langblyKey = DpapiHelper.Decrypt(s.LangblyApiKey ?? string.Empty);
             var myMemoryEmail = s.MyMemoryEmail ?? string.Empty;  // 평문(민감정보 아님)
 
-            return (url, deepLKey, geminiKey, langblyKey, myMemoryEmail,
+            return (url, token, deepLKey, geminiKey, langblyKey, myMemoryEmail,
                 TranslationEngineFactory.Parse(s.VoiceTranslationEngine), TranslationEngineFactory.Parse(s.TextTranslationEngine));
         }
-        catch { return (fallbackUrl, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngineFactory.Default, TranslationEngineFactory.Default); }
+        catch { return (fallbackUrl, BuildConstants.SERVER_TOKEN, string.Empty, string.Empty, string.Empty, string.Empty, TranslationEngineFactory.Default, TranslationEngineFactory.Default); }
     }
 
     private static void MigrateAppSettingsIfNeeded()
@@ -109,6 +110,7 @@ public partial class MainWindow : Window
     private sealed class AppSettings
     {
         public string? ServerUrl { get; set; }
+        public string? ServerToken { get; set; }
         public string? DeepLApiKey { get; set; }
         public string? GeminiApiKey { get; set; }
         public string? LangblyApiKey { get; set; }

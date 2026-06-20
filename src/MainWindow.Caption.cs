@@ -9,7 +9,7 @@ namespace AlctClient;
 
 public partial class MainWindow
 {
-    private const int CAPTION_CONTEXT_SIZE = 5; // 번역 컨텍스트로 보낼 직전 발화 수
+    private const int CAPTION_CONTEXT_SIZE = 3; // 번역 컨텍스트로 보낼 직전 발화 수
 
     private readonly CaptionMonitorService _captionMonitor = new();
     private readonly SemaphoreSlim _captionLock = new(1, 1);
@@ -68,7 +68,7 @@ public partial class MainWindow
             }
             catch (TranslationRateLimitException ex)
             {
-                // 일일 한도류는 재개 시각까지, 영구 소진(DeepL 평생 한도)은 사실상 무기한 차단 + 1회 안내
+                // 일일 한도류는 재개 시각까지, 영구 소진(DeepL 무료 요금제의 일회성 한도)은 사실상 무기한 차단 + 1회 안내
                 _translation.BlockVoiceQuotaUntil(ex.RetryAtUtc);
                 var msg = ex.RetryAtUtc - DateTime.UtcNow > TimeSpan.FromDays(30)
                     ? ex.Message  // 재개 시각이 없는 영구 소진 — 사유만

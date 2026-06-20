@@ -157,7 +157,7 @@ public partial class HotkeyRecorderModal : Window
 
     private bool _allowClose;
 
-    // Alt+F4 등 시스템 닫기를 차단 — 확인/취소(Esc 포함)로만 닫히게 한다
+    // 단축키 변경 모달에서 Alt+F4 입력 시 모달이 닫히는 것을 차단 — 확인/취소(Esc 포함)로만 닫히게 한다.
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (!_allowClose) { e.Cancel = true; return; }

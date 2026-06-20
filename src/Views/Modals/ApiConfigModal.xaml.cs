@@ -35,6 +35,8 @@ public partial class ApiConfigModal : Window
     private static readonly string GeminiUsageUrl  = "https://aistudio.google.com/rate-limit";
     private static readonly string LangblyGuideUrl = "https://langbly.com/signup";
     private static readonly string LangblyUsageUrl = "https://langbly.com/dashboard";
+    // 번역 서비스 데이터 사용에 대한 전체 내용 — 현재는 GitHub의 개인정보 처리방침(PRIVACY.md) 데이터 사용 섹션. 홈페이지 생기면 교체.
+    private static readonly string TermsUrl = "https://github.com/shu-rimp/alct/blob/main/PRIVACY.md#3-번역-서비스의-데이터-사용";
 
     public ApiConfigModal(string deepLKey, string geminiKey, string langblyKey, string myMemoryEmail)
     {
@@ -241,7 +243,7 @@ public partial class ApiConfigModal : Window
         var key = System.Windows.Clipboard.GetText().Trim();
         if (string.IsNullOrEmpty(key)) return;
 
-        if (_currentEngine == TranslationEngine.MyMemory)  // 이메일은 검증 없이 입력만
+        if (_currentEngine == TranslationEngine.MyMemory)  // 이메일은 검증 없이 입력만(형식 체크는 MyMemoryTranslationService.cs 에서 하므로 잘못된 쿼리문이 서비스 API로 나가지 않는다.)
         {
             EmailBox.Text = key;
             return;
@@ -376,6 +378,9 @@ public partial class ApiConfigModal : Window
         var url = _currentEngine == TranslationEngine.Gemini ? GeminiUsageUrl : LangblyUsageUrl;
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }
+
+    private void OnOpenTerms(object sender, RoutedEventArgs e) =>
+        Process.Start(new ProcessStartInfo(TermsUrl) { UseShellExecute = true });
 
     private void OnSave(object sender, RoutedEventArgs e)
     {

@@ -234,7 +234,7 @@ public sealed class CaptionMonitorService : IDisposable
 
     // 줄에서 이미 커밋된 앞부분(_committedText)을 제거한 나머지를 반환.
     // 줄이 더 이상 커밋 prefix로 시작하지 않으면(STT 후행 수정) 커밋을 무효화하고 전체를 반환한다.
-    //   → 원시 offset 슬라이싱이 수정된 줄의 첫 단어를 잘라먹던 버그(예: "Throwing arc star."→"ar.")를 방지.
+    //   → 원시 offset 슬라이싱이 수정된 줄의 첫 몇 자를 잘라먹던 버그(예: "Throwing arc star."→"ing arc star.")를 방지.
     // 재발송이 생겨도 TryFireLine의 dedup + 내용 비교가 기계적 중복을 막아준다.
     private string GetRemaining(string line)
     {
@@ -258,7 +258,7 @@ public sealed class CaptionMonitorService : IDisposable
 
     // 중복 발송 방지 후 CaptionStabilized 발생
     // FIRE_DEDUP_MS(짧은 윈도우) 이내 동일 문장만 차단 — 기계적 재발사만 막고,
-    // 발화 내 의도적 단어 반복(예: "가자 가자")은 정상 입력이므로 재발송 허용
+    // 발화 내 의도적 단어 반복(예: "go go")은 정상 입력이므로 재발송 허용
     private void TryFireLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line)) return;
@@ -280,7 +280,7 @@ public sealed class CaptionMonitorService : IDisposable
         _firedLineCount = lines.Length - 1;
         _lastPartialLine = lines[^1].Trim();
         // 시작 시 심은 partial에 변경 시각을 찍어줌 — 안 찍으면 MinValue라 첫 Poll의 CheckDebounce가
-        // DEBOUNCE_MS를 안 기다리고 즉시 발사해버림(앱 실행 직후 첫 발화 선두가 단독 발송되던 버그)
+        // DEBOUNCE_MS를 안 기다리고 즉시 발사해버림(앱 실행 직후 첫 발화 선두가 단독 발송(예: "Hello. Nice to meet you." -> "Hello."(전송) "Nice to meet you.")되던 버그)
         _lastPartialChangeTime = DateTime.UtcNow;
         ResetStableState();
     }

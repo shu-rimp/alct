@@ -14,15 +14,20 @@ public sealed class OcrHttpClient
     });
     private readonly HttpClient _http;
     private readonly string _ocrUrl;
+    private readonly string _token;
 
     public event Action<string, string>? OcrTextReceived;  // (normalizedText, rawText)
 
-    public OcrHttpClient(string serverUrl) : this(serverUrl, _defaultHttp) { }
+    // token: appsettings.json의 ServerToken(셀프 호스팅 override). 비어 있으면 BuildConstants 기본값 사용.
+    public OcrHttpClient(string serverUrl, string? token = null) : this(serverUrl, token, _defaultHttp) { }
 
-    internal OcrHttpClient(string serverUrl, HttpClient http)
+    internal OcrHttpClient(string serverUrl, HttpClient http) : this(serverUrl, null, http) { }
+
+    internal OcrHttpClient(string serverUrl, string? token, HttpClient http)
     {
         _ocrUrl = serverUrl.TrimEnd('/') + "/ocr";
         _http = http;
+        _token = string.IsNullOrEmpty(token) ? BuildConstants.SERVER_TOKEN : token;
     }
 
     public async Task SendImageAsync(byte[] imageBytes)
@@ -47,8 +52,8 @@ public sealed class OcrHttpClient
         for (var attempt = 0; ; attempt++)
         {
             using var content = new ByteArrayContent(imageBytes);
-            if (!BuildConstants.SERVER_TOKEN.StartsWith("#{"))
-                content.Headers.Add("X-ALCT-Token", BuildConstants.SERVER_TOKEN);
+            if (!_token.StartsWith("#{"))
+                content.Headers.Add("X-ALCT-Token", _token);
 
             var response = await _http.PostAsync(_ocrUrl, content);
             if ((int)response.StatusCode != 503 || attempt >= OCR_MAX_RETRIES)
