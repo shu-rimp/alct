@@ -7,6 +7,9 @@
     <Company></Company>
     <Copyright>Copyright © 2026 shu-rimp</Copyright>
     <PublishSingleFile>true</PublishSingleFile>
+    <!-- WPF 네이티브 DLL(PresentationNative/wpfgfx 등)을 exe에 번들해 런타임에 자가 추출.
+         없으면 단일 파일 배포 시 SetWindowLongPtrWndProc DllNotFoundException으로 즉시 크래시. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <LangVersion>12.0</LangVersion>
