@@ -198,16 +198,17 @@ public class OcrHttpClientTests
     }
 
     [Fact]
-    public async Task SendImageAsync_DoesNotFireEvent_WhenNormalizedTextEmpty()
+    public async Task SendImageAsync_FiresEventWithEmptyString_WhenNormalizedTextEmpty()
     {
-        bool fired = false;
+        // 빈 결과여도 이벤트를 쏴서 구독자가 "찾지 못함"을 안내할 수 있어야 한다.
+        string? received = null;
         var client = new OcrHttpClient("http://localhost:8000",
             MakeClient("""{"normalizedText":""}"""));
-        client.OcrTextReceived += (_, _) => fired = true;
+        client.OcrTextReceived += (normalized, _) => received = normalized;
 
         await client.SendImageAsync(new byte[] { 1 });
 
-        Assert.False(fired);
+        Assert.Equal(string.Empty, received);
     }
 }
 

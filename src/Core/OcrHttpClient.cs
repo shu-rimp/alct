@@ -41,8 +41,8 @@ public sealed class OcrHttpClient
             ? nVal.GetString() : null;
         var raw = doc.RootElement.TryGetProperty("rawText", out var rVal)
             ? rVal.GetString() ?? string.Empty : string.Empty;
-        if (!string.IsNullOrEmpty(normalized))
-            OcrTextReceived?.Invoke(normalized, raw);
+        // 빈 결과(텍스트 미인식)여도 이벤트를 쏴서 "찾지 못함"을 안내할 수 있게 한다.
+        OcrTextReceived?.Invoke(normalized ?? string.Empty, raw);
     }
 
     // 503(동시성 풀)만 Retry-After만큼 대기 후 같은 이미지로 재요청. 그 외 코드(성공 포함)는 즉시 반환.

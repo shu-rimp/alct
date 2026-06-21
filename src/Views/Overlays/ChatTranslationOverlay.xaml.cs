@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace AlctClient.Views.Overlays;
@@ -14,10 +16,17 @@ public partial class ChatTranslationOverlay : Window
 {
     private const int MAX_ENTRIES = 5;
     private const int AUTO_HIDE_DELAY_MS = 5000;
+    private const int LOADING_TIMEOUT_MS = 8000;  // 결과/오류가 끝내 안 와도(서버가 텍스트 미인식 등) 스피너가 갇히지 않도록 안전 상한
     private static readonly WpfColor BgColor = WpfColor.FromRgb(0x16, 0x14, 0x1F);
+
+    private static readonly DoubleAnimation SpinAnimation = new(0, 360, TimeSpan.FromSeconds(0.85))
+    {
+        RepeatBehavior = RepeatBehavior.Forever
+    };
 
     private readonly ObservableCollection<TranslationEntry> _entries = new();
     private DispatcherTimer? _hideTimer;
+    private DispatcherTimer? _loadingTimer;  // 스피너 안전 타임아웃 — 결과용 _hideTimer와 분리
     private double _opacity = 0.7;
     private bool _isEditMode;
     private bool _isPlaceholder;
@@ -196,12 +205,72 @@ public partial class ChatTranslationOverlay : Window
         }
     }
 
-    public void ShowNotice(string message) => ShowTranslation(message, string.Empty);
+    // 채팅 번역(캡처->OCR->번역)이 진행되는 동안 스피너를 띄운다. 결과(ShowTranslation)나
+    // 오류 안내(ShowNotice)가 오면 같은 창에서 교체되고, 둘 다 안 오면 안전 타임아웃으로 정리.
+    public void ShowLoading(string message = "번역 중…")
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _hideTimer?.Stop();
+            NoticeText.Visibility = Visibility.Collapsed;
+            _entries.Clear();
+            _isPlaceholder = false;
+            LoadingText.Text = message;
+            LoadingRow.Visibility = Visibility.Visible;
+            SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, SpinAnimation);
+            Show();
+
+            _loadingTimer?.Stop();
+            _loadingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(LOADING_TIMEOUT_MS) };
+            _loadingTimer.Tick += (_, _) => { _loadingTimer!.Stop(); HideLoadingCore(); };
+            _loadingTimer.Start();
+        });
+    }
+
+    // 결과 없이 끝난 경우(인식된 텍스트 없음/번역 실패)에 스피너만 정리. 이미 결과가 떴으면 무시.
+    public void HideLoading() => Dispatcher.Invoke(() =>
+    {
+        if (LoadingRow.Visibility != Visibility.Visible) return; // 이미 ShowTranslation/ShowNotice가 교체함
+        HideLoadingCore();
+    });
+
+    private void HideLoadingCore()
+    {
+        _loadingTimer?.Stop();
+        StopSpinner();
+        if (_entries.Count == 0 && !_isEditMode) Hide();
+    }
+
+    // 스피너 애니메이션 중지 + 행 숨김. 결과 표시 직전에 호출(_entries는 건드리지 않음).
+    private void StopSpinner()
+    {
+        _loadingTimer?.Stop();
+        if (LoadingRow.Visibility != Visibility.Visible) return;
+        SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+        LoadingRow.Visibility = Visibility.Collapsed;
+    }
+
+    // 안내/오류 메시지 — 번역 결과와 달리 '번역 중…'과 동일한 작은 보조색 스타일로 표시.
+    public void ShowNotice(string message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            StopSpinner();
+            _entries.Clear();
+            _isPlaceholder = false;
+            NoticeText.Text = message;
+            NoticeText.Visibility = Visibility.Visible;
+            Show();
+            ScheduleAutoHide();
+        });
+    }
 
     public void ShowTranslation(string translated, string original)
     {
         Dispatcher.Invoke(() =>
         {
+            StopSpinner();
+            NoticeText.Visibility = Visibility.Collapsed;
             _entries.Clear();
             _isPlaceholder = false;
 
@@ -226,6 +295,8 @@ public partial class ChatTranslationOverlay : Window
     {
         Dispatcher.Invoke(() =>
         {
+            StopSpinner();
+            NoticeText.Visibility = Visibility.Collapsed;
             _entries.Clear();
             _isPlaceholder = false;
             _entries.Add(new TranslationEntry(translated, original));
@@ -242,6 +313,7 @@ public partial class ChatTranslationOverlay : Window
         {
             _hideTimer.Stop();
             if (!_isPlaceholder) _entries.Clear();
+            NoticeText.Visibility = Visibility.Collapsed;
             if (!_isEditMode) Hide();
         };
         _hideTimer.Start();
