@@ -7,6 +7,7 @@ public sealed class OcrHttpClient
 {
     private const int OCR_MAX_RETRIES = 2;                          // 503(동시성 풀) 한정 재시도 횟수
     private static readonly TimeSpan DEFAULT_RETRY_DELAY = TimeSpan.FromSeconds(1);  // Retry-After 헤더 없을 때 폴백
+    private const int RETRY_JITTER_MS = 500;  // 재시도 분산 — 정수초 retry-after가 못 메우는 1초 미만 구간을 흩뿌림(헤더 없는 폴백 경로의 동기화도 방지)
 
     private static readonly HttpClient _defaultHttp = new(new SocketsHttpHandler
     {
@@ -59,7 +60,9 @@ public sealed class OcrHttpClient
             if ((int)response.StatusCode != 503 || attempt >= OCR_MAX_RETRIES)
                 return response;
 
-            var delay = response.Headers.RetryAfter?.Delta ?? DEFAULT_RETRY_DELAY;
+            // retry-after(정수초)를 floor로 지키고, 그 위에 1초 미만 jitter를 더해 동기화된 재전송을 흩뿌린다.
+            var delay = (response.Headers.RetryAfter?.Delta ?? DEFAULT_RETRY_DELAY)
+                        + TimeSpan.FromMilliseconds(Random.Shared.Next(RETRY_JITTER_MS));
             response.Dispose();
             await Task.Delay(delay);
         }

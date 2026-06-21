@@ -42,8 +42,12 @@ public partial class MainWindow
                 var translation = await _translation.TextService.TranslateToKoreanAsync(cleaned, sourceLang);
                 _overlay.ShowTranslation(translation, StripChatInputPrompt(rawText));
             }
-            catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
-            finally { _overlay.HideLoading(); } // 인식없음·번역실패 시 스피너 정리(성공 시엔 ShowTranslation이 이미 끔)
+            catch (Exception ex)
+            {
+                Logger.Error("OcrTranslation", ex);
+                _overlay.ShowNotice("번역에 실패했어요. 잠시 후 다시 시도해주세요."); // 빈 화면 대신 안내
+            }
+            finally { _overlay.HideLoading(); } // 성공/안내 시엔 이미 스피너가 꺼졌고, 그 외 잔여 스피너만 정리
         };
     }
 

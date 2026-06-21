@@ -16,7 +16,6 @@ public partial class ChatTranslationOverlay : Window
 {
     private const int MAX_ENTRIES = 5;
     private const int AUTO_HIDE_DELAY_MS = 5000;
-    private const int LOADING_TIMEOUT_MS = 8000;  // 결과/오류가 끝내 안 와도(서버가 텍스트 미인식 등) 스피너가 갇히지 않도록 안전 상한
     private static readonly WpfColor BgColor = WpfColor.FromRgb(0x16, 0x14, 0x1F);
 
     private static readonly DoubleAnimation SpinAnimation = new(0, 360, TimeSpan.FromSeconds(0.85))
@@ -26,7 +25,6 @@ public partial class ChatTranslationOverlay : Window
 
     private readonly ObservableCollection<TranslationEntry> _entries = new();
     private DispatcherTimer? _hideTimer;
-    private DispatcherTimer? _loadingTimer;  // 스피너 안전 타임아웃 — 결과용 _hideTimer와 분리
     private double _opacity = 0.7;
     private bool _isEditMode;
     private bool _isPlaceholder;
@@ -205,8 +203,9 @@ public partial class ChatTranslationOverlay : Window
         }
     }
 
-    // 채팅 번역(캡처->OCR->번역)이 진행되는 동안 스피너를 띄운다. 결과(ShowTranslation)나
-    // 오류 안내(ShowNotice)가 오면 같은 창에서 교체되고, 둘 다 안 오면 안전 타임아웃으로 정리.
+    // 채팅 번역(캡처->OCR->번역)이 진행되는 동안 스피너를 띄운다.
+    // 모든 종료 경로(결과 ShowTranslation / 안내 ShowNotice / 실패 HideLoading)가 스피너를 끄므로
+    // 별도 타임아웃은 두지 않는다 — 타임아웃을 두면 느린(정상) 번역을 도중에 끊어 빈 화면이 됐었음.
     public void ShowLoading(string message = "번역 중…")
     {
         Dispatcher.Invoke(() =>
@@ -219,32 +218,20 @@ public partial class ChatTranslationOverlay : Window
             LoadingRow.Visibility = Visibility.Visible;
             SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, SpinAnimation);
             Show();
-
-            _loadingTimer?.Stop();
-            _loadingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(LOADING_TIMEOUT_MS) };
-            _loadingTimer.Tick += (_, _) => { _loadingTimer!.Stop(); HideLoadingCore(); };
-            _loadingTimer.Start();
         });
     }
 
-    // 결과 없이 끝난 경우(인식된 텍스트 없음/번역 실패)에 스피너만 정리. 이미 결과가 떴으면 무시.
+    // 결과 없이 끝난 경우(번역 실패 등)에 스피너만 정리. 이미 결과/안내로 교체됐으면 무시.
     public void HideLoading() => Dispatcher.Invoke(() =>
     {
-        if (LoadingRow.Visibility != Visibility.Visible) return; // 이미 ShowTranslation/ShowNotice가 교체함
-        HideLoadingCore();
-    });
-
-    private void HideLoadingCore()
-    {
-        _loadingTimer?.Stop();
+        if (LoadingRow.Visibility != Visibility.Visible) return;
         StopSpinner();
         if (_entries.Count == 0 && !_isEditMode) Hide();
-    }
+    });
 
     // 스피너 애니메이션 중지 + 행 숨김. 결과 표시 직전에 호출(_entries는 건드리지 않음).
     private void StopSpinner()
     {
-        _loadingTimer?.Stop();
         if (LoadingRow.Visibility != Visibility.Visible) return;
         SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, null);
         LoadingRow.Visibility = Visibility.Collapsed;
