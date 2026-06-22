@@ -133,6 +133,10 @@ public static class WindowsApiHelper
     {
         if (Process.GetProcessesByName("LiveCaptions").Length > 0) return;
 
+        // 실행 직전(=꺼진 상태)에 위치를 오버레이로 강제 — WindowPosition은 Live Captions가
+        // 종료될 때만 기록되므로 실행 중에 쓰면 종료 시 덮어써진다. 여기가 유일하게 안전한 시점.
+        SetLiveCaptionsOverlayPosition();
+
         // 단축키(Win+Ctrl+L) 시뮬레이션 대신 실행 파일을 직접 실행 —
         // 실행 시점에 사용자가 물리 키를 누르고 있어도 가상 키 입력과 충돌하지 않음.
         // LiveCaptions.exe는 System32에만 존재하며, AnyCPU 64비트 프로세스라 WOW64 리다이렉션 영향 없음.
@@ -199,6 +203,16 @@ public static class WindowsApiHelper
 
         using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\LiveCaptions\UI", writable: true);
         key?.SetValue("CaptionLanguage", bcp47Tag, RegistryValueKind.String);
+    }
+
+    // Live Captions 위치를 '화면에 오버레이됨'(플로팅)으로 강제한다.
+    // 기본값 '위 화면'(WindowPosition=1)은 작업영역 상단 띠를 차지해, SetLiveCaptionsVisible(false)로
+    // 창을 화면 밖으로 옮겨도 그 투명 영역이 남는다. 오버레이(15)여야 화면 밖 이동(숨김)이 정상 동작한다.
+    public static void SetLiveCaptionsOverlayPosition()
+    {
+        const int OVERLAY = 15;
+        using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\LiveCaptions\UI", writable: true);
+        key?.SetValue("WindowPosition", OVERLAY, RegistryValueKind.DWord);
     }
 
     public static bool IsLiveCaptionSupported()
