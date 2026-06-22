@@ -4,25 +4,13 @@ using System.Windows.Automation;
 
 namespace AlctClient.Core;
 
-// Live Captions 텍스트 누적 방식:
-//   "Hello world\nGo mid\nBuy item"
-//    ^^^^^^^^^^^  ^^^^^^   ^^^^^^^
-//    완성 줄(\n)   완성 줄   진행 중(partial)
-// 1. STT가 완료된 문장들이 개행문자(\n)로 들어온다.
-//    여기서 문장이란 실제 의미가 아닌 텍스트 덩어리를 의미함.
-//    (화자분리와 문장 끝맺음 등이 정확하지 않음)
-// 2. 진행중(partial)일 때는 단어가 바뀌거나 추가됨
-// 3. 마지막 발화에 대해서는 개행문자(\n) 처리를 하지 않음.
-//
-// 탐지 전략:
-//   1차: \n 추가 시 완성 줄 즉시 발송
-//   2차: partial 줄이 DEBOUNCE_MS 동안 변화 없으면 발송(마지막 발화)
-//   3차: partial이 계속 자라기만 함 → stable prefix를 경계 기준으로 MIN_COMMIT_LENGTH만큼의 텍스트를 부분 커밋 (연속 발화)
+// Live Captions를 POLL_MS마다 읽어, 발화를 번역하기 좋은 단위로 잘라 발송한다.
+// 자세한 설계·과거 폭탄 버그·튜닝 근거는 docs/caption_monitor_logic.md 참고.
 public sealed class CaptionMonitorService : IDisposable
 {
     private const int POLL_MS = 50;            // Live Captions 텍스트를 가져오는 주기. 낮출수록 시각적 피드백이 빨라지지만 cpu 사용량이 증가함(미미한 수준이긴 함), 25미만은 의미 없음
     private const int DEBOUNCE_MS = 800;       // 이 시간동안 발화가 없으면 마지막 발화로 간주하고 번역을 보냄. 너무 낮추면 발화 중간 숨 고르기(~0.8초)에 조각이 발사되므로 여유있게. 너무 늘리면 번역이 느리다고 느껴짐.
-    private const int MIN_COMMIT_LENGTH = 100;  // uncommitted가 이 가중 길이(CJK=2) 이상 쌓이면 강제 커밋 고려 — CJK ~50자, 라틴 ~100자
+    private const int MIN_COMMIT_LENGTH = 100;  // uncommitted가 이 가중 길이(CJK=2) 이상 쌓이면 강제 커밋 고려 - CJK ~50자, 라틴 ~100자
     private const int PREFIX_STABLE_COUNT = 3;  // 앞부분이 이 횟수만큼 연속 안정이면 확정으로 간주
     private const int MAX_PARTIAL_MS = 6000;    // 이 시간 초과 시 무조건 flush
     private const int FIRE_DEDUP_MS = 150;      // 청크 커밋 직후 \n 완성 등으로 같은 줄이 즉시 재발사되는 기계적 중복만 차단
@@ -63,6 +51,7 @@ public sealed class CaptionMonitorService : IDisposable
     private bool _disposed;
     private AutomationElement? _captionsWindow;
     private AutomationElement? _captionsTextBlock;
+    private bool _rebaselineOnNextPoll;   // 요소 무효화 후 재탐색 시: 갭 동안 누적된 텍스트를 한꺼번에 발사하지 않고 현재 텍스트를 새 baseline으로 삼는다
 
     public event Action<string>? CaptionUpdating;
     public event Action<string>? CaptionStabilized;
@@ -87,7 +76,7 @@ public sealed class CaptionMonitorService : IDisposable
 
     private async Task RunAsync(CancellationToken ct)
     {
-        // 유효한 텍스트를 얻을 때까지 대기 — 빈 상태로 시작하면 기존 누적된 문장이 한번에 재번역됨
+        // 유효한 텍스트를 얻을 때까지 대기 - 빈 상태로 시작하면 기존 누적된 문장이 한번에 재번역됨
         string? initial = null;
         while (!ct.IsCancellationRequested && initial is null)
         {
@@ -118,6 +107,14 @@ public sealed class CaptionMonitorService : IDisposable
         var text = GetLiveCaptionsText();
         if (text is null) return;
 
+        // 요소 재탐색 직후: 무효화 갭에 쌓인 누적 텍스트를 diff로 쏟아내지 않도록 현재 텍스트를 새 기준선으로
+        if (_rebaselineOnNextPoll)
+        {
+            _lastText = text;
+            InitLineState(text);
+            return;
+        }
+
         if (text == _lastText) { CheckDebounce(); return; }
 
         _lastText = text;
@@ -131,10 +128,11 @@ public sealed class CaptionMonitorService : IDisposable
         var completedCount = lines.Length - 1; // 마지막 요소는 현재 진행 중인 partial
         var partialLine = lines[^1].Trim();
 
-        // [DEBUG] 첫 단어 잘림 진단 — 원시 텍스트가 커밋 prefix에 의해 어떻게 잘리는지 추적 (필요 시 주석 해제)
+        // [DEBUG] 잘림/누적 진단용. 단, 매 poll마다 transcript 전체를 동기 I/O로 기록하면 폴링 타이밍이
+        // 바뀌어 타이밍 의존 버그가 가려지므로(하이젠버그) 잠깐만 켤 것.
         // Logger.Info("Caption", $"raw=[{text.Replace("\n", "\\n")}] committed=[{_committedText}] lastPartial=[{_lastPartialLine}] newPartial=[{partialLine}]");
 
-        // Live Captions가 초기화돼 줄 수가 줄었을 경우 — 현재 위치로 맞춤
+        // Live Captions가 초기화돼 줄 수가 줄었을 경우 - 현재 위치로 맞춤
         if (completedCount < _firedLineCount)
             _firedLineCount = completedCount;
 
@@ -182,7 +180,7 @@ public sealed class CaptionMonitorService : IDisposable
         _debounceFired = true;
         TryFireLine(StripCommittedLine(_lastPartialLine));
 
-        // 줄은 아직 살아있음 — 발화 재개 시 같은 줄에 이어붙을 수 있으므로
+        // 줄은 아직 살아있음 - 발화 재개 시 같은 줄에 이어붙을 수 있으므로
         // 현재까지 전체를 커밋 처리 (앞부분 재발송 방지). 단 STT가 줄을 재작성하면
         // GetRemaining이 prefix 불일치를 감지해 커밋을 무효화하므로 잘림이 발생하지 않는다.
         _committedText = _lastPartialLine;
@@ -213,11 +211,13 @@ public sealed class CaptionMonitorService : IDisposable
 
         if (!shouldCommit) return;
 
-        // 끝 10자는 아직 흔들릴 수 있으니 제외하고 안전한 경계 탐색
+        // 끝 10자는 아직 흔들릴 수 있으니 제외하고 전체 remaining에서 마지막 안전 경계 탐색.
+        // (탐색 범위를 MIN_COMMIT_LENGTH로 좁히면 앞부분에 경계가 없는 긴 무구두점 발화에서 영영 커밋을
+        //  못 해 누적 폭탄이 되므로 좁히지 않는다. 청크 크기는 6초 타임아웃이 remaining을 묶어 자연 제한됨.)
         var cut = FindLastBoundary(remaining, Math.Max(0, remaining.Length - 10));
         if (cut <= 0) return;
 
-        // 약한 경계(쉼표/공백) 컷은 너무 짧은 조각을 만들면 보류 — 문장 종결부호 컷은 항상 허용
+        // 약한 경계(쉼표/공백) 컷은 너무 짧은 조각을 만들면 보류 - 문장 종결부호 컷은 항상 허용
         if (!IsSentenceEnd(remaining[cut - 1]) &&
             EffectiveLength(remaining[..cut]) < MIN_COMMIT_LENGTH / 2)
             return;
@@ -233,16 +233,21 @@ public sealed class CaptionMonitorService : IDisposable
     }
 
     // 줄에서 이미 커밋된 앞부분(_committedText)을 제거한 나머지를 반환.
-    // 줄이 더 이상 커밋 prefix로 시작하지 않으면(STT 후행 수정) 커밋을 무효화하고 전체를 반환한다.
-    //   → 원시 offset 슬라이싱이 수정된 줄의 첫 몇 자를 잘라먹던 버그(예: "Throwing arc star."→"ing arc star.")를 방지.
+    // 줄이 더 이상 커밋 prefix로 시작하지 않으면(STT 후행 수정/재구두점) 바뀌지 않은 공통 접두사까지만
+    // 커밋으로 유지하고 실제로 달라진 꼬리만 반환한다.
+    //   → 커밋 전체를 버리면 이미 발사한 줄 전체가 remaining으로 되살아나 한꺼번에 재발사(폭탄)되던 버그를 방지.
+    //     (빠른 발화에서 Live Captions가 확정부에 쉼표를 끼워넣는 등 재구두점할 때 누적 줄 전체가 재번역되던 현상)
+    //   → 앞부분 자체가 재작성된 경우(common=0)엔 종전처럼 전체를 반환하므로 첫 단어 잘림 방지도 유지된다.
     // 재발송이 생겨도 TryFireLine의 dedup + 내용 비교가 기계적 중복을 막아준다.
     private string GetRemaining(string line)
     {
         if (_committedText.Length == 0) return line;
         if (line.StartsWith(_committedText, StringComparison.Ordinal))
             return line[_committedText.Length..];
-        _committedText = "";   // prefix 불일치 = 줄이 재작성됨 → 커밋 무효화
-        return line;
+        // prefix 불일치 = 줄이 재작성됨. 공통 접두사까지만 커밋 유지, 달라진 꼬리만 remaining으로.
+        var common = CommonPrefixLength(_committedText, line);
+        _committedText = line[..common];
+        return line[common..];
     }
 
     // 완성 줄에서 이미 커밋된 앞부분을 제거. 전부 커밋됐으면 빈 문자열
@@ -257,7 +262,7 @@ public sealed class CaptionMonitorService : IDisposable
     }
 
     // 중복 발송 방지 후 CaptionStabilized 발생
-    // FIRE_DEDUP_MS(짧은 윈도우) 이내 동일 문장만 차단 — 기계적 재발사만 막고,
+    // FIRE_DEDUP_MS(짧은 윈도우) 이내 동일 문장만 차단 - 기계적 재발사만 막고,
     // 발화 내 의도적 단어 반복(예: "go go")은 정상 입력이므로 재발송 허용
     private void TryFireLine(string line)
     {
@@ -269,17 +274,18 @@ public sealed class CaptionMonitorService : IDisposable
 
         _lastFiredLine = line;
         _lastFiredTime = now;
-        // [DEBUG] 실제 발송되는 줄 — raw 로그와 대조하면 잘림 여부를 즉시 확인 (필요 시 주석 해제)
+        // [DEBUG] 실제 발송되는 줄 - raw 로그와 대조하면 잘림/누적 여부를 즉시 확인 (필요 시 주석 해제)
         // Logger.Info("Caption", $"FIRE committed=[{_committedText}] line=[{line}]");
         CaptionStabilized?.Invoke(line);
     }
 
     private void InitLineState(string text)
     {
+        _rebaselineOnNextPoll = false;
         var lines = text.Split('\n');
         _firedLineCount = lines.Length - 1;
         _lastPartialLine = lines[^1].Trim();
-        // 시작 시 심은 partial에 변경 시각을 찍어줌 — 안 찍으면 MinValue라 첫 Poll의 CheckDebounce가
+        // 시작 시 심은 partial에 변경 시각을 찍어줌 - 안 찍으면 MinValue라 첫 Poll의 CheckDebounce가
         // DEBOUNCE_MS를 안 기다리고 즉시 발사해버림(앱 실행 직후 첫 발화 선두가 단독 발송(예: "Hello. Nice to meet you." -> "Hello."(전송) "Nice to meet you.")되던 버그)
         _lastPartialChangeTime = DateTime.UtcNow;
         ResetStableState();
@@ -318,7 +324,7 @@ public sealed class CaptionMonitorService : IDisposable
     private static bool IsClauseBreak(char c) =>
         c is ',' or '、' or '，';
 
-    // CJK는 문자당 정보량이 라틴의 ~2배 — 길이 기준을 언어 불문 일관되게 적용하기 위한 가중 길이
+    // CJK는 문자당 정보량이 라틴의 ~2배 - 길이 기준을 언어 불문 일관되게 적용하기 위한 가중 길이
     private static int EffectiveLength(string text)
     {
         int len = 0;
@@ -372,9 +378,11 @@ public sealed class CaptionMonitorService : IDisposable
         }
         catch
         {
-            // element 무효화(창 닫힘/재생성, LiveCaptions 재시작) — 캐시 비우고 다음 poll에 재탐색
+            // element 무효화(창 닫힘/재생성, LiveCaptions 재시작) - 캐시 비우고 다음 poll에 재탐색.
+            // 무효화 갭 동안 캡션이 누적됐을 수 있으므로, 재탐색 후엔 누적분을 한꺼번에 발사하지 않고 재baseline 한다.
             _captionsTextBlock = null;
             _captionsWindow = null;
+            _rebaselineOnNextPoll = true;
             return null;
         }
     }
@@ -404,7 +412,7 @@ public sealed class CaptionMonitorService : IDisposable
         InitLineState(text);
     }
 
-    // Poll()의 "텍스트 변경" 분기와 동일 — 새 캡션 텍스트를 주입한다.
+    // Poll()의 "텍스트 변경" 분기와 동일 - 새 캡션 텍스트를 주입한다.
     internal void FeedForTest(string text)
     {
         if (text == _lastText) return;
@@ -412,7 +420,7 @@ public sealed class CaptionMonitorService : IDisposable
         ProcessTextChange(text);
     }
 
-    // 발화 멈춤(디바운스 경과)을 강제로 트리거한다 — 시간 의존성 제거용.
+    // 발화 멈춤(디바운스 경과)을 강제로 트리거한다 - 시간 의존성 제거용.
     internal void ForceDebounceForTest()
     {
         _lastPartialChangeTime = DateTime.MinValue;

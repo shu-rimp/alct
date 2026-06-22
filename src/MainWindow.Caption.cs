@@ -32,12 +32,22 @@ public partial class MainWindow
             try
             {
                 var cleaned = StripChatInputPrompt(normalizedText);
-                if (string.IsNullOrWhiteSpace(cleaned)) return; // 입력창 프롬프트만 잡힌 경우 — 번역할 내용 없음
+                if (string.IsNullOrWhiteSpace(cleaned))
+                {
+                    // 인식된 텍스트가 없거나(빈 OCR), 내 입력창 프롬프트만 잡힌 경우 
+                    _overlay.ShowNotice("번역할 채팅을 찾지 못했어요.");
+                    return;
+                }
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _translation.TextService.TranslateToKoreanAsync(cleaned, sourceLang);
                 _overlay.ShowTranslation(translation, StripChatInputPrompt(rawText));
             }
-            catch (Exception ex) { Logger.Error("OcrTranslation", ex); }
+            catch (Exception ex)
+            {
+                Logger.Error("OcrTranslation", ex);
+                _overlay.ShowNotice("번역에 실패했어요. 잠시 후 다시 시도해주세요."); // 빈 화면 대신 안내
+            }
+            finally { _overlay.HideLoading(); } // 성공/안내 시엔 이미 스피너가 꺼졌고, 그 외 잔여 스피너만 정리
         };
     }
 

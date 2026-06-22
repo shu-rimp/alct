@@ -4,11 +4,6 @@
   <img src="src/assets/alct.png" alt="ALCT" width="120" />
 </p>
 <p align="center">
-  ALCT is a real-time translation overlay built for online games.<br/> It is currently optimized for 'Apex Legends'.<br/>
-  In fast-moving matches, it translates your teammates' voice and chat — and your own chat — quickly and accurately.
-</p>
-
-<p align="center">
   <a href="README.md">한국어</a> | <b>English</b>
 </p>
 
@@ -18,7 +13,13 @@
   <img src="https://img.shields.io/badge/license-Apache_2.0-green" alt="license" />
 </p>
 
-> **Built for Korean gamers.** It translates foreign text **into Korean** only, and the app UI is in Korean too. (Other languages are under consideration.)
+<p align="center">
+  ALCT is a <b>real-time translation overlay</b> that translates foreign text and speech into Korean and displays it over your screen.<br/> It's optimized in particular for online gaming, and is currently tuned around 'Apex Legends'.<br/>
+  Without any tedious steps, it translates your teammates' voice and chat, plus your own chat, quickly and easily.
+</p>
+
+
+> ALCT translates foreign languages (Japanese · Simplified Chinese · English) **into Korean**. (Support for other languages is under consideration.)
 
 ---
 
@@ -88,30 +89,27 @@ A translation output example of the default engine (MyMemory) and Gemini. The ga
 </details><br/>
 
 
-**Supported languages**: Japanese · Simplified Chinese · English
-
-
 ## Features
 
 ALCT provides three features.
 
 ### 🎙️ Voice translation
 
-Reads the text converted by **Windows 11 Live Captions**, translates it into Korean, and shows it as a running subtitle overlay. It never records or intercepts the audio stream directly — it only references Live Captions. When enabled, it automatically generates Korean subtitles whenever speech is detected.
+Enable the `Real-time voice translation` toggle and it automatically generates Korean subtitles whenever speech is detected. It groups speech into natural conversational units to translate, and reliably provides subtitles even for fast, continuous speech such as a podcast.
 
-> Live Captions is only available on **Windows 11 22H2 or later**, so voice translation requires that version or above.
+> This feature uses **Windows 11 Live Captions**, so it's only available on **Windows 11 22H2 or later**.
 
 <video src="https://github.com/shu-rimp/alct/raw/main/src/assets/voice-translation-demo.mp4" controls width="640"></video>
 
 ### 💬 Chat translation `default: Ctrl+T`
 
-Press the hotkey to capture the chat region → send it to the OCR server (text extraction) → translate → show the result as an overlay.
+Press the hotkey to capture the chat region, and the translation is shown as an overlay.
 
 <video src="https://github.com/shu-rimp/alct/raw/main/src/assets/chat-translation-demo.mp4" controls width="640"></video>
 
 ### ⌨️ Input translation `default: Ctrl+G`
 
-Copy the chat you've typed → press the hotkey and ALCT translates it into the target language and places it on your clipboard. Paste it with `Ctrl+V`.
+Copy the chat you've typed, then press the hotkey and ALCT translates it into the target language and places it on your clipboard. Paste it with `Ctrl+V`.
 
 > Translation runs only when you press the hotkey, so it doesn't affect your normal copy/paste.
 
@@ -122,7 +120,7 @@ Copy the chat you've typed → press the hotkey and ALCT translates it into the 
 
 ## Install
 
-Download the latest **`ALCT.exe`** from the [Releases page](https://github.com/shu-rimp/alct/releases/latest) and run it. (It's self-contained — no installer and no separate .NET install required.) A guided onboarding runs on first launch to introduce the features and help you set things up.
+Download the latest **`ALCT.exe`** from the [Releases page](https://github.com/shu-rimp/alct/releases/latest) and run it. A guided onboarding runs on first launch to introduce the features and help you set things up.
 
 > **⚠️ SmartScreen warning.** ALCT is an unsigned, individually developed open-source binary, so Windows may show a *"Windows protected your PC"* warning. This is expected for unsigned apps. Click **More info → Run anyway** to launch it.
 
@@ -137,16 +135,18 @@ Chat:   hotkey → screen capture (PNG) → OCR relay server → translation API
 Input:  clipboard (Korean) → translation API → clipboard (translated) → you paste
 ```
 
-- The **OCR relay server** runs on the open-source RapidOCR, extracting only text and discarding the image immediately. It runs on modest hardware, so responses may slow down as usage grows. (Voice and input translation don't go through the server.)
-  > If you want self-hosting, please refer to the [server repository](https://github.com/shu-rimp/alct-server).
-- **Translation** is sent directly from the client to each translation service API, not through the developer's server: MyMemory (default, no key needed), DeepL, Gemini. Engines that require a key use **your own API key (BYOK, Bring Your Own Key)**.
+- The **OCR relay server** runs on the open-source RapidOCR, extracting only text and discarding the image immediately. **The server currently runs on modest hardware, so chat translation may slow down as usage grows.** (Voice and input translation don't go through the server, so they remain unaffected.)
+  > If you want to self-host, see the [server repository](https://github.com/shu-rimp/alct-server#self-hosting-self-hosting).
+- **Translation** uses **your own API key** and is sent directly from the client to the translation service API without going through the server: MyMemory (default, no key needed), DeepL, Gemini.
 - For full details on data handling and privacy, see the [Privacy Policy (PRIVACY.md)](PRIVACY.md).
 
 ---
 
 ## Contributing 💫
 
-Bug reports, feature ideas, and code contributions are all welcome — see the [contribution guide (CONTRIBUTING.md)](CONTRIBUTING.md). The **game glossary** is managed in the server repository, [alct-server](https://github.com/shu-rimp/alct-server).
+Bug reports, feature ideas, and code contributions are all welcome — see the [contribution guide](CONTRIBUTING.md).
+
+The most helpful contribution is the **game glossary**. The glossary is managed in the [server repository](https://github.com/shu-rimp/alct-server?tab=contributing-ov-file#contribution-guide).
 
 ---
 

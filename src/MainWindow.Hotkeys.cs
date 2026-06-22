@@ -93,6 +93,9 @@ public partial class MainWindow
 
                 Dispatcher.Invoke(() => { if (overlayVisible) _overlay.Show(); });
 
+                // 캡처가 끝난 뒤 스피너를 띄운다(캡처 이미지에 안 잡히도록). 결과/오류는 ShowTranslation/ShowNotice가 내림.
+                _overlay.ShowLoading();
+
                 if (!_screenCaptureLogged)
                 {
                     _screenCaptureLogged = true;
