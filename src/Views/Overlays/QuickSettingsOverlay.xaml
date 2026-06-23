@@ -96,12 +96,28 @@
             <Border Width="28" Height="28" CornerRadius="14"
                     Background="{StaticResource AccentBrush}"
                     VerticalAlignment="Center">
-                <TextBlock x:Name="LangLabel"
-                           Text="JP"
-                           Foreground="White"
-                           FontSize="12" FontWeight="Bold"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                <Grid>
+                    <TextBlock x:Name="LangLabel"
+                               Text="JP"
+                               Foreground="White"
+                               FontSize="12" FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    <!-- 언어 전환 중 스피너 (기본 숨김) — 전환 시 LiveCaptions 재시작이 길어
+                         먹통처럼 보이는 것을 막는 즉시 피드백. 채팅 오버레이 스피너와 동일 스타일. -->
+                    <Ellipse x:Name="BusySpinner"
+                             Width="18" Height="18"
+                             Visibility="Collapsed"
+                             Stroke="White"
+                             StrokeThickness="2"
+                             StrokeDashArray="4 100"
+                             StrokeDashCap="Round"
+                             RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                            <RotateTransform x:Name="BusySpinnerRotate"/>
+                        </Ellipse.RenderTransform>
+                    </Ellipse>
+                </Grid>
             </Border>
 
             <!-- 호버 시 확장되는 메뉴 -->
