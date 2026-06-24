@@ -1,0 +1,33 @@
+# 기여자 PR의 용어집을 자동 정렬·검증한다. 기여자는 (웹 UI 포함) 아무 위치에 용어만 추가하면,
+# 포매터가 정규형(정렬)으로 맞추고 autofix.ci 앱이 그 변경분을 PR에 커밋한다 → 로컬 도구 불필요.
+# 중복키/구조/JSON 오류면 --write가 실패해 PR 체크가 빨갛게 뜬다(자동 수정 불가, 기여자가 고침).
+#
+# 보안: 러너 권한은 read-only(푸시는 autofix.ci 앱이 수행), 액션은 commit SHA로 핀(공급망 방어).
+# 사전 작업: 레포에 autofix.ci GitHub App 설치 필요(https://autofix.ci/setup).
+name: autofix.ci  # autofix.ci가 워크플로를 안전하게 식별하기 위해 이 이름이 필요함
+
+on:
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # JS 액션 런타임을 Node24로 — 다른 워크플로와 통일
+
+permissions:
+  contents: read
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 용어집 정렬·검증. 오류(중복키/구조/JSON)면 여기서 실패 → 체크 red.
+      - run: node scripts/format-glossary.mjs --write
+
+      # 위 포매터의 변경분(정렬)을 PR 브랜치에 커밋(포크 PR 포함). 정렬뿐이면 체크를 실패시키지 않음.
+      - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a
+        with:
+          fail-fast: false

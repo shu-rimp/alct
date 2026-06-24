@@ -17,7 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  
+          fetch-depth: 0
+          lfs: true  # 임베드 OCR 모델(src/assets/models/v5/*.onnx)을 LFS에서 받아와야 publish가 성공
 
       - name: Verify tag is on main
         if: startsWith(github.ref, 'refs/tags/')
@@ -51,7 +52,6 @@ jobs:
           $file = "src/Core/BuildConstants.cs"
           (Get-Content $file) `
             -replace '#{ALCT_SERVER_URL}#',    '${{ secrets.ALCT_SERVER_URL }}'    `
-            -replace '#{ALCT_SERVER_TOKEN}#',  '${{ secrets.ALCT_SERVER_TOKEN }}'  `
             -replace '#{ALCT_VERSION_TAG}#',   '${{ github.ref_name }}'            |
           Set-Content $file
 
