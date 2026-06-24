@@ -28,7 +28,7 @@ public partial class MainWindow
 
     private void InitOcrHandler()
     {
-        _ocrClient.OcrTextReceived += async (normalizedText, rawText) =>
+        _ocr.OcrTextReceived += async (normalizedText, rawText) =>
         {
             try
             {

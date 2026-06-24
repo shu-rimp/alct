@@ -53,6 +53,9 @@ public class ScreenCaptureService
 
     public Rectangle GetCaptureRegion() => _captureRegion;
 
+    // 로컬 OCR 경로용 — PNG 인코딩 없이 비트맵을 직접 넘긴다(호출부가 해제). 마스킹/추론이 비트맵을 소비.
+    public Bitmap CaptureRegionBitmap() => CaptureRegion(_captureRegion);
+
     internal Bitmap CaptureRegion(Rectangle region)
     {
         var bitmap = new Bitmap(region.Width, region.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);

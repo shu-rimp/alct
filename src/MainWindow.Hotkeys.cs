@@ -11,7 +11,6 @@ public partial class MainWindow
     private ScreenCaptureService _screenCapture = new();
     private readonly SemaphoreSlim _ocrLock = new(1, 1);
     private bool _screenCaptureLogged;
-    private DateTime _ocrBlockedUntil = DateTime.MinValue;  // 서버 429(Retry-After) 동안 OCR 요청 억제
     private string? _lastInputTranslation;  // 직전 입력 번역 결과 — 복사를 누락하고 핫키만 누른 경우(클립보드에 이전 번역문이 그대로) 감지용
     private const int MAX_INPUT_CHARS = 70;  // 입력 번역 최대 글자수 — 게임 입력창 한도(알파벳·한글 동일 63자)에 약간의 여유. 브라우저 등에서 대량 텍스트가 번역 요청으로 새는 것 방지
 
@@ -71,12 +70,6 @@ public partial class MainWindow
 
     private void OnHotkeyPressed()
     {
-        if (DateTime.UtcNow < _ocrBlockedUntil)
-        {
-            var seconds = Math.Max(1, (int)Math.Ceiling((_ocrBlockedUntil - DateTime.UtcNow).TotalSeconds));
-            _overlay.ShowNotice($"요청이 많아 잠시 제한됐어요. {seconds}초 후 다시 시도해주세요.");
-            return;
-        }
         if (!_ocrLock.Wait(0)) return;
         _ = Task.Run(async () =>
         {
@@ -89,7 +82,7 @@ public partial class MainWindow
                     return v;
                 });
 
-                var imageBytes = _screenCapture.CaptureRegionAsPng();
+                using var bitmap = _screenCapture.CaptureRegionBitmap();
 
                 Dispatcher.Invoke(() => { if (overlayVisible) _overlay.Show(); });
 
@@ -101,26 +94,15 @@ public partial class MainWindow
                     _screenCaptureLogged = true;
                     Logger.Info("Preflight", "Screen capture: GDI available");
                 }
-                // SaveDebugCapture(imageBytes); 실제 캡쳐이미지 확인(디버그용)
-                await _ocrClient.SendImageAsync(imageBytes);
-            }
-            catch (OcrRequestException ex)
-            {
-                // 서버가 코드별로 구분한 거부(400/403/413/429/503/504) — 안내만, 연결 장애 아님
-                if (ex.RetryAtUtc is { } until) _ocrBlockedUntil = until;
-                Logger.Info("OcrRequest", $"{ex.Message} (HTTP {ex.StatusCode})");
-                _overlay.ShowNotice(ex.Message);
-            }
-            catch (HttpRequestException ex)
-            {
-                Logger.Error("OcrRequest", ex);
-                _overlay.ShowNotice("서버에 일시적으로 접속할 수 없어요. 잠시 후 다시 시도해주세요.");
+                // 로컬 OCR — 결과는 OcrTextReceived(InitOcrHandler)로 흐른다. 서버 호출/rate-limit 없음.
+                await _ocr.RecognizeAsync(bitmap);
             }
             catch (Exception ex)
             {
+                // 캡처 실패(GDI 미지원) 또는 OCR 추론/모델 로드 실패 — 안내만, 상세는 로그로.
                 if (!_screenCaptureLogged) { _screenCaptureLogged = true; Logger.Info("Preflight", "Screen capture: GDI unavailable"); }
                 Logger.Error("OcrCapture", ex);
-                _overlay.ShowNotice("이 기기는 화면 캡처를 지원하지 않아 채팅 번역을 사용할 수 없어요.");
+                _overlay.ShowNotice("채팅 번역 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
             }
             finally { _ocrLock.Release(); }
         });
