@@ -1,0 +1,4 @@
+src/assets/models/v5/*.onnx filter=lfs diff=lfs merge=lfs -text
+
+# 용어집은 LF 고정 — 포매터(scripts/format-glossary.mjs) 정규형과 줄바꿈이 일치해야 CI --check가 안정적
+src/assets/glossary_data.json text eol=lf

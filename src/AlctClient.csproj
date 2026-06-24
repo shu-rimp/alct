@@ -24,6 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="RapidOcrNet" Version="2.0.0" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
@@ -38,7 +39,24 @@
 
   <ItemGroup>
     <EmbeddedResource Include="assets\glossary_data.json" />
+    <EmbeddedResource Include="assets\normalizer_data.json" />
     <Resource Include="assets\alct.ico" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- OCR 모델을 exe에 임베드 — single-file 배포 시 ModelStore가 %APPDATA%로 first-run 추출.
+         서버 alct-server 와 동일한 PP-OCRv5 mobile ch 조합(det/cls는 RapidOcrNet 번들본, rec/dict는 ch 교체본).
+         LogicalName으로 리소스명을 고정(파일명의 '-' 등 munging 회피) → ModelStore와 일치시킴. -->
+    <EmbeddedResource Include="assets\models\v5\ch_PP-OCRv5_mobile_det.onnx"        LogicalName="AlctClient.models.det.onnx" />
+    <EmbeddedResource Include="assets\models\v5\ch_ppocr_mobile_v2.0_cls_infer.onnx" LogicalName="AlctClient.models.cls.onnx" />
+    <EmbeddedResource Include="assets\models\v5\ch_PP-OCRv5_rec_mobile.onnx"        LogicalName="AlctClient.models.rec.onnx" />
+    <EmbeddedResource Include="assets\models\v5\ppocrv5_dict.txt"                   LogicalName="AlctClient.models.dict.txt" />
+  </ItemGroup>
+
+  <!-- RapidOcrNet.targets가 패키지 모델을 PublishDir\models\v5 로 loose 복사하는데, 우리는 임베드+추출을
+       쓰므로 단일 파일 배포본에서 그 폴더를 제거(중복 ~30MB, single-exe UX 유지). 빌드(dev)는 그대로 둠. -->
+  <Target Name="StripLooseOcrModels" AfterTargets="CopyModelsPublish">
+    <RemoveDir Directories="$(PublishDir)models" />
+  </Target>
 
 </Project>
