@@ -10,7 +10,7 @@ namespace AlctClient.Core;
 // 게임 용어를 번역 요청 전에 한국어로 치환하는 용어집.
 // 치환 결과는 <x>한국어</x> 형태 — DeepL은 ignore_tags로 보존하고,
 // 나머지 엔진은 StripXmlTags로 태그만 벗겨 한글을 그대로 통과시키므로 엔진에 무관하게 동작.
-// 로드 우선순위: 서버 최신본(/glossary) → 로컬 캐시 → 빌드 내장 기본본
+// 로드 우선순위: 원격 최신본(GitHub Pages /glossary.json) → 로컬 캐시 → 빌드 내장 기본본
 public sealed class GlossaryService
 {
     public static GlossaryService Instance { get; } = new();
