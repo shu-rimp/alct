@@ -10,7 +10,7 @@ namespace AlctClient.Core;
 // 게임 용어를 번역 요청 전에 한국어로 치환하는 용어집.
 // 치환 결과는 <x>한국어</x> 형태 — DeepL은 ignore_tags로 보존하고,
 // 나머지 엔진은 StripXmlTags로 태그만 벗겨 한글을 그대로 통과시키므로 엔진에 무관하게 동작.
-// 로드 우선순위: 서버 최신본(/glossary) → 로컬 캐시 → 빌드 내장 기본본
+// 로드 우선순위: 원격 최신본(GitHub Pages /glossary.json) → 로컬 캐시 → 빌드 내장 기본본
 public sealed class GlossaryService
 {
     public static GlossaryService Instance { get; } = new();
@@ -47,15 +47,12 @@ public sealed class GlossaryService
     }
 
     // 서버 용어집으로 갱신 — 성공 시 캐시 저장, 실패해도 기존(캐시/내장본) 유지
-    public async Task RefreshFromServerAsync(string serverUrl, string? token = null)
+    public async Task RefreshFromServerAsync(string serverUrl)
     {
         try
         {
-            var serverToken = string.IsNullOrEmpty(token) ? BuildConstants.SERVER_TOKEN : token;
-            using var request = new HttpRequestMessage(HttpMethod.Get, serverUrl.TrimEnd('/') + "/glossary");
-            if (!serverToken.StartsWith("#{"))
-                request.Headers.Add("X-ALCT-Token", serverToken);
-            var response = await _http.SendAsync(request);
+            // 정적 호스팅(GitHub Pages) — 인증 없이 단순 GET. 실패 시 캐시/내장본 유지.
+            var response = await _http.GetAsync(serverUrl.TrimEnd('/') + "/glossary.json");
             if (!response.IsSuccessStatusCode) return;
 
             var json = await response.Content.ReadAsStringAsync();
@@ -75,7 +72,12 @@ public sealed class GlossaryService
     {
         try
         {
-            using var doc = JsonDocument.Parse(json);
+            // 후행 쉼표·주석 허용 — 정규형은 표준 JSON이지만, 머지 중 끼어든 후행 쉼표 등을 관대하게 수용
+            using var doc = JsonDocument.Parse(json, new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip,
+            });
             var root = doc.RootElement;
             var common = root.TryGetProperty("common", out var c) ? ParseTerms(c) : new Dictionary<string, string>();
 
@@ -94,7 +96,7 @@ public sealed class GlossaryService
         }
         catch (Exception ex)
         {
-            Logger.Error("GlossaryLoad", ex);
+            Logger.Warn("GlossaryLoad", ex);
             return false;
         }
     }

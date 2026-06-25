@@ -82,8 +82,15 @@ public sealed class GeminiTranslationService : ITranslationService
         response.EnsureSuccessStatusCode();
 
         using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct));
-        return doc.RootElement
-            .GetProperty("candidates")[0]
+        var root = doc.RootElement;
+
+        // 안전성 차단/빈 응답 등은 HTTP 200이어도 candidates가 없거나 비어 옴 — 깨진/빈 문장 대신 명확한 실패로 처리
+        if (!root.TryGetProperty("candidates", out var candidates)
+            || candidates.ValueKind != JsonValueKind.Array
+            || candidates.GetArrayLength() == 0)
+            throw new InvalidOperationException("Gemini returned no candidates.");
+
+        return candidates[0]
             .GetProperty("content")
             .GetProperty("parts")[0]
             .GetProperty("text")

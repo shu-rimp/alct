@@ -2,6 +2,8 @@ using AlctClient.Utils;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace AlctClient.Views.Overlays;
@@ -158,6 +160,28 @@ public partial class QuickSettingsOverlay : Window
         BtnCaption.IsChecked = enabled;
         _suppressEvents = false;
     }
+
+    private static readonly DoubleAnimation BusySpinAnimation =
+        new(0, 360, TimeSpan.FromSeconds(0.85)) { RepeatBehavior = RepeatBehavior.Forever };
+
+    // 언어 전환 중(LiveCaptions 재시작) 즉시 피드백 — 언어 원을 스피너로 바꾸고 버튼을 잠가
+    // 시각적 피드백 + 전환 중 연타를 막는다. 전환 시간 자체는 줄이지 못함.
+    public void SetBusy(bool busy) => Dispatcher.Invoke(() =>
+    {
+        BtnJa.IsEnabled = BtnZh.IsEnabled = BtnEn.IsEnabled = BtnCaption.IsEnabled = !busy;
+        if (busy)
+        {
+            LangLabel.Visibility = Visibility.Collapsed;
+            BusySpinner.Visibility = Visibility.Visible;
+            BusySpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, BusySpinAnimation);
+        }
+        else
+        {
+            BusySpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+            BusySpinner.Visibility = Visibility.Collapsed;
+            LangLabel.Visibility = Visibility.Visible;
+        }
+    });
 
     private static string ToShortLabel(string bcp47) => bcp47 switch
     {

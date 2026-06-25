@@ -1,0 +1,65 @@
+name: Deploy metadata to GitHub Pages
+
+# 용어집(glossary)·버전 정보(version.json)를 정적 호스팅으로 서빙한다.
+# - main 푸시: 용어집 갱신
+# - 태그(v*) 푸시: 새 버전 반영
+# 한 워크플로가 두 트리거 모두에 반응하고, 매 실행마다 두 파일을 함께 배포한다.
+# (Pages 배포는 사이트 전체를 교체하므로, 파일별 독립 배포는 서로 덮어써 위험하다.)
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 최신 태그 조회용
+
+      - name: Build site (glossary + version.json)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/update
+
+          # 용어집: 클라이언트가 내장본으로도 쓰는 단일 소스를 그대로 서빙
+          cp src/assets/glossary_data.json _site/glossary.json
+
+          # 버전 정보: 최신 v* 태그 기준, 다운로드는 latest 릴리스 퍼머링크로 고정
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+          version="${latest#v}"
+          version="${version:-0.0.0}"
+          cat > _site/update/version.json <<EOF
+          {
+            "latest_version": "${version}",
+            "download_url": "https://github.com/shu-rimp/alct/releases/latest/download/ALCT.exe",
+            "release_notes": ""
+          }
+          EOF
+
+          touch _site/.nojekyll  # Jekyll 처리 비활성화(정적 파일 그대로 서빙)
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

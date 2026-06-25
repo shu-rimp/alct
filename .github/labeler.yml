@@ -1,0 +1,3 @@
+glossary:
+  - changed-files:
+      - any-glob-to-any-file: 'src/assets/glossary_data.json'

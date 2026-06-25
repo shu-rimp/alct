@@ -4,6 +4,7 @@ using AlctClient.Views.Windows;
 using System.Diagnostics;
 using System.Management;
 using System.Text.RegularExpressions;
+using System.Windows.Threading;
 
 namespace AlctClient;
 
@@ -27,7 +28,7 @@ public partial class MainWindow
 
     private void InitOcrHandler()
     {
-        _ocrClient.OcrTextReceived += async (normalizedText, rawText) =>
+        _ocr.OcrTextReceived += async (normalizedText, rawText) =>
         {
             try
             {
@@ -41,6 +42,11 @@ public partial class MainWindow
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
                 var translation = await _translation.TextService.TranslateToKoreanAsync(cleaned, sourceLang);
                 _overlay.ShowTranslation(translation, StripChatInputPrompt(rawText));
+            }
+            catch (TranslationRateLimitException ex)
+            {
+                Logger.Info("OcrTranslation", $"Translation blocked until {ex.RetryAtUtc:u} — reason: {ex.Message}");
+                _overlay.ShowNotice(FormatQuotaNotice(ex));
             }
             catch (Exception ex)
             {
@@ -80,10 +86,7 @@ public partial class MainWindow
             {
                 // 일일 한도류는 재개 시각까지, 영구 소진(DeepL 무료 요금제의 일회성 한도)은 사실상 무기한 차단 + 1회 안내
                 _translation.BlockVoiceQuotaUntil(ex.RetryAtUtc);
-                var msg = ex.RetryAtUtc - DateTime.UtcNow > TimeSpan.FromDays(30)
-                    ? ex.Message  // 재개 시각이 없는 영구 소진 — 사유만
-                    : $"{ex.Message} — {ex.RetryAtUtc.ToLocalTime():HH:mm} 이후 다시 사용할 수 있어요.";
-                _voiceOverlay.ShowTranslation(msg);
+                _voiceOverlay.ShowTranslation(FormatQuotaNotice(ex));
                 Logger.Info("CaptionTranslation", $"Voice translation blocked until {ex.RetryAtUtc:u} — reason: {ex.Message}");
             }
             catch (Exception ex)
@@ -95,6 +98,12 @@ public partial class MainWindow
             finally { _translateQueue.Release(); }
         };
     }
+
+    // 한도 초과 안내 문구 — 음성/채팅/입력 번역이 공유. 재개 시각이 사실상 없는(영구 소진) 경우 사유만, 그 외엔 재개 시각 안내
+    private static string FormatQuotaNotice(TranslationRateLimitException ex) =>
+        ex.RetryAtUtc - DateTime.UtcNow > TimeSpan.FromDays(30)
+            ? ex.Message  // 재개 시각이 없는 영구 소진 — 사유만
+            : $"{ex.Message} — {ex.RetryAtUtc.ToLocalTime():HH:mm} 이후 다시 사용할 수 있어요.";
 
     // 직전 발화들을 컨텍스트 문자열로 반환하고 현재 발화를 버퍼에 추가
     // 짧고 맥락 없는 게임 대화의 번역 정확도를 높이기 위한 롤링 컨텍스트
@@ -160,11 +169,20 @@ public partial class MainWindow
 
     private async Task HandleSourceLangChangedAsync(string lang)
     {
+        // 새 PC에서 음성 번역 ON시 첫 언어 전환이 길어져(라이브 캡션 워밍업) 라디오 버튼이 먹통처럼 보임.
+        // 무거운 작업 전 busy 상태(스피너+버튼 잠금)를 켜고 렌더 패스 한 번을 양보해, 피드백이 항상 먼저 그려지게 한다.
+        bool restartNeeded = Process.GetProcessesByName("LiveCaptions").Length > 0;
+        if (restartNeeded)
+        {
+            _langOverlay.SetBusy(true);
+            await Dispatcher.Yield(DispatcherPriority.Background); // SetBusy + IsChecked가 그려진 뒤 진행
+        }
+
         _userSettings.SourceLang = lang;
         UserSettingsService.Save(_userSettings);
         ClearCaptionContext();
 
-        if (!await _captionLock.WaitAsync(0)) return;
+        if (!await _captionLock.WaitAsync(0)) { _langOverlay.SetBusy(false); return; }
         try
         {
             if (Process.GetProcessesByName("LiveCaptions").Length > 0)
@@ -183,7 +201,11 @@ public partial class MainWindow
             }
         }
         catch (Exception ex) { Logger.Error("CaptionLangChange", ex); }
-        finally { _captionLock.Release(); }
+        finally
+        {
+            _langOverlay.SetBusy(false);   // 정상 상태 보장
+            _captionLock.Release();
+        }
     }
 
     private async Task HandleCaptionModeChangedAsync(bool enabled, bool fromQuickOverlay = false)
