@@ -93,13 +93,13 @@ Enable the `Real-time voice translation` toggle and it automatically generates K
 
 > This feature uses **Windows 11 Live Captions**, so it's only available on **Windows 11 22H2 or later**.
 
-<video src="https://github.com/shu-rimp/alct/raw/main/src/assets/voice-translation-demo.mp4" controls width="640"></video>
+<img src="https://github.com/user-attachments/assets/ca5178f4-59cf-4c02-af7e-37e74c02474d" alt="Voice translation demo" width="640" />
 
 ### 💬 Chat translation `default: Ctrl+T`
 
 Press the hotkey to capture the chat region, and the translation is shown as an overlay.
 
-<video src="https://github.com/shu-rimp/alct/raw/main/src/assets/chat-translation-demo.mp4" controls width="640"></video>
+<img src="https://github.com/user-attachments/assets/85581f77-732c-4588-ab84-7126cb104d10" alt="Chat translation demo" width="640" />
 
 ### ⌨️ Input translation `default: Ctrl+G`
 
@@ -107,7 +107,7 @@ Copy the chat you've typed, then press the hotkey and ALCT translates it into th
 
 > Translation runs only when you press the hotkey, so it doesn't affect your normal copy/paste.
 
-<video src="https://github.com/shu-rimp/alct/raw/main/src/assets/input-translation-demo.mp4" controls width="640"></video>
+<img src="https://github.com/user-attachments/assets/2c5eb9cb-c317-48f3-875a-b537392c3ee8" alt="Input translation demo" width="640" />
 
 ---
 
