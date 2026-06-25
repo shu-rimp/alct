@@ -136,3 +136,17 @@ internal sealed class CapturingHttpMessageHandler(string responseJson, Func<Http
         };
     }
 }
+
+// 고정 응답을 돌려주며 호출 횟수를 센다 — 마스킹이 줄당 HTTP 1회로 줄었는지 검증용
+internal sealed class CallCountingHandler(string responseJson) : HttpMessageHandler
+{
+    public int CallCount { get; private set; }
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    {
+        CallCount++;
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
+        });
+    }
+}

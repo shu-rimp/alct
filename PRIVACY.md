@@ -60,7 +60,7 @@ Translation requests are sent directly from the client to each translation servi
 
 Transmitted text is processed under each service's privacy policy. **On free tiers, your input may be used to improve service quality or train models (some services include human review), or be retained in a translation memory.** If you don't want your data used for training and the like, we recommend using a paid-tier key that guarantees no data use.
 
-In particular, the default engine MyMemory retains submitted sentences in its translation memory, so for sensitive content we recommend a paid key from a service that guarantees no data use.
+In particular, the default engine MyMemory's terms permit submitted text to be retained in its translation memory, so for sensitive content we recommend a paid key from a service that guarantees no data use.
 
 MyMemory also accepts an optional **email** to raise the daily translation limit; if entered, it is sent with translation requests and stored locally, but you can use the default limit without it.
 

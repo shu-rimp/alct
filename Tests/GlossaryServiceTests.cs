@@ -105,27 +105,72 @@ public class MyMemoryTagPreservationTests
     private static string MyMemoryResponse(string text) =>
         """{"responseStatus":200,"responseData":{"translatedText":"@T@"}}""".Replace("@T@", text);
 
-    [Fact]
-    public async Task TranslateToKoreanAsync_KeepsTaggedKorean_TranslatesRest()
+    // MT가 토큰을 보존해 돌려준다고 가정한 고정 응답 + 호출 횟수 카운트
+    private static MyMemoryTranslationService Svc(string responseText, out CallCountingHandler handler)
     {
-        // 모든 API 호출이 "번역됨"을 반환 — <x>2파티</x>는 API를 타지 않고 보존돼야 함
-        var svc = new MyMemoryTranslationService(
-            new System.Net.Http.HttpClient(new FakeHttpMessageHandler(MyMemoryResponse("번역됨"), System.Net.HttpStatusCode.OK)));
+        handler = new CallCountingHandler(MyMemoryResponse(responseText));
+        return new MyMemoryTranslationService(new System.Net.Http.HttpClient(handler));
+    }
 
-        var result = await svc.TranslateToKoreanAsync("です。<x>2파티</x>だか<x>2파티</x>ごめん。", "ja-JP");
+    [Fact]
+    public async Task TranslateToKoreanAsync_MasksTermsAndRestores_InSingleCall()
+    {
+        // <x>궁</x>, <x>폭탄</x>이 토큰으로 마스킹돼 줄 전체가 1회 번역되고, 응답에서 용어로 복원됨
+        var t0 = MyMemoryTranslationService.MaskToken(0);
+        var t1 = MyMemoryTranslationService.MaskToken(1);
+        var svc = Svc($"적 {t0} 그리고 {t1} 사용", out var handler);
 
-        Assert.Equal("번역됨 2파티 번역됨 2파티 번역됨", result);
+        var result = await svc.TranslateToKoreanAsync("enemy <x>궁</x> and <x>폭탄</x> use", "en-US");
+
+        Assert.Equal("적 궁 그리고 폭탄 사용", result);
+        Assert.Equal(1, handler.CallCount);  // 조각 분할 없이 1회
+    }
+
+    [Fact]
+    public async Task TranslateToKoreanAsync_CorrectsParticleByBatchim()
+    {
+        // MT가 토큰에 붙인 '가'를 용어(궁=받침O) 받침에 맞게 '이'로 보정
+        var t0 = MyMemoryTranslationService.MaskToken(0);
+        var svc = Svc($"{t0}가 필요해", out _);
+
+        var result = await svc.TranslateToKoreanAsync("need <x>궁</x>", "en-US");
+
+        Assert.Equal("궁이 필요해", result);
+    }
+
+    [Fact]
+    public async Task TranslateToKoreanAsync_TagOnlyLine_SkipsApiCall()
+    {
+        var t0 = MyMemoryTranslationService.MaskToken(0);
+        var svc = Svc(t0, out var handler);
+
+        var result = await svc.TranslateToKoreanAsync("<x>궁</x>", "en-US");
+
+        Assert.Equal("궁", result);
+        Assert.Equal(0, handler.CallCount);  // 번역할 텍스트 없음 → 호출 안 함
+    }
+
+    [Fact]
+    public async Task TranslateToKoreanAsync_DroppedToken_FallsBackToAppend()
+    {
+        // 응답에 토큰이 없으면(MT 누락) 용어를 잃지 않고 끝에 덧붙임
+        var svc = Svc("적이 공격", out _);
+
+        var result = await svc.TranslateToKoreanAsync("enemy <x>궁</x> attack", "en-US");
+
+        Assert.StartsWith("적이 공격", result);
+        Assert.Contains("궁", result);
     }
 
     [Fact]
     public async Task TranslateToKoreanAsync_NoTags_TranslatesWholeLine()
     {
-        var svc = new MyMemoryTranslationService(
-            new System.Net.Http.HttpClient(new FakeHttpMessageHandler(MyMemoryResponse("안녕"), System.Net.HttpStatusCode.OK)));
+        var svc = Svc("안녕", out var handler);
 
         var result = await svc.TranslateToKoreanAsync("こんにちは", "ja-JP");
 
         Assert.Equal("안녕", result);
+        Assert.Equal(1, handler.CallCount);
     }
 }
 

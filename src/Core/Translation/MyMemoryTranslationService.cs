@@ -1,3 +1,4 @@
+using AlctClient.Utils;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -46,17 +47,50 @@ public sealed class MyMemoryTranslationService : ITranslationService
     }
 
     // MyMemory는 원어 문장에 섞인 한글을 응답에서 삭제해버림 —
-    // <x>한국어</x> 구간(용어집·normalizer 산출물)은 API에 보내지 않고 보존하고 나머지만 번역해 재조립
+    // <x>한국어</x> 용어(용어집·normalizer 산출물)를 ASCII 토큰으로 마스킹해 한글을 아예 안 보낸 뒤,
+    // 줄 전체를 1회 번역하고 응답의 토큰을 용어로 복원(MT가 토큰에 붙인 조사는 받침에 맞게 보정).
+    // 이전 방식(태그 기준 분할 → 조각마다 순차 호출)이 용어 수만큼 늘리던 HTTP 왕복을 1회로 줄인다.
+    private static readonly Regex TagRegex = new(@"<x>(.*?)</x>", RegexOptions.Compiled);
+    private static readonly Regex MaskRegex = new(@"qzxk(\d+)wq", RegexOptions.Compiled);
+    private static readonly Regex RestoreRegex =
+        new($@"qzxk(\d+)wq(?<p>{KoreanParticle.ParticlePattern})?", RegexOptions.Compiled);
+
+    // 토큰 형식 — 음차되지 않고 라틴으로 보존됨이 실측된 자음+숫자형. 인덱스로 다중 용어를 구분.
+    internal static string MaskToken(int index) => $"qzxk{index}wq";
+
     private async Task<string> TranslateLineAsync(string line, string source, CancellationToken ct)
     {
-        var segments = new List<string>();
-        foreach (var part in Regex.Split(line, @"(<x>.*?</x>)"))
+        var terms = new List<string>();  // 토큰 인덱스 → 한국어 용어
+        var masked = TagRegex.Replace(line, m =>
         {
-            var tag = Regex.Match(part, @"^<x>(.*?)</x>$");
-            if (tag.Success) segments.Add(tag.Groups[1].Value);
-            else if (!string.IsNullOrWhiteSpace(part)) segments.Add(await CallAsync(part, source, "ko", ct));
-        }
-        return string.Join(" ", segments.Where(s => s.Length > 0)).Trim();
+            terms.Add(m.Groups[1].Value);
+            return MaskToken(terms.Count - 1);
+        });
+
+        // 토큰을 빼면 번역할 텍스트가 없는 줄(태그만 있음)은 API 생략 — 불필요한 호출 방지
+        var hasText = !string.IsNullOrWhiteSpace(MaskRegex.Replace(masked, " "));
+        var translated = hasText ? await CallAsync(masked, source, "ko", ct) : masked;
+
+        return Restore(translated, terms).Trim();
+    }
+
+    // 응답의 토큰(+바로 붙은 조사)을 한국어 용어로 되돌린다. 누락된 토큰의 용어는 폴백으로 끝에 덧붙임.
+    private static string Restore(string text, List<string> terms)
+    {
+        if (terms.Count == 0) return text;
+
+        var seen = new HashSet<int>();
+        var restored = RestoreRegex.Replace(text, m =>
+        {
+            int idx = int.Parse(m.Groups[1].Value);
+            if (idx < 0 || idx >= terms.Count) return m.Value;  // 범위 밖 — 손대지 않음
+            seen.Add(idx);
+            var term = terms[idx];
+            return m.Groups["p"].Success ? term + KoreanParticle.Correct(term, m.Groups["p"].Value) : term;
+        });
+
+        var missing = terms.Where((_, i) => !seen.Contains(i)).ToList();
+        return missing.Count == 0 ? restored : $"{restored.TrimEnd()} {string.Join(" ", missing)}";
     }
 
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
