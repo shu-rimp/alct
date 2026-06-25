@@ -96,7 +96,7 @@ public sealed class GlossaryService
         }
         catch (Exception ex)
         {
-            Logger.Error("GlossaryLoad", ex);
+            Logger.Warn("GlossaryLoad", ex);
             return false;
         }
     }

@@ -155,6 +155,11 @@ public partial class MainWindow
                     _inputOverlay.ShowResult(translation);
                 });
             }
+            catch (TranslationRateLimitException ex)
+            {
+                Logger.Info("InputTranslation", $"Translation blocked until {ex.RetryAtUtc:u} — reason: {ex.Message}");
+                _inputOverlay.ShowNotice(FormatQuotaNotice(ex));  // ShowNotice가 내부에서 디스패치
+            }
             catch (Exception ex)
             {
                 Logger.Error("InputTranslation", ex);

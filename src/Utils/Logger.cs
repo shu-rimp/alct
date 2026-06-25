@@ -22,6 +22,25 @@ public static class Logger
         catch { }
     }
 
+    public static void Warn(string context, Exception ex)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [WARN] [{context}] {ex.GetType().Name}: {ex.Message}");
+
+        var inner = ex.InnerException;
+        int depth = 1;
+        while (inner is not null && depth <= 5)
+        {
+            sb.Append($" | Inner({depth}) {inner.GetType().Name}: {inner.Message}");
+            inner = inner.InnerException;
+            depth++;
+        }
+        sb.AppendLine();
+
+        try { lock (_lock) File.AppendAllText(_logPath, sb.ToString()); }
+        catch { }
+    }
+
     public static void Error(string context, Exception ex)
     {
         var sb = new System.Text.StringBuilder();

@@ -87,6 +87,26 @@ public class TranslationServiceTests
         var result = await svc.TranslateToKoreanAsync("   ", "JA");
         Assert.Equal("   ", result);
     }
+
+    private static string MyMemoryResponse(string translatedText, int status = 200) =>
+        JsonSerializer.Serialize(new { responseData = new { translatedText }, responseStatus = status });
+
+    [Fact]
+    public async Task MyMemory_TreatsInlineWarningAsQuota()
+    {
+        // 한도 초과 시 HTTP 200 + quotaFinished 없이 translatedText에 경고문을 담아 보냄 — 번역문으로 노출되면 안 됨
+        var warning = "MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY. NEXT AVAILABLE IN 07 HOURS 12 MINUTES";
+        var svc = new MyMemoryTranslationService(MakeClient(MyMemoryResponse(warning)));
+        await Assert.ThrowsAsync<TranslationRateLimitException>(() => svc.TranslateToKoreanAsync("hello", "EN"));
+    }
+
+    [Fact]
+    public async Task MyMemory_ReturnsTranslatedText_WhenNormal()
+    {
+        var svc = new MyMemoryTranslationService(MakeClient(MyMemoryResponse("안녕")));
+        var result = await svc.TranslateToKoreanAsync("hello", "EN");
+        Assert.Equal("안녕", result);
+    }
 }
 
 // Test helpers

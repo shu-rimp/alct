@@ -89,9 +89,16 @@ public sealed class MyMemoryTranslationService : ITranslationService
         if (status != 200)
             throw new InvalidOperationException($"MyMemory error: {status}");
 
-        return root.GetProperty("responseData")
-                   .GetProperty("translatedText")
-                   .GetString() ?? string.Empty;
+        var translated = root.GetProperty("responseData")
+                             .GetProperty("translatedText")
+                             .GetString() ?? string.Empty;
+
+        // MyMemory는 HTTP 200으로 quotaFinished/429 없이 translatedText에
+        // "MYMEMORY WARNING: ... NEXT AVAILABLE IN ..." 경고문을 담아 보냄 — 번역문처럼 노출되지 않게 한도로 처리
+        if (Regex.IsMatch(translated, "MYMEMORY WARNING|QUOTA", RegexOptions.IgnoreCase))
+            throw QuotaException(translated);
+
+        return translated;
     }
 
     private static bool IsLikelyEmail(string s) =>
