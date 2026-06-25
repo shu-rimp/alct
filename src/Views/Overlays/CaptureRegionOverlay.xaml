@@ -7,7 +7,8 @@
         Topmost="True"
         ShowInTaskbar="False"
         MinWidth="100" MinHeight="50"
-        SizeChanged="OnSizeChanged">
+        SizeChanged="OnSizeChanged"
+        MouseLeftButtonDown="OnDragMove">
 
     <Window.Resources>
         <Style x:Key="EditBtn" TargetType="Button">
@@ -30,9 +31,9 @@
 
     <Grid>
 
-        <!-- 영역 외곽선 -->
+        <!-- 영역 외곽선 (본문 드래그로 이동) -->
         <Rectangle Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
-                   Fill="#90000000"/>
+                   Fill="#90000000" Cursor="SizeAll"/>
 
         <!-- 상단 가이드 텍스트 -->
         <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,16,0,0"
@@ -54,7 +55,7 @@
         <!-- 하단 크기 표시 + 버튼 + 가이드 바 -->
         <StackPanel VerticalAlignment="Bottom">
             <Border Background="{StaticResource AccentBrush}" Padding="0,5" IsHitTestVisible="False">
-                <TextBlock Text="상하좌우 가장자리를 드래그하여 크기 조절"
+                <TextBlock Text="드래그하여 이동 · 가장자리를 드래그하여 크기 조절"
                            Foreground="White" FontSize="10" HorizontalAlignment="Center"/>
             </Border>
             <StackPanel HorizontalAlignment="Center" Margin="0,8,0,8">

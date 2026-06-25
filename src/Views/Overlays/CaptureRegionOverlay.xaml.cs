@@ -1,6 +1,7 @@
 using AlctClient.Utils;
 using System.Drawing;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 
 namespace AlctClient.Views.Overlays;
@@ -38,6 +39,12 @@ public partial class CaptureRegionOverlay : Window
 
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
         => UpdateSizeLabel();
+
+    // 본문 드래그로 영역 이동 — 가장자리는 WM_NCHITTEST가 리사이즈로 가로채고, 버튼은 클릭을 소비하므로 충돌 없음
+    private void OnDragMove(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+    }
 
     private void OnSave(object sender, RoutedEventArgs e)
     {
