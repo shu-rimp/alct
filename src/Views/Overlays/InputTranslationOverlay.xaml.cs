@@ -33,6 +33,8 @@ public partial class InputTranslationOverlay : Window
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        // 크기가 바뀔 때마다 좌상단을 앵커로 다시 고정 — SizeToContent 비동기 리사이즈로 인한 우측 드리프트 방지
+        SizeChanged += (_, _) => ApplyAnchorPosition();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -119,34 +121,29 @@ public partial class InputTranslationOverlay : Window
         }
     }
 
-    private const int EDGE_MARGIN = 28;          // 폴백 시 좌측 가장자리 여백(물리 px)
-    private const double VERTICAL_ANCHOR = 0.58;  // 폴백 시 세로 위치: 화면 중앙에서 살짝 아래
-    private const int GAP_ABOVE_REGION = 10;      // 채팅 캡쳐 영역 상단과의 간격(물리 px)
+    private const int GAP_ABOVE_REGION = 10;  // 채팅 캡쳐 영역 상단과의 간격(물리 px)
 
-    private System.Drawing.Rectangle _captureAnchor; // 채팅 캡쳐 영역(물리 px). 이 영역 바로 위에 오버레이를 띄운다.
+    // 채팅 캡쳐 영역(물리 px). 이 영역 바로 위, 좌측 정렬로 오버레이를 띄운다 — 게임 채팅에 가 있는 시선 근처.
+    private System.Drawing.Rectangle _captureAnchor;
 
     public void SetCaptureAnchor(System.Drawing.Rectangle region) => _captureAnchor = region;
 
-    // 채팅 캡쳐 영역 상단보다 살짝 위, 좌측 정렬로 배치 — 채팅에 가 있는 시선 근처.
-    // 영역 정보가 없으면(폴백) 마우스가 있는 모니터의 좌측, 세로 중앙보다 약간 아래에 둔다.
     private void PositionOverlay()
     {
         Show();
-        UpdateLayout(); // SizeToContent 반영 후 ActualWidth/Height 확정
+        UpdateLayout(); // SizeToContent 반영 후 ActualHeight 확정
+        ApplyAnchorPosition();
+    }
+
+    // 좌상단을 캡쳐 영역 앵커로 (재)고정. SizeToContent(WidthAndHeight)+레이어드 윈도우는 상태 전환 시
+    // 비동기 리사이즈가 일어나며 좌측 edge가 가끔 우측으로 미세하게 밀리므로, 크기가 바뀔 때마다 다시 고정.
+    private void ApplyAnchorPosition()
+    {
+        if (_captureAnchor.Width <= 0) return;
         var dpi = VisualTreeHelper.GetDpi(this);
-        var h = ActualHeight * dpi.DpiScaleY;
-
-        if (_captureAnchor.Width > 0)
-        {
-            Left = _captureAnchor.Left / dpi.DpiScaleX;
-            Top  = (_captureAnchor.Top - GAP_ABOVE_REGION - h) / dpi.DpiScaleY;
-            return;
-        }
-
-        var screen = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Control.MousePosition);
-        var wa = screen.WorkingArea;
-        Left = (wa.Left + EDGE_MARGIN) / dpi.DpiScaleX;
-        Top  = (wa.Top + wa.Height * VERTICAL_ANCHOR - h / 2) / dpi.DpiScaleY;
+        var hPhys = ActualHeight * dpi.DpiScaleY;
+        Left = _captureAnchor.Left / dpi.DpiScaleX;
+        Top  = (_captureAnchor.Top - GAP_ABOVE_REGION - hPhys) / dpi.DpiScaleY;
     }
 
     private void ScheduleAutoHide()
