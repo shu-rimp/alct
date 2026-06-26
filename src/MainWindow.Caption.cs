@@ -256,6 +256,11 @@ public partial class MainWindow
             if (enabled)
             {
                 var lang = Dispatcher.Invoke(() => _settings.SourceLang);
+                // 온보딩이 언어팩 설치 안내용으로 띄워둔 라이브캡션이 OS 기본 언어(한국어)로 실행 중일 수 있다.
+                // 라이브캡션은 언어를 시작 시점에만 읽으므로, 실행 중이면 먼저 종료해 방금 설정한 언어로 새로 시작한다.
+                // (이 종료가 빠지면 StartLiveCaptionsAsync가 no-op이 되어 첫 켜짐 시 대상 언어 인식이 안 됨)
+                if (Process.GetProcessesByName("LiveCaptions").Length > 0)
+                    await WindowsApiHelper.StopLiveCaptionsAsync();
                 WindowsApiHelper.SetLiveCaptionsLanguage(lang);
                 await WindowsApiHelper.StartLiveCaptionsAsync();
                 await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();

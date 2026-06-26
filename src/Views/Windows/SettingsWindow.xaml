@@ -265,7 +265,9 @@
 
                 <Button Grid.Column="1" Content="✕"
                         Foreground="{StaticResource TextMutedBrush}"
-                        FontSize="15" Click="OnClose">
+                        FontSize="15" Click="OnClose"
+                        ToolTip="ALCT를 시스템 트레이에 최소화"
+                        ToolTipService.InitialShowDelay="0">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Background" Value="Transparent"/>

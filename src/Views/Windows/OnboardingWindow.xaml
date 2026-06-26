@@ -358,6 +358,10 @@
                         Margin="0,0,0,10"
                         Click="OnOpenLiveCaptions"/>
 
+                <TextBlock Text="💡 한국어 언어팩은 필요 없어요. 라이브 캡션 창 우측 설정[⚙️] → 언어 변경에서 아래 목록의 언어팩을 선택해요."
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="11" TextWrapping="Wrap" Margin="2,0,0,10"/>
+
                 <!-- 언어팩 설치 상태 -->
                 <Border Background="{StaticResource CardBgBrush}"
                         CornerRadius="{StaticResource CardRadius}"
