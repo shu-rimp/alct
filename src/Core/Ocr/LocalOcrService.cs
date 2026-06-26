@@ -3,17 +3,20 @@ using AlctClient.Utils;
 
 namespace AlctClient.Core;
 
-// 로컬 OCR 파이프라인. 서버 OcrHttpClient를 대체. 동일한 OcrTextReceived(normalized, raw)
-// 이벤트를 발생시켜 소비자(MainWindow.Caption InitOcrHandler)는 무변경으로 동작한다.
+// 인식된 한 줄 — 번역할 텍스트(약어 <x> 태깅 적용) + 캡처 영역 기준 박스(픽셀).
+// 오버레이가 이 박스 위에 번역문을 그린다.
+public readonly record struct OcrRegion(string Text, double Left, double Top, double Right, double Bottom);
+
+// 로컬 OCR 파이프라인. 서버 OcrHttpClient를 대체.
 //
-// 파이프라인(서버 extractText + handler 순서와 동일):
-//   CyanMask(닉네임 제거) → 엔진 추론 → OcrLineReconstructor(줄 재구성) = rawText
-//   → ChatSlangNormalizer(약어 <x> 태깅) = normalizedText
+// 파이프라인:
+//   엔진 추론 → OcrLineReconstructor(줄 재구성) → 줄별 ChatSlangNormalizer(약어 <x> 태깅)
+//   → 줄별 박스를 살린 OcrRegion 목록
 public sealed class LocalOcrService : IDisposable
 {
     private readonly Lazy<IOcrEngine> _engine;
 
-    public event Action<string, string>? OcrTextReceived;  // (normalizedText, rawText)
+    public event Action<IReadOnlyList<OcrRegion>>? OcrRegionsReceived;
 
     public LocalOcrService() : this(CreateDefaultEngine) { }
 
@@ -24,18 +27,19 @@ public sealed class LocalOcrService : IDisposable
     // 첫 핫키 지연을 없애기 위한 모델 사전 로드(백그라운드 fire-and-forget 호출 권장). 실패는 호출부가 처리.
     public void Warmup() => _ = _engine.Value;
 
-    // bitmap은 제자리에서 마스킹됨 — 호출부가 소유/해제한다.
+    // 호출부가 bitmap을 소유/해제한다.
     public async Task RecognizeAsync(Bitmap bitmap)
     {
-        var (normalized, raw) = await Task.Run(() =>
+        var regions = await Task.Run(() =>
         {
-            CyanMask.Apply(bitmap);
             var fragments = _engine.Value.Recognize(bitmap);
-            var rawText = OcrLineReconstructor.Reconstruct(fragments);
-            return (ChatSlangNormalizer.Normalize(rawText), rawText);
+            return OcrLineReconstructor.ReconstructLines(fragments)
+                .Select(l => new OcrRegion(
+                    ChatSlangNormalizer.Normalize(l.Text), l.Left, l.Top, l.Right, l.Bottom))
+                .ToList();
         });
-        // 빈 결과(텍스트 미인식)여도 이벤트를 쏴서 "찾지 못함"을 안내할 수 있게 한다(서버와 동일).
-        OcrTextReceived?.Invoke(normalized, raw);
+        // 빈 결과(텍스트 미인식)여도 이벤트를 쏴서 "찾지 못함"을 안내할 수 있게 한다.
+        OcrRegionsReceived?.Invoke(regions);
     }
 
     // OneOCR(Snipping Tool 엔진) 우선 — 품질이 크게 좋음. 미설치/초기화 실패 시 PP-OCRv5로 폴백.

@@ -38,13 +38,13 @@
         <!-- 상단 가이드 텍스트 -->
         <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,16,0,0"
                     IsHitTestVisible="False">
-            <TextBlock Text="게임 내 채팅창을 열고 메시지가 표시되는 영역을 지정하세요."
+            <TextBlock Text="번역할 텍스트가 표시되는 영역을 지정하세요."
                        Foreground="White" FontSize="13" HorizontalAlignment="Center">
                 <TextBlock.Effect>
                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>
                 </TextBlock.Effect>
             </TextBlock>
-            <TextBlock Text="인원수에 따라 채팅 위치가 달라질 수 있어요. 높이는 넉넉하게 잡아주세요."
+            <TextBlock Text="브라우저 등 화면 전체도 지정할 수 있어요. '전체화면' 버튼을 눌러보세요."
                        Foreground="#BBBBBB" FontSize="11" HorizontalAlignment="Center" Margin="0,3,0,0">
                 <TextBlock.Effect>
                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>
@@ -72,6 +72,11 @@
                             Background="#90000000" Foreground="White"
                             Margin="0,0,6,0"
                             Click="OnCancel"/>
+                    <Button Content="전체화면"
+                            Style="{StaticResource EditBtn}"
+                            Background="#90000000" Foreground="White"
+                            Margin="0,0,6,0"
+                            Click="OnFullscreen"/>
                     <Button Content="저장"
                             Style="{StaticResource EditBtn}"
                             Background="{StaticResource AccentBrush}" Foreground="White"

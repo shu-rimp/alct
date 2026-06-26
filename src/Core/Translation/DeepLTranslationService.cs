@@ -56,6 +56,33 @@ public sealed class DeepLTranslationService : ITranslationService
         return string.Join("\n", results.Select(StripXTags));
     }
 
+    // DeepL 권장 한도: 요청당 최대 50개 text, 본문 128 KiB. 보수적으로 잡아 묶음당 1회 요청.
+    private const int MAX_BATCH_ITEMS = 50;
+    private const int MAX_BATCH_CHARS = 100_000;
+
+    public async Task<IReadOnlyList<string>> TranslateBatchToKoreanAsync(IReadOnlyList<string> texts, string sourceLang, CancellationToken ct = default)
+    {
+        if (texts.Count == 0 || string.IsNullOrEmpty(_apiKey)) return texts;
+
+        var src = MapLanguageCode(sourceLang);
+        var results = new List<string>(texts.Count);
+        // 줄 배열을 그대로 보내 1:1 번역 보장 — 묶음이 한도를 넘으면 여러 요청으로 분할
+        foreach (var chunk in BatchChunker.Chunk(texts, MAX_BATCH_ITEMS, MAX_BATCH_CHARS))
+        {
+            var payload = new Dictionary<string, object>
+            {
+                ["text"] = chunk,
+                ["source_lang"] = src,
+                ["target_lang"] = "KO",
+                ["tag_handling"] = "xml",
+                ["ignore_tags"] = new[] { "x" },
+            };
+            var arr = await CallDeepLArrayAsync(payload, ct);
+            results.AddRange(arr.Select(StripXTags));
+        }
+        return results;
+    }
+
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;

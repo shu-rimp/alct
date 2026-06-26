@@ -10,9 +10,9 @@ public partial class MainWindow
 {
     private readonly EditPanelOverlay _editPanel = new();
     private readonly CaptureRegionOverlay _captureRegionOverlay = new();
+    private readonly DragSelectOverlay _dragSelectOverlay = new();
 
     private double _snapVoiceLeft, _snapVoiceTop, _snapVoiceWidth;
-    private double _snapTextLeft,  _snapTextTop,  _snapTextWidth;
     private double _snapOpacity;
     private double _snapFontSize;
 
@@ -28,15 +28,22 @@ public partial class MainWindow
         if (_userSettings.ShowLanguageOverlay && _userSettings.OnboardingComplete) _langOverlay.Show();
 
         LoadOverlayPositions();
-        _overlay.SetOpacity(_userSettings.OverlayOpacity);
+        // 채팅 오버레이(_overlay)는 고정 50% 반투명 배경 — 공유 투명도 설정과 무관(순수 검정이라 더 진하게 보임)
         _voiceOverlay.SetOpacity(_userSettings.OverlayOpacity);
         _langOverlay.SetOpacity(_userSettings.OverlayOpacity);
         _overlay.SetFontSize(_userSettings.OverlayFontSize);
         _voiceOverlay.SetFontSize(_userSettings.OverlayFontSize);
+        _overlay.SetAutoHideSeconds(_userSettings.ChatHideSeconds);
+
+        // ESC 숨김 단축키는 채팅 오버레이가 보일 때만 등록 — 평소 게임의 ESC를 막지 않는다.
+        _overlay.IsVisibleChanged += (_, e) =>
+        {
+            if ((bool)e.NewValue) _hotkeyManager?.RegisterDismiss();
+            else _hotkeyManager?.UnregisterDismiss();
+        };
 
         _editPanel.OpacityChanged += opacity =>
         {
-            _overlay.SetOpacity(opacity);
             _voiceOverlay.SetOpacity(opacity);
             _langOverlay.SetOpacity(opacity);
             _userSettings.OverlayOpacity = opacity;
@@ -64,6 +71,15 @@ public partial class MainWindow
             _settings.Show();
             _settings.Activate();
         };
+
+        // 길게 누르기 → 드래그 영역 선택 → 그 영역으로 1회 캡처(저장 영역은 그대로)
+        _dragSelectOverlay.SelectionCompleted += region =>
+            // 딤 오버레이가 화면에서 사라진 뒤 캡처되도록 한 프레임 양보 + 약간의 지연
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(120);
+                RunCapture(region);
+            });
     }
 
     // ── Monitor switching ──
@@ -71,7 +87,7 @@ public partial class MainWindow
     internal void TranslateAllOverlaysToMonitor(
         System.Windows.Forms.Screen from, System.Windows.Forms.Screen to)
     {
-        TranslateOverlayToMonitor(_overlay,      from, to, _userSettings.TextOverlayLeft,  _userSettings.TextOverlayTop);
+        // 채팅 오버레이(_overlay)는 캡처 영역 위에 매번 자동 배치되므로 저장 위치 이동 대상이 아니다.
         TranslateOverlayToMonitor(_voiceOverlay, from, to, _userSettings.VoiceOverlayLeft, _userSettings.VoiceOverlayTop);
         TranslateOverlayToMonitor(_langOverlay,  from, to, _langOverlay.Left,              _langOverlay.Top);
         _langOverlay.SetInitialScreen(to);
@@ -128,28 +144,22 @@ public partial class MainWindow
 
     // ── Overlay position persistence ──
 
+    // 채팅 오버레이(_overlay)는 위치를 저장하지 않는다 — 캡처 영역 위에 매번 자동 배치된다.
     private void SaveOverlayPositions()
     {
         _userSettings.VoiceOverlayLeft  = _voiceOverlay.Left;
         _userSettings.VoiceOverlayTop   = _voiceOverlay.Top;
         _userSettings.VoiceOverlayWidth = _voiceOverlay.Width;
-        _userSettings.TextOverlayLeft   = _overlay.Left;
-        _userSettings.TextOverlayTop    = _overlay.Top;
-        _userSettings.TextOverlayWidth  = _overlay.Width;
     }
 
     private void LoadOverlayPositions()
     {
         var screen = GetSelectedScreen();
         _voiceOverlay.LoadBounds(_userSettings.VoiceOverlayLeft, _userSettings.VoiceOverlayTop, _userSettings.VoiceOverlayWidth);
-        _overlay.LoadBounds(_userSettings.TextOverlayLeft, _userSettings.TextOverlayTop, _userSettings.TextOverlayWidth);
 
         if (_userSettings.VoiceOverlayLeft < 0 || !screen.Bounds.Contains(
                 (int)_userSettings.VoiceOverlayLeft, (int)_userSettings.VoiceOverlayTop))
             _voiceOverlay.MoveToMonitor(screen);
-        if (_userSettings.TextOverlayLeft < 0 || !screen.Bounds.Contains(
-                (int)_userSettings.TextOverlayLeft, (int)_userSettings.TextOverlayTop))
-            _overlay.MoveToMonitor(screen);
 
         SaveOverlayPositions();
     }
@@ -188,14 +198,12 @@ public partial class MainWindow
         _snapVoiceLeft  = _voiceOverlay.Left;
         _snapVoiceTop   = _voiceOverlay.Top;
         _snapVoiceWidth = _voiceOverlay.Width;
-        _snapTextLeft   = _overlay.Left;
-        _snapTextTop    = _overlay.Top;
-        _snapTextWidth  = _overlay.Width;
         _snapOpacity    = _userSettings.OverlayOpacity;
         _snapFontSize   = _userSettings.OverlayFontSize;
 
+        // 채팅 오버레이(_overlay)는 캡처 영역 위에 자동 배치되므로 편집 모드에 참여하지 않는다.
+        // 투명도/글자 크기 조절은 음성 오버레이 미리보기로 확인하며, 같은 값이 채팅에도 적용된다.
         _voiceOverlay.SetEditMode(true);
-        _overlay.SetEditMode(true);
         _editPanel.SetOpacity(_userSettings.OverlayOpacity);
         _editPanel.SetFontSize(_userSettings.OverlayFontSize);
         _editPanel.Show();
@@ -208,11 +216,9 @@ public partial class MainWindow
         var defaults = new UserSettings();
         var screen = GetSelectedScreen();
 
-        _overlay.ResetBounds(screen);
         _voiceOverlay.ResetBounds(screen);
         _langOverlay.MoveToMonitor(screen);
 
-        _overlay.SetOpacity(defaults.OverlayOpacity);
         _voiceOverlay.SetOpacity(defaults.OverlayOpacity);
         _langOverlay.SetOpacity(defaults.OverlayOpacity);
         _overlay.SetFontSize(defaults.OverlayFontSize);
@@ -228,7 +234,6 @@ public partial class MainWindow
     private void ExitEditMode(bool save)
     {
         _voiceOverlay.SetEditMode(false);
-        _overlay.SetEditMode(false);
         _editPanel.Hide();
 
         if (save)
@@ -241,13 +246,9 @@ public partial class MainWindow
             _voiceOverlay.Left  = _snapVoiceLeft;
             _voiceOverlay.Top   = _snapVoiceTop;
             _voiceOverlay.Width = _snapVoiceWidth;
-            _overlay.Left   = _snapTextLeft;
-            _overlay.Top    = _snapTextTop;
-            _overlay.Width  = _snapTextWidth;
             _userSettings.OverlayOpacity  = _snapOpacity;
             _userSettings.OverlayFontSize = _snapFontSize;
             _voiceOverlay.SetOpacity(_snapOpacity);
-            _overlay.SetOpacity(_snapOpacity);
             _langOverlay.SetOpacity(_snapOpacity);
             _voiceOverlay.SetFontSize(_snapFontSize);
             _overlay.SetFontSize(_snapFontSize);

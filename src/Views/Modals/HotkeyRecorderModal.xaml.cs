@@ -1,7 +1,6 @@
 using AlctClient.Core;
 using System.Windows;
 using System.Windows.Input;
-using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace AlctClient.Views.Modals;
 

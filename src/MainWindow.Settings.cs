@@ -60,6 +60,13 @@ public partial class MainWindow
             UserSettingsService.Save(_userSettings);
         };
 
+        _settings.ChatHideSecondsChanged += seconds =>
+        {
+            _userSettings.ChatHideSeconds = seconds;
+            _overlay.SetAutoHideSeconds(seconds);
+            UserSettingsService.Save(_userSettings);
+        };
+
         _settings.ChangeCaptureHotkeyRequested += RebindCaptureHotkey;
         _settings.ChangeInputHotkeyRequested   += RebindInputHotkey;
 

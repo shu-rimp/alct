@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         _settings.SetTextEngine(textEngine);
         _settings.SetShowLanguageOverlay(_userSettings.ShowLanguageOverlay);
         _settings.SetCaptureRegionMode(_userSettings.UseCustomCaptureRegion);
+        _settings.SetChatHideSeconds(_userSettings.ChatHideSeconds);
 
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -180,6 +181,7 @@ public partial class MainWindow : Window
         _inputOverlay.Close();
         _editPanel.Close();
         _captureRegionOverlay.Close();
+        _dragSelectOverlay.Close();
         StopLiveCaptionsWatcher();
         if (_userSettings.CaptionModeEnabled)
             WindowsApiHelper.StopLiveCaptions();

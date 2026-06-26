@@ -1,0 +1,40 @@
+<Window x:Class="AlctClient.Views.Overlays.DragSelectOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual"
+        Cursor="Cross"
+        Focusable="True"
+        ResizeMode="NoResize">
+
+    <!-- 화면을 살짝 어둡게 덮고, 드래그한 영역만 선택 사각형으로 표시 -->
+    <Canvas x:Name="RootCanvas" Background="#59000000"
+            MouseLeftButtonDown="OnMouseDown"
+            MouseMove="OnMouseMove"
+            MouseLeftButtonUp="OnMouseUp"
+            MouseRightButtonDown="OnCancel">
+
+        <Rectangle x:Name="SelectionRect"
+                   Visibility="Collapsed"
+                   Stroke="{StaticResource AccentBrush}"
+                   StrokeThickness="2"
+                   Fill="#22FFFFFF"/>
+
+        <!-- 안내 문구 -->
+        <Border x:Name="HintBox"
+                Background="#CC000000"
+                CornerRadius="6"
+                Padding="14,9">
+            <StackPanel>
+                <TextBlock Text="번역할 영역을 드래그하세요."
+                           Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
+                <TextBlock Text="이번 한 번만 적용돼요 · ESC 또는 우클릭으로 취소"
+                           Foreground="#BBBBBB" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+    </Canvas>
+</Window>

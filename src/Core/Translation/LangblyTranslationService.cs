@@ -45,6 +45,19 @@ public sealed class LangblyTranslationService : ITranslationService
         return await CallAsync(ITranslationService.StripXmlTags(text), MapLanguageCode(sourceLang), "ko", ct);
     }
 
+    // 배치 API가 없어 줄마다 순차 호출(UI 미노출 엔진 — 단순하게 유지)
+    public async Task<IReadOnlyList<string>> TranslateBatchToKoreanAsync(IReadOnlyList<string> texts, string sourceLang, CancellationToken ct = default)
+    {
+        if (texts.Count == 0 || string.IsNullOrEmpty(_apiKey)) return texts;
+        var source = MapLanguageCode(sourceLang);
+        var results = new string[texts.Count];
+        for (int i = 0; i < texts.Count; i++)
+            results[i] = string.IsNullOrWhiteSpace(texts[i])
+                ? texts[i]
+                : await CallAsync(ITranslationService.StripXmlTags(texts[i]), source, "ko", ct);
+        return results;
+    }
+
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
         if (string.IsNullOrWhiteSpace(text) || string.IsNullOrEmpty(_apiKey)) return text;

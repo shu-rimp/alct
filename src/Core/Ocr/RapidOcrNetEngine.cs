@@ -32,9 +32,9 @@ internal sealed class RapidOcrNetEngine : IOcrEngine
         return result.TextBlocks.Select(block =>
         {
             // BoxPoints: 폴리곤 4각(시계방향). 서버 _reconstructLines 와 동일하게 min/max로 줄인다.
-            var xs = block.BoxPoints.Select(p => (double)p.X);
+            var xs = block.BoxPoints.Select(p => (double)p.X).ToArray();
             var ys = block.BoxPoints.Select(p => (double)p.Y).ToArray();
-            return new OcrLineReconstructor.Fragment(block.Text, xs.Min(), ys.Min(), ys.Max());
+            return new OcrLineReconstructor.Fragment(block.Text, xs.Min(), ys.Min(), xs.Max(), ys.Max());
         }).ToList();
     }
 

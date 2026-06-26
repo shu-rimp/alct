@@ -23,6 +23,12 @@ public sealed class GlossaryTranslationDecorator : ITranslationService
         return _inner.TranslateToKoreanAsync(applied, sourceLang, context, ct);
     }
 
+    public Task<IReadOnlyList<string>> TranslateBatchToKoreanAsync(IReadOnlyList<string> texts, string sourceLang, CancellationToken ct = default)
+    {
+        var applied = texts.Select(t => _glossary.Apply(t, sourceLang)).ToList();
+        return _inner.TranslateBatchToKoreanAsync(applied, sourceLang, ct);
+    }
+
     // 한국어 → 외국어 입력 번역은 용어집 대상 아님
     public Task<string> TranslateFromKoreanAsync(string text, string targetLang)
         => _inner.TranslateFromKoreanAsync(text, targetLang);

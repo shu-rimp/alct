@@ -93,6 +93,28 @@ public sealed class MyMemoryTranslationService : ITranslationService
         return missing.Count == 0 ? restored : $"{restored.TrimEnd()} {string.Join(" ", missing)}";
     }
 
+    // MyMemory는 엔진당 배치 API가 없어 줄마다 GET을 보낸다. 전체화면 캡처처럼 영역이 많을 때
+    // 무제한 병렬(Task.WhenAll)은 순간 폭주 + 한도 소진을 부르므로 동시 요청 수를 제한한다.
+    // 또한 q 파라미터가 너무 길면 잘리거나 실패하므로(익명 ~500바이트), 한도 초과 줄은 원문 그대로 통과.
+    private const int MAX_CONCURRENCY = 5;
+    private const int MAX_QUERY_CHARS = 500;
+
+    public async Task<IReadOnlyList<string>> TranslateBatchToKoreanAsync(IReadOnlyList<string> texts, string sourceLang, CancellationToken ct = default)
+    {
+        if (texts.Count == 0) return texts;
+
+        var source = MapLanguageCode(sourceLang);
+        using var gate = new SemaphoreSlim(MAX_CONCURRENCY);
+        var tasks = texts.Select(async t =>
+        {
+            if (string.IsNullOrWhiteSpace(t) || t.Length > MAX_QUERY_CHARS) return t;
+            await gate.WaitAsync(ct);
+            try { return await TranslateLineAsync(t, source, ct); }
+            finally { gate.Release(); }
+        });
+        return await Task.WhenAll(tasks);
+    }
+
     public async Task<string> TranslateFromKoreanAsync(string text, string targetLang)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;

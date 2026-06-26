@@ -21,6 +21,7 @@ public partial class SettingsWindow : Window
     public event Action<TranslationEngine>? TextEngineChanged;
     public event Action<int>? MonitorIndexChanged;
     public event Action<bool>? ShowLanguageOverlayChanged;
+    public event Action<int>? ChatHideSecondsChanged;
     public event Action? OverlayPositionEditRequested;
     public event Action? ChangeCaptureHotkeyRequested;
     public event Action? ChangeInputHotkeyRequested;
@@ -29,6 +30,7 @@ public partial class SettingsWindow : Window
 
     private bool _allowClose;
     private bool _suppressMonitorEvent;
+    private bool _suppressChatHideEvent;
     private string _deepLApiKey   = string.Empty;
     private string _geminiApiKey  = string.Empty;
     private string _langblyApiKey = string.Empty;
@@ -150,6 +152,20 @@ public partial class SettingsWindow : Window
     }
 
     public void SetShowLanguageOverlay(bool show) => ShowLangOverlayToggle.IsChecked = show;
+
+    public void SetChatHideSeconds(int seconds)
+    {
+        _suppressChatHideEvent = true;
+        foreach (ComboBoxItem item in ChatHideCombo.Items)
+        {
+            if (int.TryParse(item.Tag as string, out var s) && s == seconds)
+            {
+                ChatHideCombo.SelectedItem = item;
+                break;
+            }
+        }
+        _suppressChatHideEvent = false;
+    }
 
     public void SetMonitorIndex(int index)
     {
@@ -300,6 +316,13 @@ public partial class SettingsWindow : Window
 
     private void OnShowLangOverlayChanged(object sender, RoutedEventArgs e)
         => ShowLanguageOverlayChanged?.Invoke(ShowLangOverlayToggle.IsChecked == true);
+
+    private void OnChatHideChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressChatHideEvent) return;
+        if (int.TryParse((ChatHideCombo.SelectedItem as ComboBoxItem)?.Tag as string, out var seconds))
+            ChatHideSecondsChanged?.Invoke(seconds);
+    }
 
     private void OnOverlayEditRequested(object sender, RoutedEventArgs e)
         => OverlayPositionEditRequested?.Invoke();
