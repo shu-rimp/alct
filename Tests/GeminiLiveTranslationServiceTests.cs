@@ -75,6 +75,21 @@ public class GeminiLiveTranslationServiceTests
     }
 
     [Fact]
+    public async Task TranslateToKoreanAsync_FinishesTurnThenRecycles_OnGoAway()
+    {
+        using var server = new TranslationMockServer { EmitGoAwayOnFirstTurn = true };
+        server.Start();
+        using var svc = Connect(server);
+
+        var first  = await svc.TranslateToKoreanAsync("a", "en-US");  // goAway 예고에도 이번 턴은 정상 응답(예전엔 NRE)
+        var second = await svc.TranslateToKoreanAsync("b", "en-US");  // 다음 턴은 재생성된 새 세션에서 응답
+
+        Assert.Equal("안녕하세요.", first);
+        Assert.Equal("안녕하세요.", second);
+        Assert.Equal(2, server.ConnectionCount);  // goAway 후 세션 재생성
+    }
+
+    [Fact]
     public async Task TranslateToKoreanAsync_ThrowsRateLimit_OnResourceExhaustedClose()
     {
         using var server = new TranslationMockServer { RateLimitClose = true };

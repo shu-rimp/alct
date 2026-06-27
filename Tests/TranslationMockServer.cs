@@ -23,6 +23,7 @@ public sealed class TranslationMockServer : IDisposable
     public long EmitTokenCount { get; set; }       // >0이면 각 턴에 usageMetadata(totalTokenCount) 프레임 동봉
     public bool FailFirstConnection { get; set; }   // 첫 연결의 첫 턴에서 소켓 강제 중단(드롭 → 재연결 검증)
     public bool RateLimitClose { get; set; }        // 첫 턴에서 RESOURCE_EXHAUSTED 사유로 종료
+    public bool EmitGoAwayOnFirstTurn { get; set; } // 첫 연결 첫 턴에서 응답 직전 goAway(종료 예고) 프레임 동봉
 
     public TranslationMockServer()
     {
@@ -87,6 +88,10 @@ public sealed class TranslationMockServer : IDisposable
 
                 if (EmitTokenCount > 0)
                     await SendAsync(ws, $"{{\"usageMetadata\":{{\"totalTokenCount\":{EmitTokenCount}}}}}", ct);
+
+                // goAway는 응답 직전 별도 프레임으로 온다 — 클라이언트는 이번 턴(turnComplete)까지 마저 읽어야 한다.
+                if (EmitGoAwayOnFirstTurn && conn == 1)
+                    await SendAsync(ws, "{\"goAway\":{\"timeLeft\":\"10s\"}}", ct);
 
                 // 실제 모델처럼 오디오 출력의 전사를 outputTranscription으로 전달(+빈 modelTurn 오디오 자리).
                 var payload = $"{{\"serverContent\":{{\"outputTranscription\":{{\"text\":{Quote(Response)}}},\"turnComplete\":true}}}}";

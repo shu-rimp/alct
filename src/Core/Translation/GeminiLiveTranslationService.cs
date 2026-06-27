@@ -39,6 +39,7 @@ public sealed class GeminiLiveTranslationService : ITranslationService, IDisposa
 
     private ClientWebSocket? _ws;
     private long _sessionTokens;  // 현재 세션 누적 토큰(usageMetadata 기준) — 임계 초과 시 재생성
+    private bool _recycleRequested;  // goAway 수신 — 이번 턴은 마저 읽고 다음 EnsureConnectedAsync에서 세션 재생성
 
     public GeminiLiveTranslationService(string apiKey) : this(apiKey, BidiEndpoint) { }
 
@@ -156,21 +157,25 @@ public sealed class GeminiLiveTranslationService : ITranslationService, IDisposa
             }
             else if (root.TryGetProperty("goAway", out _))
             {
-                ResetSocket();  // 서버가 종료 예고 → 이번 응답을 받은 뒤 다음 턴에서 새 세션
+                // goAway는 '곧 끊는다'는 예고일 뿐 — 소켓은 아직 살아있다. 여기서 ResetSocket()하면
+                // _ws가 null이 되어 이 루프의 다음 ReceiveJsonAsync가 NRE로 터진다.
+                // 이번 턴(turnComplete)까지는 마저 읽고, 재생성은 다음 턴 EnsureConnectedAsync에 맡긴다.
+                _recycleRequested = true;
             }
         }
 
         return sb.ToString().Trim();
     }
 
-    // 지연 연결 + 세션 재사용. 누적 토큰이 임계를 넘었으면 먼저 끊어 새 세션으로 다시 연다.
+    // 지연 연결 + 세션 재사용. 토큰 임계 초과 또는 goAway 재생성 요청이면 먼저 끊어 새 세션으로 다시 연다.
     private async Task EnsureConnectedAsync(CancellationToken ct)
     {
-        if (_ws is { State: WebSocketState.Open } && _sessionTokens < RecycleTokenThreshold) return;
-        if (_sessionTokens >= RecycleTokenThreshold) ResetSocket();
-        if (_ws is { State: WebSocketState.Open }) return;
+        if (_ws is { State: WebSocketState.Open }
+            && _sessionTokens < RecycleTokenThreshold
+            && !_recycleRequested)
+            return;
 
-        ResetSocket();
+        ResetSocket();  // 끊김 / 토큰 임계 초과 / goAway 재생성 요청 → 새 세션
         var ws = new ClientWebSocket();
         await ws.ConnectAsync(_endpoint, ct);
 
@@ -217,19 +222,21 @@ public sealed class GeminiLiveTranslationService : ITranslationService, IDisposa
 
     private async Task SendJsonAsync(object payload, CancellationToken ct)
     {
+        var ws = _ws ?? throw new WebSocketException("Gemini Live socket is not connected.");
         var bytes = JsonSerializer.SerializeToUtf8Bytes(payload);
-        await _ws!.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
+        await ws.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, ct);
     }
 
     // 한 메시지(여러 프레임일 수 있음)를 끝까지 모아 JSON으로 파싱. 텍스트/바이너리 프레임 모두 UTF-8 JSON.
     private async Task<JsonDocument> ReceiveJsonAsync(CancellationToken ct)
     {
+        var ws = _ws ?? throw new WebSocketException("Gemini Live socket is not connected.");
         var buffer = new byte[ReceiveBufferSize];
         using var ms = new MemoryStream();
         WebSocketReceiveResult result;
         do
         {
-            result = await _ws!.ReceiveAsync(buffer, ct);
+            result = await ws.ReceiveAsync(buffer, ct);
             if (result.MessageType == WebSocketMessageType.Close)
                 throw CloseToException(result);
             ms.Write(buffer, 0, result.Count);
@@ -260,6 +267,7 @@ public sealed class GeminiLiveTranslationService : ITranslationService, IDisposa
         try { _ws?.Dispose(); } catch { }
         _ws = null;
         _sessionTokens = 0;
+        _recycleRequested = false;
     }
 
     public void Dispose()
