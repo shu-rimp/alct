@@ -188,13 +188,13 @@ public partial class SettingsWindow : Window
 
     public void SetTextEngine(TranslationEngine engine) => TextEngineCombo.SelectedIndex = EngineToComboIndex(engine);
 
-    // ComboBox 항목 순서(MyMemory, DeepL, Gemini, Langbly)에 대응
+    // ComboBox 항목 순서(MyMemory, DeepL, Gemini, [GeminiLive])에 대응. GeminiLive는 음성 콤보에만 존재.
     private static int EngineToComboIndex(TranslationEngine engine) => engine switch
     {
-        TranslationEngine.DeepL   => 1,
-        TranslationEngine.Gemini  => 2,
-        TranslationEngine.Langbly => 3,
-        _                         => 0,
+        TranslationEngine.DeepL      => 1,
+        TranslationEngine.Gemini     => 2,
+        TranslationEngine.GeminiLive => 3,
+        _                            => 0,
     };
 
     internal void AllowClose() => _allowClose = true;
@@ -297,9 +297,10 @@ public partial class SettingsWindow : Window
 
         VoiceApiKeyWarning.Visibility = SelectedVoiceEngine switch
         {
-            TranslationEngine.DeepL   when string.IsNullOrEmpty(_deepLApiKey)   => Visibility.Visible,
-            TranslationEngine.Gemini  when string.IsNullOrEmpty(_geminiApiKey)  => Visibility.Visible,
-            TranslationEngine.Langbly when string.IsNullOrEmpty(_langblyApiKey) => Visibility.Visible,
+            TranslationEngine.DeepL      when string.IsNullOrEmpty(_deepLApiKey)   => Visibility.Visible,
+            TranslationEngine.Gemini     when string.IsNullOrEmpty(_geminiApiKey)  => Visibility.Visible,
+            TranslationEngine.GeminiLive when string.IsNullOrEmpty(_geminiApiKey)  => Visibility.Visible,  // Gemini 키 공유
+            TranslationEngine.Langbly    when string.IsNullOrEmpty(_langblyApiKey) => Visibility.Visible,
             _ => Visibility.Collapsed,
         };
 

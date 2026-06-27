@@ -471,30 +471,14 @@
                                               SelectionChanged="OnVoiceEngineChanged">
                                         <ComboBoxItem Tag="MyMemory" IsSelected="True">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="MyMemory" FontSize="13"/>
-                                                    <Border Background="{StaticResource ComboBgBrush}"
-                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
-                                                            BorderThickness="1" CornerRadius="4"
-                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
-                                                    </Border>
-                                                </StackPanel>
+                                                <TextBlock Text="MyMemory" FontSize="13"/>
                                                 <TextBlock Text="키 없이 바로 사용" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="DeepL">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="DeepL" FontSize="13" VerticalAlignment="Center"/>
-                                                    <Border Background="{StaticResource ComboBgBrush}"
-                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
-                                                            BorderThickness="1" CornerRadius="4"
-                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
-                                                    </Border>
-                                                </StackPanel>
+                                                <TextBlock Text="DeepL" FontSize="13" VerticalAlignment="Center"/>
                                                 <TextBlock Text="고품질 번역 · API 키 필요" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
@@ -503,6 +487,21 @@
                                             <StackPanel>
                                                 <TextBlock Text="Gemini" FontSize="13"/>
                                                 <TextBlock Text="AI 번역 · API 키 필요" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="GeminiLive">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="Gemini Live" FontSize="13" VerticalAlignment="Center"/>
+                                                    <Border Background="{StaticResource ComboBgBrush}"
+                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="실시간 AI 번역 · API 키 필요" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
                                         </ComboBoxItem>

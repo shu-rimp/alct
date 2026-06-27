@@ -16,7 +16,7 @@ public interface ITranslationService
         text.Replace("<x>", "").Replace("</x>", "").Trim();
 }
 
-public enum TranslationEngine { MyMemory, DeepL, Gemini, Langbly }
+public enum TranslationEngine { MyMemory, DeepL, Gemini, Langbly, GeminiLive }
 
 // 번역 엔진의 사용량/속도 제한 초과. RetryAtUtc는 재개 가능 시각(엔진이 응답에서 산출, 폴백 포함)
 public sealed class TranslationRateLimitException : Exception
