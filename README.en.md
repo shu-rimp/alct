@@ -99,7 +99,10 @@ Enable the `Real-time voice translation` toggle and it automatically generates K
 
 Press the hotkey to capture the chat region, and the translation is shown as an overlay.
 
-<img src="https://github.com/user-attachments/assets/85581f77-732c-4588-ab84-7126cb104d10" alt="Chat translation demo" width="640" />
+- **Short press** — translates the saved (or automatic) region.
+- **Long press** — drag to pick the region to translate. (one-time)
+
+<img src="https://github.com/user-attachments/assets/614161be-6748-4396-8c8e-cfb48583763d" alt="채팅 번역 데모" width="640" />
 
 ### ⌨️ Input translation `default: Ctrl+G`
 

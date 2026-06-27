@@ -10,7 +10,7 @@ namespace AlctClient.Views.Overlays;
 // 다른 오버레이와 달리 클릭/키 입력을 받아야 하므로 클릭 통과를 쓰지 않는다.
 public partial class DragSelectOverlay : Window
 {
-    private const double MIN_SIZE = 10;  // 이보다 작으면 오선택으로 보고 취소
+    private const double MIN_SIZE = 5;  // 이보다 작으면 오선택으로 보고 취소
 
     private WpfPoint _start;
     private bool _dragging;
@@ -33,6 +33,7 @@ public partial class DragSelectOverlay : Window
         Height = screen.Bounds.Height;
 
         SelectionRect.Visibility = Visibility.Collapsed;
+        HintBox.Visibility = Visibility.Visible; 
         _dragging = false;
 
         Show();

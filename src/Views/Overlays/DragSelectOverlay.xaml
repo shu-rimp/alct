@@ -24,8 +24,9 @@
                    StrokeThickness="2"
                    Fill="#22FFFFFF"/>
 
-        <!-- 안내 문구 -->
+        <!-- 안내 문구 - 우상단 고정 -->
         <Border x:Name="HintBox"
+                Canvas.Top="20" Canvas.Right="20"
                 Background="#CC000000"
                 CornerRadius="6"
                 Padding="14,9">

@@ -203,9 +203,16 @@
                         CornerRadius="{StaticResource CardRadius}"
                         Padding="{StaticResource CardPadding}"
                         Margin="0,0,0,0">
-                    <TextBlock Text="단축키를 누르면 채팅을 번역해 오버레이로 보여줘요."
-                               FontSize="12" TextWrapping="Wrap"
-                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <StackPanel>
+                        <TextBlock FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3">
+                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">짧게</Run> 저장된 영역을 번역해요.
+                        </TextBlock>
+                        <TextBlock FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextSecondaryBrush}">
+                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">길게</Run> 드래그로 번역할 영역을 직접 지정해요.
+                        </TextBlock>
+                    </StackPanel>
                 </Border>
 
                 <Grid Margin="0,20,0,0">

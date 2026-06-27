@@ -44,7 +44,13 @@
                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>
                 </TextBlock.Effect>
             </TextBlock>
-            <TextBlock Text="브라우저 등 화면 전체도 지정할 수 있어요. '전체화면' 버튼을 눌러보세요."
+            <TextBlock Text="'전체화면'은 번역 사용량을 빠르게 소진시킬 수 있어요."
+                       Foreground="#BBBBBB" FontSize="11" HorizontalAlignment="Center" Margin="0,3,0,0">
+                <TextBlock.Effect>
+                    <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>
+                </TextBlock.Effect>
+            </TextBlock>
+            <TextBlock Text="단축키를 길게 눌러 원하는 곳만 번역할 수 있는 드래그 번역 기능을 활용해 보세요."
                        Foreground="#BBBBBB" FontSize="11" HorizontalAlignment="Center" Margin="0,3,0,0">
                 <TextBlock.Effect>
                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Opacity="0.9" Color="Black"/>

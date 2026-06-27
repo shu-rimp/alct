@@ -16,7 +16,7 @@ public partial class ChatTranslationOverlay : Window
 {
     private const int NOTICE_HIDE_MS = 5000;      // 안내/오류는 설정과 무관하게 짧게 자동 숨김
     private const double DEFAULT_FONT = 14.0;     // UserSettings.OverlayFontSize 기본값 — 스케일 1.0 기준
-    private const double BOX_FONT_RATIO = 0.62;   // 박스 높이 → 글자 크기(대략적인 cap height 비율)
+    private const double BOX_FONT_RATIO = 0.70;   // 박스 높이 → 글자 크기(대략적인 cap height 비율). 원문보다 작아 보이지 않도록 살짝 키움
     private const double MIN_FONT = 9.0;
     private const double MAX_FONT = 48.0;
 
@@ -65,12 +65,13 @@ public partial class ChatTranslationOverlay : Window
         Dispatcher.Invoke(() =>
         {
             _hideTimer?.Stop();
-            Show();
-            PositionWindow(captureRegion);
-            RegionCanvas.Children.Clear();
+            RegionCanvas.Children.Clear();  // 보여주기 전에 이전 결과를 치운다 — Show() 직후 옛 결과가 한 프레임 깜빡이는 것 방지
             _hint.Hide();
             SpinnerBox.Visibility = Visibility.Visible;
             StatusText.Text = message;
+            StatusPill.Visibility = Visibility.Collapsed;  // 위치를 잡은 뒤 노출 — 스피너가 옛 위치에서 깜빡이지 않도록
+            Show();
+            PositionWindow(captureRegion);
             StatusPill.Visibility = Visibility.Visible;
             SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, SpinAnimation);
         });
@@ -121,12 +122,11 @@ public partial class ChatTranslationOverlay : Window
 
             Show();
             var dpi = PositionWindow(captureRegion);
-            double maxRightDiu = captureRegion.Width / dpi.DpiScaleX;
 
             foreach (var (text, b) in regions)
             {
                 if (string.IsNullOrWhiteSpace(text)) continue;
-                RegionCanvas.Children.Add(BuildLabel(text, b, dpi, maxRightDiu));
+                RegionCanvas.Children.Add(BuildLabel(text, b, dpi));
             }
 
             if (RegionCanvas.Children.Count == 0) { Hide(); return; }
@@ -137,23 +137,26 @@ public partial class ChatTranslationOverlay : Window
 
     // ── 내부 ─────────────────────────────────────────────────────────────
 
-    // 창을 캡처 영역(물리 px)에 맞춘다 — DIU로 환산. 사용한 DpiScale을 돌려준다.
+    // 창을 캡처 영역(물리 px)의 좌상단에 맞추되, 우/하단은 가상 화면 끝까지 늘린다.
+    // 한 줄로 표시한 긴 번역문이 영역 밖으로 이어져도 창 경계에서 잘리지 않도록 함(창은 투명·클릭 통과).
+    // 라벨 좌표는 캡처 영역 좌상단(=창 좌상단) 기준이라 그대로 유효하다. 사용한 DpiScale을 돌려준다.
     private DpiScale PositionWindow(Rectangle region)
     {
         _lastRegion = region;
         var dpi = VisualTreeHelper.GetDpi(this);
-        Left   = region.Left   / dpi.DpiScaleX;
-        Top    = region.Top    / dpi.DpiScaleY;
-        Width  = region.Width  / dpi.DpiScaleX;
-        Height = region.Height / dpi.DpiScaleY;
+        int screenRight  = GetSystemMetrics(SM_XVIRTUALSCREEN) + GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int screenBottom = GetSystemMetrics(SM_YVIRTUALSCREEN) + GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        Left   = region.Left / dpi.DpiScaleX;
+        Top    = region.Top  / dpi.DpiScaleY;
+        Width  = Math.Max(region.Width,  screenRight  - region.Left) / dpi.DpiScaleX;
+        Height = Math.Max(region.Height, screenBottom - region.Top)  / dpi.DpiScaleY;
         return dpi;
     }
 
-    private Border BuildLabel(string text, RectangleF b, DpiScale dpi, double maxRightDiu)
+    private Border BuildLabel(string text, RectangleF b, DpiScale dpi)
     {
         double left      = b.Left   / dpi.DpiScaleX;
         double top       = b.Top    / dpi.DpiScaleY;
-        double widthDiu  = b.Width  / dpi.DpiScaleX;
         double heightDiu = b.Height / dpi.DpiScaleY;
         double fontSize  = Math.Clamp(heightDiu * BOX_FONT_RATIO, MIN_FONT, MAX_FONT) * _fontScale;
 
@@ -161,13 +164,13 @@ public partial class ChatTranslationOverlay : Window
         {
             Background = LabelBg,
             Padding = new Thickness(2, 0, 2, 0),
-            MaxWidth = Math.Max(widthDiu, maxRightDiu - left),   // 번역문 길이에 맞춤(여백 없음), 너무 길면 영역 안에서 줄바꿈
+            // 줄바꿈 없이 한 줄로 표시 — 길어도 영역 밖으로 이어지게 둔다(아래 밑줄 오버레이와 겹치지 않도록)
             Child = new TextBlock
             {
                 Text = text,
                 Foreground = TextBrush,
                 FontSize = fontSize,
-                TextWrapping = TextWrapping.Wrap,
+                TextWrapping = TextWrapping.NoWrap,
             },
         };
         Canvas.SetLeft(label, left);
@@ -194,6 +197,9 @@ public partial class ChatTranslationOverlay : Window
     [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint eMin, uint eMax, IntPtr hmod, WinEventProc fn, uint pid, uint tid, uint flags);
     [DllImport("user32.dll")] private static extern bool   UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] private static extern bool   SetWindowPos(IntPtr hwnd, IntPtr hwndAfter, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] private static extern int    GetSystemMetrics(int index);
+
+    private const int SM_XVIRTUALSCREEN = 76, SM_YVIRTUALSCREEN = 77, SM_CXVIRTUALSCREEN = 78, SM_CYVIRTUALSCREEN = 79;
 
     private delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time);
     private static readonly IntPtr HWND_TOPMOST = new(-1);
