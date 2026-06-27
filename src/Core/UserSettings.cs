@@ -4,9 +4,10 @@ public class UserSettings
 {
     public string SourceLang { get; set; } = "ja-JP";
     public bool CaptionModeEnabled { get; set; } = false;
-    public double OverlayOpacity { get; set; } = 0.85;
-    public double OverlayFontSize { get; set; } = 14;
+    public double OverlayOpacity { get; set; } = 0.7;
+    public double OverlayFontSize { get; set; } = 15;
     public bool ShowLanguageOverlay { get; set; } = true;
+    public int ChatHideSeconds { get; set; } = 5;  // 채팅 번역 오버레이 자동 숨김(초). 0 = 무제한(ESC/다음 캡처로만 숨김)
 
     public double VoiceOverlayLeft  { get; set; } = -1;
     public double VoiceOverlayTop   { get; set; } = 30;

@@ -99,6 +99,13 @@ public sealed class CaptionMonitorService : IDisposable
                 Poll();
             }
             catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                Logger.Error("CaptionMonitor", ex);
+                _captionsTextBlock = null;
+                _captionsWindow = null;
+                _rebaselineOnNextPoll = true;
+            }
         }
     }
 

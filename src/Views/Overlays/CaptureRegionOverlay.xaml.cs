@@ -8,8 +8,11 @@ namespace AlctClient.Views.Overlays;
 
 public partial class CaptureRegionOverlay : Window
 {
-    private const double MAX_WIDTH_RATIO  = 0.50;
-    private const double MAX_HEIGHT_RATIO = 0.30;
+    // 전체화면(브라우저 등 게임 외 환경)까지 지정할 수 있도록 화면 전체를 상한으로 둔다.
+    private const double MAX_WIDTH_RATIO  = 1.0;
+    private const double MAX_HEIGHT_RATIO = 1.0;
+
+    private System.Windows.Forms.Screen? _screen;
 
     public event Action<Rectangle>? SaveRequested;
     public event Action? CancelRequested;
@@ -24,6 +27,7 @@ public partial class CaptureRegionOverlay : Window
 
     public void LoadRegion(Rectangle region, System.Windows.Forms.Screen screen)
     {
+        _screen   = screen;
         MaxWidth  = screen.Bounds.Width  * MAX_WIDTH_RATIO;
         MaxHeight = screen.Bounds.Height * MAX_HEIGHT_RATIO;
 
@@ -31,6 +35,17 @@ public partial class CaptureRegionOverlay : Window
         Top    = region.Y;
         Width  = region.Width;
         Height = region.Height;
+        UpdateSizeLabel();
+    }
+
+    // 선택된 화면 전체를 캡처 영역으로 지정
+    private void OnFullscreen(object sender, RoutedEventArgs e)
+    {
+        if (_screen is null) return;
+        Left   = _screen.Bounds.X;
+        Top    = _screen.Bounds.Y;
+        Width  = _screen.Bounds.Width;
+        Height = _screen.Bounds.Height;
         UpdateSizeLabel();
     }
 

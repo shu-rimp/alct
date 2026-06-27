@@ -1,0 +1,20 @@
+<Window x:Class="AlctClient.Views.Overlays.EscHintOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="EscHintOverlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowActivated="False"
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight">
+
+    <!-- "ESC를 눌러 번역 숨기기" — 캡처 영역 창과 별개의 작은 창. 화면 좌측 하단에 고정해
+         번역 박스를 가리지 않는다. -->
+    <Border Background="#99000000" CornerRadius="4" Padding="8,4">
+        <TextBlock Text="ESC를 눌러 번역 숨기기"
+                   Foreground="#DDDDDD"
+                   FontSize="11"/>
+    </Border>
+</Window>

@@ -107,6 +107,52 @@ public class TranslationServiceTests
         var result = await svc.TranslateToKoreanAsync("hello", "EN");
         Assert.Equal("안녕", result);
     }
+
+    // ── 배치 번역 ──────────────────────────────────────────────────────────
+
+    private static string DeepLArrayResponse(params string[] texts) =>
+        JsonSerializer.Serialize(new { translations = texts.Select(t => new { text = t }).ToArray() });
+
+    private static string GeminiResponse(string text) =>
+        JsonSerializer.Serialize(new { candidates = new[] { new { content = new { parts = new[] { new { text } } } } } });
+
+    [Fact]
+    public async Task DeepL_Batch_ReturnsPerItemResults_InOrder()
+    {
+        var svc = new DeepLTranslationService("key:fx", MakeClient(DeepLArrayResponse("가", "나")));
+        var result = await svc.TranslateBatchToKoreanAsync(new[] { "a", "b" }, "EN");
+        Assert.Equal(new[] { "가", "나" }, result);
+    }
+
+    [Fact]
+    public async Task MyMemory_Batch_OneCallPerNonEmptyItem_PreservesCount()
+    {
+        var handler = new CallCountingHandler(MyMemoryResponse("안녕"));
+        var svc = new MyMemoryTranslationService(new HttpClient(handler));
+
+        var result = await svc.TranslateBatchToKoreanAsync(new[] { "a", "   ", "b" }, "EN");
+
+        Assert.Equal(3, result.Count);          // 입력과 1:1 (빈 줄도 자리 보존)
+        Assert.Equal("   ", result[1]);         // 공백 줄은 그대로 통과
+        Assert.Equal(2, handler.CallCount);     // 비어있지 않은 줄만 호출
+    }
+
+    [Fact]
+    public async Task Gemini_Batch_ParsesNumberedLines_BackToItems()
+    {
+        var svc = new GeminiTranslationService("key", MakeClient(GeminiResponse("1. 가\n2. 나")));
+        var result = await svc.TranslateBatchToKoreanAsync(new[] { "a", "b" }, "en-US");
+        Assert.Equal(new[] { "가", "나" }, result);
+    }
+
+    [Fact]
+    public async Task Gemini_Batch_FallsBackToOriginal_WhenLineMissingFromOutput()
+    {
+        // 모델이 2번 줄을 빠뜨림 → 빠진 줄은 원문 그대로 유지(1:1 정렬 보장)
+        var svc = new GeminiTranslationService("key", MakeClient(GeminiResponse("1. 가")));
+        var result = await svc.TranslateBatchToKoreanAsync(new[] { "a", "b" }, "en-US");
+        Assert.Equal(new[] { "가", "b" }, result);
+    }
 }
 
 // Test helpers

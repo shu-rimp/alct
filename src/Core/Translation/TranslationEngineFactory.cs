@@ -9,9 +9,10 @@ public static class TranslationEngineFactory
     {
         ITranslationService inner = engine switch
         {
-            TranslationEngine.DeepL   => new DeepLTranslationService(apiKey),
-            TranslationEngine.Gemini  => new GeminiTranslationService(apiKey),
-            TranslationEngine.Langbly => new LangblyTranslationService(apiKey),
+            TranslationEngine.DeepL      => new DeepLTranslationService(apiKey),
+            TranslationEngine.Gemini     => new GeminiTranslationService(apiKey),
+            TranslationEngine.GeminiLive => new GeminiLiveTranslationService(apiKey),
+            TranslationEngine.Langbly    => new LangblyTranslationService(apiKey),
             _                         => new MyMemoryTranslationService(apiKey),  // 이메일(de 파라미터)을 전달받음
         };
         return new GlossaryTranslationDecorator(inner, GlossaryService.Instance);
@@ -19,9 +20,10 @@ public static class TranslationEngineFactory
 
     public static TranslationEngine Parse(string? raw) => raw switch
     {
-        "DeepL"   => TranslationEngine.DeepL,
-        "Gemini"  => TranslationEngine.Gemini,
-        "Langbly" => TranslationEngine.Langbly,
+        "DeepL"      => TranslationEngine.DeepL,
+        "Gemini"     => TranslationEngine.Gemini,
+        "GeminiLive" => TranslationEngine.GeminiLive,
+        "Langbly"    => TranslationEngine.Langbly,
         _         => Default,
     };
 }

@@ -22,10 +22,50 @@ public class TranslationCoordinatorTests
     [Theory]
     [InlineData(TranslationEngine.DeepL, "deepl")]
     [InlineData(TranslationEngine.Gemini, "gemini")]
+    [InlineData(TranslationEngine.GeminiLive, "gemini")]  // Gemini 키 공유
     [InlineData(TranslationEngine.Langbly, "langbly")]
     [InlineData(TranslationEngine.MyMemory, "me@x.com")]
     public void GetCredential_ReturnsPerEngineValue(TranslationEngine engine, string expected)
         => Assert.Equal(expected, Make().GetCredential(engine));
+
+    [Fact]
+    public void UpdateCredential_Gemini_RebuildsGeminiLiveVoiceSlot_AndSharesKey()
+    {
+        // GeminiLive는 Gemini 키를 공유하므로, Gemini 키를 저장하면 GeminiLive 음성 슬롯도 재생성돼야 한다.
+        var c = Make(voice: TranslationEngine.GeminiLive, text: TranslationEngine.MyMemory);
+        var voiceBefore = c.VoiceService;
+        c.BlockVoiceQuotaUntil(DateTime.UtcNow.AddHours(1));
+
+        c.UpdateCredential(TranslationEngine.Gemini, "new-gemini");
+
+        Assert.NotSame(voiceBefore, c.VoiceService);
+        Assert.False(c.IsVoiceQuotaBlocked);                                   // 새 키 = 새 할당량
+        Assert.Equal("new-gemini", c.GetCredential(TranslationEngine.GeminiLive));
+    }
+
+    [Fact]
+    public void UpdateCredential_GeminiLive_RebuildsGeminiTextSlot_ViaSharedKey()
+    {
+        // 반대 방향: GeminiLive 자격증명을 갱신해도 같은 필드를 쓰는 Gemini 텍스트 슬롯이 재생성된다.
+        var c = Make(voice: TranslationEngine.MyMemory, text: TranslationEngine.Gemini);
+        var textBefore = c.TextService;
+
+        c.UpdateCredential(TranslationEngine.GeminiLive, "shared-key");
+
+        Assert.NotSame(textBefore, c.TextService);
+        Assert.Equal("shared-key", c.GetCredential(TranslationEngine.Gemini));
+    }
+
+    [Fact]
+    public void SetVoiceEngine_ToGeminiLive_SwapsService()
+    {
+        var c = Make(voice: TranslationEngine.MyMemory);
+        var before = c.VoiceService;
+
+        c.SetVoiceEngine(TranslationEngine.GeminiLive);
+
+        Assert.NotSame(before, c.VoiceService);
+    }
 
     [Fact]
     public void UpdateCredential_RecreatesOnlyMatchingSlot()

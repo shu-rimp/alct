@@ -1,8 +1,8 @@
 using AlctClient.Utils;
-using System.Collections.ObjectModel;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -10,77 +10,196 @@ using System.Windows.Threading;
 
 namespace AlctClient.Views.Overlays;
 
-public record TranslationEntry(string Translated, string Original);
-
+// 캡처 영역을 덮는 투명 오버레이. 각 OCR 줄의 번역문을 원문 위치 위에(반투명 검정 배경 + 흰 글씨)
+// 배치한다. 부가 디자인 요소(테두리/헤더/구분선) 없이 텍스트만 표시.
 public partial class ChatTranslationOverlay : Window
 {
-    private const int MAX_ENTRIES = 5;
-    private const int AUTO_HIDE_DELAY_MS = 5000;
-    private static readonly WpfColor BgColor = WpfColor.FromRgb(0x16, 0x14, 0x1F);
+    private const int NOTICE_HIDE_MS = 5000;      // 안내/오류는 설정과 무관하게 짧게 자동 숨김
+    private const double DEFAULT_FONT = 14.0;     // UserSettings.OverlayFontSize 기본값 — 스케일 1.0 기준
+    private const double BOX_FONT_RATIO = 0.70;   // 박스 높이 → 글자 크기(대략적인 cap height 비율). 원문보다 작아 보이지 않도록 살짝 키움
+    private const double MIN_FONT = 9.0;
+    private const double MAX_FONT = 48.0;
+
+    private static readonly WpfBrush TextBrush = new(WpfColor.FromRgb(0xFF, 0xFF, 0xFF));
+    // 텍스트만 부각되도록 반투명 검정(50%) 배경. 너무 진하면 원문/배경을 과하게 가린다.
+    private static readonly WpfBrush LabelBg = new(WpfColor.FromRgb(0, 0, 0)) { Opacity = 0.5 };
 
     private static readonly DoubleAnimation SpinAnimation = new(0, 360, TimeSpan.FromSeconds(0.85))
     {
         RepeatBehavior = RepeatBehavior.Forever
     };
 
-    private readonly ObservableCollection<TranslationEntry> _entries = new();
+    private readonly EscHintOverlay _hint = new();  // 화면 좌측 하단 고정 ESC 안내(별도 창)
     private DispatcherTimer? _hideTimer;
-    private double _opacity = 0.7;
-    private bool _isEditMode;
-    private bool _isPlaceholder;
+    private Rectangle _lastRegion;  // 마지막으로 창을 맞춘 캡처 영역 — ShowNotice 위치 폴백용
+    private double _fontScale = 1.0;
+    private int _autoHideMs = 5000;  // 채팅 번역 표시 시간(ms). 0 = 무제한
     private IntPtr _winEventHook;
     private WinEventProc? _winEventProc;
-
-    private static readonly TranslationEntry[] Placeholder =
-    [
-        new("좋은 아침이에요! 오늘도 잘 부탁해요.", "おはようございます！今日もよろしくお願いします。"),
-        new("잠깐만 기다려 주세요.",               "ちょっと待ってください。"),
-    ];
 
     public ChatTranslationOverlay()
     {
         InitializeComponent();
-        Resources["OverlayFontSizeMain"] = 13.0;
-        Resources["OverlayFontSizeSub"]  = 11.0;
-        EntriesList.ItemsSource = _entries;
         Loaded += OnLoaded;
     }
 
-    public void SetFontSize(double size)
-    {
-        Resources["OverlayFontSizeMain"] = size;
-        Resources["OverlayFontSizeSub"]  = Math.Max(8.0, size - 2);
-    }
+    public void SetFontSize(double size) => _fontScale = size / DEFAULT_FONT;
+
+    // 0 이하 = 무제한(타이머 없음 — ESC 또는 다음 캡처로만 사라짐)
+    public void SetAutoHideSeconds(int seconds) => _autoHideMs = seconds > 0 ? seconds * 1000 : 0;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (!_isEditMode) WindowsApiHelper.EnableClickThrough(this);
-        ApplyOpacity();
+        WindowsApiHelper.EnableClickThrough(this);
         HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowHook);
         _winEventProc = OnForegroundChanged;
         _winEventHook = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, _winEventProc, 0, 0, 0x0000); // EVENT_SYSTEM_FOREGROUND
-        Closed += (_, _) => { if (_winEventHook != IntPtr.Zero) UnhookWinEvent(_winEventHook); };
-        SizeChanged += (_, e) =>
-        {
-            if (!e.WidthChanged) return;
-            Width = ActualWidth;
-            EntriesList.InvalidateMeasure();
-            SizeToContent = SizeToContent.Manual;
-            SizeToContent = SizeToContent.Height;
-        };
+        Closed += (_, _) => { if (_winEventHook != IntPtr.Zero) UnhookWinEvent(_winEventHook); _hint.Close(); };
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct WINDOWPOS
+    // ── 공개 API ─────────────────────────────────────────────────────────
+
+    // 캡처 직후 "번역 중" 표시. 창을 캡처 영역에 맞추고 이전 결과는 비운다.
+    public void ShowLoading(Rectangle captureRegion, string message = "번역 중…")
     {
-        public IntPtr hwnd, hwndInsertAfter;
-        public int x, y, cx, cy;
-        public uint flags;
+        Dispatcher.Invoke(() =>
+        {
+            _hideTimer?.Stop();
+            RegionCanvas.Children.Clear();  // 보여주기 전에 이전 결과를 치운다 — Show() 직후 옛 결과가 한 프레임 깜빡이는 것 방지
+            _hint.Hide();
+            SpinnerBox.Visibility = Visibility.Visible;
+            StatusText.Text = message;
+            StatusPill.Visibility = Visibility.Collapsed;  // 위치를 잡은 뒤 노출 — 스피너가 옛 위치에서 깜빡이지 않도록
+            Show();
+            PositionWindow(captureRegion);
+            StatusPill.Visibility = Visibility.Visible;
+            SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, SpinAnimation);
+        });
     }
 
+    // 결과 없이 끝난 경우(번역 실패 등) 스피너만 정리.
+    public void HideLoading() => Dispatcher.Invoke(() =>
+    {
+        StopSpinner();
+        if (RegionCanvas.Children.Count == 0) Hide();
+    });
+
+    // ESC/다음 캡처로 즉시 숨김.
+    public void HideNow() => Dispatcher.Invoke(() =>
+    {
+        _hideTimer?.Stop();
+        RegionCanvas.Children.Clear();
+        StatusPill.Visibility = Visibility.Collapsed;
+        _hint.Hide();
+        Hide();
+    });
+
+    // 안내/오류 메시지 — 좌상단 알약에 표시 후 자동 숨김. 창은 이미 ShowLoading이 배치해 둠.
+    public void ShowNotice(string message)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            StopSpinner();
+            RegionCanvas.Children.Clear();
+            _hint.Hide();
+            Show();
+            if (_lastRegion.Width > 0) PositionWindow(_lastRegion);  // 직전 캡처 영역에 맞춤(없으면 현재 위치 유지)
+            SpinnerBox.Visibility = Visibility.Collapsed;
+            StatusText.Text = message;
+            StatusPill.Visibility = Visibility.Visible;
+            ScheduleHide(NOTICE_HIDE_MS);  // 안내는 설정과 무관하게 항상 자동 숨김
+        });
+    }
+
+    // 번역 결과를 원문 위치 위에 배치. bounds는 캡처 영역 기준 픽셀(좌상단 0,0).
+    public void ShowTranslations(IReadOnlyList<(string Text, RectangleF Bounds)> regions, Rectangle captureRegion)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            StopSpinner();
+            StatusPill.Visibility = Visibility.Collapsed;
+            RegionCanvas.Children.Clear();
+
+            Show();
+            var dpi = PositionWindow(captureRegion);
+
+            foreach (var (text, b) in regions)
+            {
+                if (string.IsNullOrWhiteSpace(text)) continue;
+                RegionCanvas.Children.Add(BuildLabel(text, b, dpi));
+            }
+
+            if (RegionCanvas.Children.Count == 0) { Hide(); return; }
+            _hint.ShowAtScreen(captureRegion);  // "ESC를 눌러 번역 숨기기" — 화면 좌측 하단 고정
+            ScheduleHide(_autoHideMs);
+        });
+    }
+
+    // ── 내부 ─────────────────────────────────────────────────────────────
+
+    // 창을 캡처 영역(물리 px)의 좌상단에 맞추되, 우/하단은 가상 화면 끝까지 늘린다.
+    // 한 줄로 표시한 긴 번역문이 영역 밖으로 이어져도 창 경계에서 잘리지 않도록 함(창은 투명·클릭 통과).
+    // 라벨 좌표는 캡처 영역 좌상단(=창 좌상단) 기준이라 그대로 유효하다. 사용한 DpiScale을 돌려준다.
+    private DpiScale PositionWindow(Rectangle region)
+    {
+        _lastRegion = region;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        int screenRight  = GetSystemMetrics(SM_XVIRTUALSCREEN) + GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int screenBottom = GetSystemMetrics(SM_YVIRTUALSCREEN) + GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        Left   = region.Left / dpi.DpiScaleX;
+        Top    = region.Top  / dpi.DpiScaleY;
+        Width  = Math.Max(region.Width,  screenRight  - region.Left) / dpi.DpiScaleX;
+        Height = Math.Max(region.Height, screenBottom - region.Top)  / dpi.DpiScaleY;
+        return dpi;
+    }
+
+    private Border BuildLabel(string text, RectangleF b, DpiScale dpi)
+    {
+        double left      = b.Left   / dpi.DpiScaleX;
+        double top       = b.Top    / dpi.DpiScaleY;
+        double heightDiu = b.Height / dpi.DpiScaleY;
+        double fontSize  = Math.Clamp(heightDiu * BOX_FONT_RATIO, MIN_FONT, MAX_FONT) * _fontScale;
+
+        var label = new Border
+        {
+            Background = LabelBg,
+            Padding = new Thickness(2, 0, 2, 0),
+            // 줄바꿈 없이 한 줄로 표시 — 길어도 영역 밖으로 이어지게 둔다(아래 밑줄 오버레이와 겹치지 않도록)
+            Child = new TextBlock
+            {
+                Text = text,
+                Foreground = TextBrush,
+                FontSize = fontSize,
+                TextWrapping = TextWrapping.NoWrap,
+            },
+        };
+        Canvas.SetLeft(label, left);
+        Canvas.SetTop(label, top);
+        return label;
+    }
+
+    private void StopSpinner()
+    {
+        SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, null);
+        SpinnerBox.Visibility = Visibility.Collapsed;
+    }
+
+    private void ScheduleHide(int ms)
+    {
+        _hideTimer?.Stop();
+        if (ms <= 0) return;  // 무제한 — ESC 또는 다음 캡처로만 숨김
+        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+        _hideTimer.Tick += (_, _) => { _hideTimer.Stop(); HideNow(); };
+        _hideTimer.Start();
+    }
+
+    // ── 클릭 통과 + 최상단 고정 (다른 오버레이와 동일 패턴) ──────────────────
     [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint eMin, uint eMax, IntPtr hmod, WinEventProc fn, uint pid, uint tid, uint flags);
     [DllImport("user32.dll")] private static extern bool   UnhookWinEvent(IntPtr hook);
     [DllImport("user32.dll")] private static extern bool   SetWindowPos(IntPtr hwnd, IntPtr hwndAfter, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] private static extern int    GetSystemMetrics(int index);
+
+    private const int SM_XVIRTUALSCREEN = 76, SM_YVIRTUALSCREEN = 77, SM_CXVIRTUALSCREEN = 78, SM_CYVIRTUALSCREEN = 79;
 
     private delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObj, int idChild, uint tid, uint time);
     private static readonly IntPtr HWND_TOPMOST = new(-1);
@@ -95,219 +214,11 @@ public partial class ChatTranslationOverlay : Window
 
     private IntPtr WindowHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == 0x0021) // WM_MOUSEACTIVATE
+        if (msg == 0x0021) // WM_MOUSEACTIVATE — 클릭해도 활성화하지 않음
         {
             handled = true;
             return (IntPtr)3; // MA_NOACTIVATE
         }
-
-        if (msg == 0x0046) // WM_WINDOWPOSCHANGING
-        {
-            var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
-            if ((pos.flags & 0x0004) == 0) // SWP_NOZORDER 미설정 = z-order 변경 시도
-            {
-                pos.hwndInsertAfter = new IntPtr(-1); // HWND_TOPMOST 재고정
-                Marshal.StructureToPtr(pos, lParam, false);
-            }
-        }
-
-        if (msg == 0x0232) // WM_EXITSIZEMOVE — 드래그 완료 후 최종 높이 보정
-        {
-            Dispatcher.InvokeAsync(() =>
-            {
-                Width = ActualWidth;
-                EntriesList.InvalidateMeasure();
-                SizeToContent = SizeToContent.Manual;
-                SizeToContent = SizeToContent.Height;
-            });
-        }
-
-        if (_isEditMode && msg == 0x0084) // WM_NCHITTEST
-        {
-            var pos = PointFromScreen(new WpfPoint(
-                (short)(lParam.ToInt32() & 0xFFFF),
-                (short)((lParam.ToInt32() >> 16) & 0xFFFF)));
-
-            const int B = 8;
-            if (pos.X < B)               { handled = true; return (IntPtr)10; } // HTLEFT
-            if (pos.X > ActualWidth - B) { handled = true; return (IntPtr)11; } // HTRIGHT
-        }
-
         return IntPtr.Zero;
-    }
-
-    public void SetOpacity(double opacity)
-    {
-        _opacity = Math.Clamp(opacity, 0.1, 1.0);
-        if (IsLoaded) ApplyOpacity();
-    }
-
-    private void ApplyOpacity() =>
-        RootBorder.Background = new WpfBrush(BgColor) { Opacity = _opacity };
-
-    private void SnapToDefaultPosition()
-    {
-        Left = 20;
-        Top  = (SystemParameters.PrimaryScreenHeight - 120) / 2;
-    }
-
-    public void MoveToMonitor(System.Windows.Forms.Screen screen)
-    {
-        Left = screen.Bounds.Left + 20;
-        Top  = screen.Bounds.Top  + (screen.Bounds.Height - 120) / 2;
-    }
-
-    public void ResetBounds(System.Windows.Forms.Screen screen)
-    {
-        Width = 280;
-        MoveToMonitor(screen);
-    }
-
-    public void LoadBounds(double left, double top, double width)
-    {
-        Width = width;
-        if (left < 0)
-            SnapToDefaultPosition();
-        else
-        {
-            Left = left;
-            Top  = top;
-        }
-    }
-
-    public void SetEditMode(bool enabled)
-    {
-        _isEditMode = enabled;
-        EditModeBar.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
-        Cursor = enabled ? WpfCursors.SizeAll : WpfCursors.Arrow;
-
-        if (enabled)
-        {
-            if (_entries.Count == 0)
-            {
-                foreach (var e in Placeholder) _entries.Add(e);
-                _isPlaceholder = true;
-            }
-            Show();
-            WindowsApiHelper.DisableClickThrough(this);
-        }
-        else
-        {
-            if (_isPlaceholder)
-            {
-                _entries.Clear();
-                _isPlaceholder = false;
-            }
-            WindowsApiHelper.EnableClickThrough(this);
-            if (_entries.Count == 0) Hide();
-        }
-    }
-
-    // 채팅 번역(캡처->OCR->번역)이 진행되는 동안 스피너를 띄운다.
-    // 모든 종료 경로(결과 ShowTranslation / 안내 ShowNotice / 실패 HideLoading)가 스피너를 끄므로
-    // 별도 타임아웃은 두지 않는다 — 타임아웃을 두면 느린(정상) 번역을 도중에 끊어 빈 화면이 됐었음.
-    public void ShowLoading(string message = "번역 중…")
-    {
-        Dispatcher.Invoke(() =>
-        {
-            _hideTimer?.Stop();
-            NoticeText.Visibility = Visibility.Collapsed;
-            _entries.Clear();
-            _isPlaceholder = false;
-            LoadingText.Text = message;
-            LoadingRow.Visibility = Visibility.Visible;
-            SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, SpinAnimation);
-            Show();
-        });
-    }
-
-    // 결과 없이 끝난 경우(번역 실패 등)에 스피너만 정리. 이미 결과/안내로 교체됐으면 무시.
-    public void HideLoading() => Dispatcher.Invoke(() =>
-    {
-        if (LoadingRow.Visibility != Visibility.Visible) return;
-        StopSpinner();
-        if (_entries.Count == 0 && !_isEditMode) Hide();
-    });
-
-    // 스피너 애니메이션 중지 + 행 숨김. 결과 표시 직전에 호출(_entries는 건드리지 않음).
-    private void StopSpinner()
-    {
-        if (LoadingRow.Visibility != Visibility.Visible) return;
-        SpinnerRotate.BeginAnimation(RotateTransform.AngleProperty, null);
-        LoadingRow.Visibility = Visibility.Collapsed;
-    }
-
-    // 안내/오류 메시지 — 번역 결과와 달리 '번역 중…'과 동일한 작은 보조색 스타일로 표시.
-    public void ShowNotice(string message)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            StopSpinner();
-            _entries.Clear();
-            _isPlaceholder = false;
-            NoticeText.Text = message;
-            NoticeText.Visibility = Visibility.Visible;
-            Show();
-            ScheduleAutoHide();
-        });
-    }
-
-    public void ShowTranslation(string translated, string original)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            StopSpinner();
-            NoticeText.Visibility = Visibility.Collapsed;
-            _entries.Clear();
-            _isPlaceholder = false;
-
-            var translatedLines = translated.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var originalLines   = original.Split('\n',   StringSplitOptions.RemoveEmptyEntries);
-            var count = Math.Max(translatedLines.Length, originalLines.Length);
-
-            for (int i = 0; i < count && i < MAX_ENTRIES; i++)
-            {
-                var t = i < translatedLines.Length ? translatedLines[i].Trim() : string.Empty;
-                var o = i < originalLines.Length   ? originalLines[i].Trim()   : string.Empty;
-                if (!string.IsNullOrWhiteSpace(t) || !string.IsNullOrWhiteSpace(o))
-                    _entries.Add(new TranslationEntry(t, o));
-            }
-
-            Show();
-            ScheduleAutoHide();
-        });
-    }
-
-    public void ShowAtLiveCaptions(string translated, string original)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            StopSpinner();
-            NoticeText.Visibility = Visibility.Collapsed;
-            _entries.Clear();
-            _isPlaceholder = false;
-            _entries.Add(new TranslationEntry(translated, original));
-            Show();
-            ScheduleAutoHide();
-        });
-    }
-
-    private void ScheduleAutoHide()
-    {
-        _hideTimer?.Stop();
-        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(AUTO_HIDE_DELAY_MS) };
-        _hideTimer.Tick += (_, _) =>
-        {
-            _hideTimer.Stop();
-            if (!_isPlaceholder) _entries.Clear();
-            NoticeText.Visibility = Visibility.Collapsed;
-            if (!_isEditMode) Hide();
-        };
-        _hideTimer.Start();
-    }
-
-    private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (_isEditMode) DragMove();
     }
 }

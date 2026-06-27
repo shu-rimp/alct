@@ -237,6 +237,23 @@
             <Setter Property="Margin" Value="0,16,0,0"/>
         </Style>
 
+        <!-- ── 설정 카드 (공통) ── -->
+        <Style x:Key="SettingsCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource CardRadius}"/>
+            <Setter Property="Padding" Value="{StaticResource CardPadding}"/>
+        </Style>
+
+        <!-- ── 카드 제목 (번역 탭 카드 제목과 동일) ── -->
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+
     </Window.Resources>
 
     <Border Background="{StaticResource SurfaceBgBrush}"
@@ -265,7 +282,9 @@
 
                 <Button Grid.Column="1" Content="✕"
                         Foreground="{StaticResource TextMutedBrush}"
-                        FontSize="15" Click="OnClose">
+                        FontSize="15" Click="OnClose"
+                        ToolTip="ALCT를 시스템 트레이에 최소화"
+                        ToolTipService.InitialShowDelay="0">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Setter Property="Background" Value="Transparent"/>
@@ -353,17 +372,9 @@
                         </Grid>
 
                         <!-- 채팅 번역 카드 -->
-                        <Border Background="{StaticResource CardBgBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}"
-                                Margin="0,0,0,14">
+                        <Border Style="{StaticResource SettingsCard}" Margin="0,0,0,14">
                             <StackPanel>
-                                <TextBlock Text="💬 채팅 번역"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
-                                           FontSize="13" FontWeight="SemiBold"
-                                           Margin="0,0,0,12"/>
+                                <TextBlock Text="💬 채팅 번역" Style="{StaticResource CardTitle}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -425,12 +436,7 @@
                         </Border>
 
                         <!-- 음성 번역 카드 -->
-                        <Border Background="{StaticResource CardBgBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}"
-                                Margin="0,0,0,10">
+                        <Border Style="{StaticResource SettingsCard}" Margin="0,0,0,10">
                             <StackPanel>
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
@@ -469,30 +475,14 @@
                                               SelectionChanged="OnVoiceEngineChanged">
                                         <ComboBoxItem Tag="MyMemory" IsSelected="True">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="MyMemory" FontSize="13"/>
-                                                    <Border Background="{StaticResource ComboBgBrush}"
-                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
-                                                            BorderThickness="1" CornerRadius="4"
-                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
-                                                    </Border>
-                                                </StackPanel>
+                                                <TextBlock Text="MyMemory" FontSize="13"/>
                                                 <TextBlock Text="키 없이 바로 사용" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
                                         </ComboBoxItem>
                                         <ComboBoxItem Tag="DeepL">
                                             <StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="DeepL" FontSize="13" VerticalAlignment="Center"/>
-                                                    <Border Background="{StaticResource ComboBgBrush}"
-                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
-                                                            BorderThickness="1" CornerRadius="4"
-                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
-                                                    </Border>
-                                                </StackPanel>
+                                                <TextBlock Text="DeepL" FontSize="13" VerticalAlignment="Center"/>
                                                 <TextBlock Text="고품질 번역 · API 키 필요" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
@@ -501,6 +491,21 @@
                                             <StackPanel>
                                                 <TextBlock Text="Gemini" FontSize="13"/>
                                                 <TextBlock Text="AI 번역 · API 키 필요" FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </ComboBoxItem>
+                                        <ComboBoxItem Tag="GeminiLive">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="Gemini Live" FontSize="13" VerticalAlignment="Center"/>
+                                                    <Border Background="{StaticResource ComboBgBrush}"
+                                                            BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                            BorderThickness="1" CornerRadius="4"
+                                                            Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="실시간 AI 번역 · 음성 전용" FontSize="11"
                                                            Foreground="{StaticResource TextMutedBrush}" Margin="0,5,0,0"/>
                                             </StackPanel>
                                         </ComboBoxItem>
@@ -529,30 +534,43 @@
                     <!-- ══════════ 탭2: 단축키 ══════════ -->
                     <StackPanel x:Name="PanelHotkey" Visibility="Collapsed">
 
-                        <TextBlock Text="단축키"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   FontSize="12" FontWeight="SemiBold"
-                                   Margin="0,0,0,10"/>
-
                         <!-- 채팅창 번역 -->
-                        <Border Background="{StaticResource CardBgBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}">
+                        <Border Style="{StaticResource SettingsCard}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="채팅창 번역"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontSize="14" FontWeight="SemiBold"/>
+                                    <TextBlock Text="채팅창 번역" Style="{StaticResource CardTitle}" Margin="0"/>
                                     <TextBlock Text="채팅창을 한국어로 번역해요."
                                                Foreground="{StaticResource TextMutedBrush}"
-                                               FontSize="12" TextWrapping="Wrap"
+                                               FontSize="11" TextWrapping="Wrap"
                                                Margin="0,3,0,0"/>
+                                    <Grid Margin="0,9,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="짧게"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="미리 지정된 영역을 번역"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   FontSize="12"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="길게"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Margin="0,4,12,0"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="드래그로 영역 직접 지정"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   FontSize="12" Margin="0,4,0,0"/>
+                                    </Grid>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Border Style="{StaticResource HotkeyBadge}">
@@ -566,24 +584,17 @@
                         </Border>
 
                         <!-- 입력창 번역 -->
-                        <Border Margin="0,8,0,0"
-                                Background="{StaticResource CardBgBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}">
+                        <Border Style="{StaticResource SettingsCard}" Margin="0,14,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="입력창 번역"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontSize="14" FontWeight="SemiBold"/>
+                                    <TextBlock Text="입력창 번역" Style="{StaticResource CardTitle}" Margin="0"/>
                                     <TextBlock Text="복사한 채팅을 번역해요. 번역문은 붙여넣기로 바로 입력할 수 있어요."
                                                Foreground="{StaticResource TextMutedBrush}"
-                                               FontSize="12" TextWrapping="Wrap"
+                                               FontSize="11" TextWrapping="Wrap"
                                                Margin="0,3,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -602,111 +613,137 @@
                     <!-- ══════════ 탭3: 화면 ══════════ -->
                     <StackPanel x:Name="PanelScreen" Visibility="Collapsed">
 
-                        <!-- 캡처 영역 -->
+                        <!-- ── 채팅창 영역 ── -->
                         <TextBlock Text="채팅창 영역"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold"
                                    Margin="0,0,0,10"/>
+                        <Border Style="{StaticResource SettingsCard}">
+                            <StackPanel>
+                                <RadioButton x:Name="RadioCaptureAuto" GroupName="CaptureRegion" IsChecked="True"
+                                             Checked="OnCaptureRegionModeChanged">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="자동 (16:9 기준)" FontSize="13"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Background="{StaticResource ComboBgBrush}"
+                                                BorderBrush="{StaticResource CardBorderAccentBrush}"
+                                                BorderThickness="1" CornerRadius="4"
+                                                Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="10"/>
+                                        </Border>
+                                    </StackPanel>
+                                </RadioButton>
 
-                        <RadioButton x:Name="RadioCaptureAuto" GroupName="CaptureRegion" IsChecked="True"
-                                     Checked="OnCaptureRegionModeChanged">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="자동 (16:9 기준)" FontSize="14"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
-                                           VerticalAlignment="Center"/>
-                                <Border Background="{StaticResource CardBgBrush}"
-                                        BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1" CornerRadius="4"
-                                        Padding="6,1" Margin="6,0,0,0">
-                                    <TextBlock Text="권장" Foreground="{StaticResource AccentBrush}" FontSize="11"/>
-                                </Border>
-                            </StackPanel>
-                        </RadioButton>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <RadioButton x:Name="RadioCaptureCustom" GroupName="CaptureRegion" VerticalAlignment="Center"
-                                         Checked="OnCaptureRegionModeChanged">
-                                <TextBlock Text="직접 지정" FontSize="14"
-                                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                            </RadioButton>
-                            <Button Content="영역 설정"
-                                    Style="{StaticResource SmallButton}"
-                                    IsEnabled="{Binding IsChecked, ElementName=RadioCaptureCustom}"
-                                    Margin="8,0,0,0" VerticalAlignment="Center"
-                                    Click="OnSetCaptureRegion"/>
-                        </StackPanel>
-
-                        <Separator/>
-
-                        <!-- 오버레이 모니터 -->
-                        <TextBlock Text="번역 오버레이를 표시할 모니터"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   FontSize="12" FontWeight="SemiBold"
-                                   Margin="0,16,0,10"/>
-
-                        <ComboBox x:Name="MonitorCombo"
-                                  Style="{StaticResource DarkComboBox}"
-                                  SelectionChanged="OnMonitorChanged"/>
-
-                        <Separator/>
-
-                        <!-- 언어 변경 버튼 -->
-                        <Border Margin="0,16,0,0"
-                                Background="{StaticResource CardBgBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="빠른 설정 오버레이"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock Text="화면 왼쪽 위에 번역 언어와 음성 번역을 바로 전환할 수 있는 버튼을 표시해요."
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               FontSize="12" TextWrapping="Wrap"
-                                               Margin="0,3,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <RadioButton x:Name="RadioCaptureCustom" GroupName="CaptureRegion" VerticalAlignment="Center"
+                                                 Checked="OnCaptureRegionModeChanged">
+                                        <TextBlock Text="직접 지정" FontSize="13"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    </RadioButton>
+                                    <Button Content="영역 설정"
+                                            Style="{StaticResource SmallButton}"
+                                            IsEnabled="{Binding IsChecked, ElementName=RadioCaptureCustom}"
+                                            Margin="8,0,0,0" VerticalAlignment="Center"
+                                            Click="OnSetCaptureRegion"/>
                                 </StackPanel>
-                                <ui:ToggleSwitch x:Name="ShowLangOverlayToggle"
-                                                 Grid.Column="1"
-                                                 VerticalAlignment="Center"
-                                                 IsChecked="False"
-                                                 Checked="OnShowLangOverlayChanged"
-                                                 Unchecked="OnShowLangOverlayChanged"/>
-                            </Grid>
+                            </StackPanel>
                         </Border>
 
-                        <!-- 오버레이 위치 편집 -->
-                        <Border Margin="0,8,0,0"
-                                Background="{StaticResource CardBgBrush}"
-                                BorderBrush="{StaticResource BorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{StaticResource CardRadius}"
-                                Padding="{StaticResource CardPadding}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="오버레이 편집"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               FontSize="14" FontWeight="SemiBold"/>
-                                    <TextBlock Text="오버레이를 원하는대로 배치하고 편집할 수 있어요."
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               FontSize="12" TextWrapping="Wrap"
-                                               Margin="0,3,0,0"/>
-                                </StackPanel>
-                                <Button Grid.Column="1"
-                                        Content="편집"
-                                        VerticalAlignment="Center"
-                                        Style="{StaticResource TabButtonActive}"
-                                        Click="OnOverlayEditRequested"/>
-                            </Grid>
+                        <!-- ── 표시 설정 ── -->
+                        <TextBlock Text="오버레이"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Margin="0,14,0,10"/>
+                        <Border Style="{StaticResource SettingsCard}">
+                            <StackPanel>
+
+                                <!-- 번역 표시 시간: 라벨 + 드롭다운 한 줄 -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                        <TextBlock Text="채팅 번역 표시 시간" FontSize="13"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="ESC로 즉시 숨길 수 있어요." FontSize="11"
+                                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <ComboBox x:Name="ChatHideCombo"
+                                              Grid.Column="1" Width="120"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource DarkComboBox}"
+                                              SelectionChanged="OnChatHideChanged">
+                                        <ComboBoxItem Content="5초" Tag="5" IsSelected="True"/>
+                                        <ComboBoxItem Content="15초" Tag="15"/>
+                                        <ComboBoxItem Content="30초" Tag="30"/>
+                                        <ComboBoxItem Content="무제한" Tag="0"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <!-- 표시 모니터: 라벨 위 + 드롭다운 아래 -->
+                                <TextBlock Text="오버레이를 표시할 모니터" FontSize="13"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,16,0,8"/>
+                                <ComboBox x:Name="MonitorCombo"
+                                          Style="{StaticResource DarkComboBox}"
+                                          SelectionChanged="OnMonitorChanged"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ── 오버레이 ── -->
+                        <Border Style="{StaticResource SettingsCard}" Margin="0,14,0,0">
+                            <StackPanel>
+
+                                <!-- 빠른 설정 오버레이 토글 행 -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                        <TextBlock Text="빠른 설정 오버레이"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"/>
+                                        <TextBlock Text="화면 왼쪽 위에 언어/음성 전환 버튼을 표시해요."
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <ui:ToggleSwitch x:Name="ShowLangOverlayToggle"
+                                                     Grid.Column="1"
+                                                     VerticalAlignment="Center"
+                                                     IsChecked="False"
+                                                     Checked="OnShowLangOverlayChanged"
+                                                     Unchecked="OnShowLangOverlayChanged"/>
+                                </Grid>
+
+                                <!-- 얇은 구분선 -->
+                                <Separator Margin="0,12,0,0"/>
+
+                                <!-- 오버레이 편집 행 -->
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                        <TextBlock Text="오버레이 편집"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontSize="13" FontWeight="SemiBold"/>
+                                        <TextBlock Text="원하는 위치로 배치하고 편집해요."
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   FontSize="11" TextWrapping="Wrap"
+                                                   Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="편집"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource TabButtonActive}"
+                                            Click="OnOverlayEditRequested"/>
+                                </Grid>
+                            </StackPanel>
                         </Border>
 
                     </StackPanel>

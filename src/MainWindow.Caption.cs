@@ -3,7 +3,6 @@ using AlctClient.Utils;
 using AlctClient.Views.Windows;
 using System.Diagnostics;
 using System.Management;
-using System.Text.RegularExpressions;
 using System.Windows.Threading;
 
 namespace AlctClient;
@@ -18,30 +17,29 @@ public partial class MainWindow
     private readonly Queue<string> _captionContext = new();
     private ManagementEventWatcher? _liveCaptionsWatcher;
 
-    // 채팅 입력창 노이즈("채팅:KR", ":KR", "KR") — 3인 위치에선 캡쳐 하단에 입력창까지 들어와 번역 노이즈가 됨.
-    // 항상 단독 줄 + 대문자 KR로만 인식되므로, 소문자 kr이나 "KR player" 같은 실제 채팅은 보존됨(대소문자 구분).
-    private static readonly Regex ChatInputPromptRegex =
-        new(@"^\s*(채팅)?\s*[:：]?\s*KR\s*$", RegexOptions.Compiled);
-
-    private static string StripChatInputPrompt(string text) =>
-        string.Join("\n", text.Split('\n').Where(line => !ChatInputPromptRegex.IsMatch(line))).Trim();
-
     private void InitOcrHandler()
     {
-        _ocr.OcrTextReceived += async (normalizedText, rawText) =>
+        _ocr.OcrRegionsReceived += async regions =>
         {
+            var captureRegion = _activeCaptureRegion;
             try
             {
-                var cleaned = StripChatInputPrompt(normalizedText);
-                if (string.IsNullOrWhiteSpace(cleaned))
+                if (regions.Count == 0)
                 {
-                    // 인식된 텍스트가 없거나(빈 OCR), 내 입력창 프롬프트만 잡힌 경우 
-                    _overlay.ShowNotice("번역할 채팅을 찾지 못했어요.");
+                    _overlay.ShowNotice("번역할 텍스트를 찾지 못했어요.");
                     return;
                 }
                 var sourceLang = Dispatcher.Invoke(() => _settings.SourceLang);
-                var translation = await _translation.TextService.TranslateToKoreanAsync(cleaned, sourceLang);
-                _overlay.ShowTranslation(translation, StripChatInputPrompt(rawText));
+                var texts = regions.Select(r => r.Text).ToList();
+                var translations = await _translation.TextService.TranslateBatchToKoreanAsync(texts, sourceLang);
+
+                // 번역문을 각 영역의 박스(캡처 영역 기준 픽셀)와 짝지어 원문 위치 위에 그린다
+                var items = regions.Zip(translations, (r, t) => (
+                    Text: t,
+                    Bounds: new System.Drawing.RectangleF(
+                        (float)r.Left, (float)r.Top,
+                        (float)(r.Right - r.Left), (float)(r.Bottom - r.Top)))).ToList();
+                _overlay.ShowTranslations(items, captureRegion);
             }
             catch (TranslationRateLimitException ex)
             {
@@ -256,6 +254,11 @@ public partial class MainWindow
             if (enabled)
             {
                 var lang = Dispatcher.Invoke(() => _settings.SourceLang);
+                // 온보딩이 언어팩 설치 안내용으로 띄워둔 라이브캡션이 OS 기본 언어(한국어)로 실행 중일 수 있다.
+                // 라이브캡션은 언어를 시작 시점에만 읽으므로, 실행 중이면 먼저 종료해 방금 설정한 언어로 새로 시작한다.
+                // (이 종료가 빠지면 StartLiveCaptionsAsync가 no-op이 되어 첫 켜짐 시 대상 언어 인식이 안 됨)
+                if (Process.GetProcessesByName("LiveCaptions").Length > 0)
+                    await WindowsApiHelper.StopLiveCaptionsAsync();
                 WindowsApiHelper.SetLiveCaptionsLanguage(lang);
                 await WindowsApiHelper.StartLiveCaptionsAsync();
                 await WindowsApiHelper.WaitForLiveCaptionsWindowAsync();

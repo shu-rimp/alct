@@ -30,7 +30,7 @@ public partial class ApiConfigModal : Window
     private (long count, long limit)? _deeplUsage;
     private bool _deeplUsageFetched;  // 모달 열려있는 동안 탭 전환마다 재조회하지 않도록 캐시
 
-    private static readonly string DeepLGuideUrl   = "https://www.deepl.com/ko/signup?cta=checkout&is_api=true";
+    private static readonly string DeepLGuideUrl   = "https://www.deepl.com/ko";
     private static readonly string GeminiGuideUrl  = "https://aistudio.google.com/app/apikey";
     private static readonly string GeminiUsageUrl  = "https://aistudio.google.com/rate-limit";
     private static readonly string LangblyGuideUrl = "https://langbly.com/signup";
@@ -101,11 +101,12 @@ public partial class ApiConfigModal : Window
             GuideLinkBtn.Content = "🔗 DeepL 키 발급하기";
             GuideSteps.ItemsSource = new[]
             {
-                new GuideStep("1", "Developer 플랜(무료)으로 가입해 주세요."),
-                new GuideStep("2", "[계정] - [API 키 & 한도] - [키 생성 +] 으로 API 키를 발급받아 주세요."),
-                new GuideStep("3", "키를 복사한 후, '붙여넣기' 버튼을 클릭해 주세요."),
+                new GuideStep("1", "DeepL 홈페이지에서 회원 가입해 주세요."), 
+                new GuideStep("2", "[API 플랜] - Developer 플랜(무료)을 구독해 주세요."), 
+                new GuideStep("3", "[계정] - [API 키 & 한도] - [키 생성 +] 으로 API 키를 발급받아 주세요."),
+                new GuideStep("4", "키를 복사한 후, '붙여넣기' 버튼을 클릭해 주세요."),
             };
-            WarnText.Text = "⚠️ 무료 플랜도 카드 등록을 요구하지만, 청구되지 않아요.";
+            WarnText.Text = "⚠️ Developer 플랜(무료)도 카드 등록을 요구하지만, 청구되지 않아요.";
             WarnBox.Visibility = Visibility.Visible;
             UsageLinkBtn.Visibility = Visibility.Collapsed;  // DeepL은 모달 내 사용량 게이지로 대체 
             UsageHint.Visibility = Visibility.Collapsed;

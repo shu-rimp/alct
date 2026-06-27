@@ -179,10 +179,16 @@ public class GlossaryTranslationDecoratorTests
     private sealed class CapturingTranslationService : ITranslationService
     {
         public string? CapturedText;
+        public IReadOnlyList<string>? CapturedBatch;
         public Task<string> TranslateToKoreanAsync(string text, string sourceLang, string? context = null, CancellationToken ct = default)
         {
             CapturedText = text;
             return Task.FromResult("번역결과");
+        }
+        public Task<IReadOnlyList<string>> TranslateBatchToKoreanAsync(IReadOnlyList<string> texts, string sourceLang, CancellationToken ct = default)
+        {
+            CapturedBatch = texts;
+            return Task.FromResult<IReadOnlyList<string>>(texts.Select(_ => "번역결과").ToList());
         }
         public Task<string> TranslateFromKoreanAsync(string text, string targetLang) => Task.FromResult(text);
         public string MapLanguageCode(string bcp47) => bcp47;
@@ -198,6 +204,19 @@ public class GlossaryTranslationDecoratorTests
         await decorated.TranslateToKoreanAsync("ウィングマン強い", "ja-JP");
 
         Assert.Equal("<x>윙맨</x>強い", inner.CapturedText);
+    }
+
+    [Fact]
+    public async Task TranslateBatchToKoreanAsync_AppliesGlossaryPerItem_ToInnerEngine()
+    {
+        var glossary = new GlossaryService("""{ "languages": { "ja-JP": { "윙맨": ["ウィングマン"] } } }""");
+        var inner = new CapturingTranslationService();
+        var decorated = new GlossaryTranslationDecorator(inner, glossary);
+
+        var result = await decorated.TranslateBatchToKoreanAsync(new[] { "ウィングマン強い", "普通の行" }, "ja-JP");
+
+        Assert.Equal(new[] { "<x>윙맨</x>強い", "普通の行" }, inner.CapturedBatch);
+        Assert.Equal(2, result.Count);
     }
 
     [Fact]

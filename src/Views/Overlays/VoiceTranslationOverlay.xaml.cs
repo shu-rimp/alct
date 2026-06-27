@@ -207,7 +207,9 @@ public partial class VoiceTranslationOverlay : Window
             if (!_hasContent)
             {
                 EnsureMainPanel();
-                _originalTextBlock!.Visibility = Visibility.Collapsed;
+                // 실제 표시 형식과 동일하게 (원문, 번역) 쌍 예시를 보여준다
+                _originalTextBlock!.Text = "今日は来てくれてありがとう。";
+                _originalTextBlock.Visibility = Visibility.Visible;
                 _translationTextBlock!.Text = "오늘 와주셔서 감사합니다.";
                 _translationTextBlock.Visibility = Visibility.Visible;
                 _hasContent        = true;

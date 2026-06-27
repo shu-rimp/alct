@@ -10,6 +10,7 @@ public partial class MainWindow
     private HotkeyManager? _hotkeyManager;
     private ScreenCaptureService _screenCapture = new();
     private readonly SemaphoreSlim _ocrLock = new(1, 1);
+    private System.Drawing.Rectangle _activeCaptureRegion;  // 이번 캡처에 사용한 영역(일반=저장값, 길게누르기=드래그 1회). 오버레이 배치 기준.
     private bool _screenCaptureLogged;
     private string? _lastInputTranslation;  // 직전 입력 번역 결과 — 복사를 누락하고 핫키만 누른 경우(클립보드에 이전 번역문이 그대로) 감지용
     private const int MAX_INPUT_CHARS = 70;  // 입력 번역 최대 글자수 — 게임 입력창 한도(알파벳·한글 동일 63자)에 약간의 여유. 브라우저 등에서 대량 텍스트가 번역 요청으로 새는 것 방지
@@ -26,8 +27,10 @@ public partial class MainWindow
 
         _hotkeyManager = new HotkeyManager(this);
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
+        _hotkeyManager.LongPressHotkeyPressed += OnLongPressHotkeyPressed;
         _hotkeyManager.InputTranslationHotkeyPressed += OnInputTranslationHotkeyPressed;
         _hotkeyManager.ClipboardUpdated += OnClipboardUpdated;
+        _hotkeyManager.DismissHotkeyPressed += () => _overlay.HideNow();
         _hotkeyManager.Register(_userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey);
         _hotkeyManager.RegisterInputTranslation(_userSettings.InputHotkeyModifiers, _userSettings.InputHotkeyVKey);
 
@@ -68,33 +71,40 @@ public partial class MainWindow
         _hotkeyManager?.ReregisterInputTranslation(_userSettings.InputHotkeyModifiers, _userSettings.InputHotkeyVKey);
     }
 
-    private void OnHotkeyPressed()
+    // 짧게 누름 — 저장된(또는 자동) 캡처 영역으로 번역.
+    private void OnHotkeyPressed() => RunCapture(_screenCapture.GetCaptureRegion());
+
+    // 길게 누름 — 드래그로 영역을 직접 선택(1회성). 저장된 캡처 영역은 바꾸지 않는다.
+    private void OnLongPressHotkeyPressed() => Dispatcher.Invoke(() =>
     {
+        if (_overlay.IsVisible) _overlay.HideNow();  // 기존 결과/안내 치우고 선택 화면을 깔끔히
+        _dragSelectOverlay.ShowForScreen(GetSelectedScreen());
+    });
+
+    // 주어진 영역을 1회 캡처→OCR→번역. region을 저장하지 않으므로 드래그 선택은 자동으로 1회성이 된다.
+    private void RunCapture(System.Drawing.Rectangle region)
+    {
+        if (region.Width <= 0 || region.Height <= 0) return;
         if (!_ocrLock.Wait(0)) return;
+        _activeCaptureRegion = region;
         _ = Task.Run(async () =>
         {
             try
             {
-                var overlayVisible = Dispatcher.Invoke(() =>
-                {
-                    var v = _overlay.IsVisible;
-                    if (v) _overlay.Hide();
-                    return v;
-                });
+                // 오버레이가 이전 결과로 캡처 화면을 가리지 않도록 캡처 직전에 숨긴다.
+                Dispatcher.Invoke(() => { if (_overlay.IsVisible) _overlay.Hide(); });
 
-                using var bitmap = _screenCapture.CaptureRegionBitmap();
+                using var bitmap = _screenCapture.CaptureRegion(region);
 
-                Dispatcher.Invoke(() => { if (overlayVisible) _overlay.Show(); });
-
-                // 캡처가 끝난 뒤 스피너를 띄운다(캡처 이미지에 안 잡히도록). 결과/오류는 ShowTranslation/ShowNotice가 내림.
-                _overlay.ShowLoading();
+                // 캡처가 끝난 뒤 스피너를 띄운다(캡처 이미지에 안 잡히도록). 결과/오류는 ShowTranslations/ShowNotice가 내림.
+                _overlay.ShowLoading(region);
 
                 if (!_screenCaptureLogged)
                 {
                     _screenCaptureLogged = true;
                     Logger.Info("Preflight", "Screen capture: GDI available");
                 }
-                // 로컬 OCR — 결과는 OcrTextReceived(InitOcrHandler)로 흐른다. 서버 호출/rate-limit 없음.
+                // 로컬 OCR — 결과는 OcrRegionsReceived(InitOcrHandler)로 흐른다. 서버 호출/rate-limit 없음.
                 await _ocr.RecognizeAsync(bitmap);
             }
             catch (Exception ex)

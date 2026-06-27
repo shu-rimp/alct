@@ -12,3 +12,5 @@ global using WpfPoint   = System.Windows.Point;
 global using WpfCursors    = System.Windows.Input.Cursors;
 global using WpfBrushBase  = System.Windows.Media.Brush;
 global using WpfRectangle  = System.Windows.Shapes.Rectangle;
+global using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
+global using WpfKeyEventArgs   = System.Windows.Input.KeyEventArgs;

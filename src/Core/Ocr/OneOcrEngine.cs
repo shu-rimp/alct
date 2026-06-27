@@ -67,9 +67,10 @@ internal sealed class OneOcrEngine : IOcrEngine
                 var text = Marshal.PtrToStringUTF8(contentPtr) ?? string.Empty;
                 var box = Marshal.PtrToStructure<BoundingBox>(boxPtr);
                 var minX = Math.Min(Math.Min(box.x1, box.x2), Math.Min(box.x3, box.x4));
+                var maxX = Math.Max(Math.Max(box.x1, box.x2), Math.Max(box.x3, box.x4));
                 var minY = Math.Min(Math.Min(box.y1, box.y2), Math.Min(box.y3, box.y4));
                 var maxY = Math.Max(Math.Max(box.y1, box.y2), Math.Max(box.y3, box.y4));
-                fragments.Add(new OcrLineReconstructor.Fragment(text, minX, minY, maxY));
+                fragments.Add(new OcrLineReconstructor.Fragment(text, minX, minY, maxX, maxY));
             }
             return fragments;
         }
