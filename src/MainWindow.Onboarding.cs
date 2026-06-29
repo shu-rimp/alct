@@ -9,9 +9,6 @@ public partial class MainWindow
     {
         if (_userSettings.OnboardingComplete) return;
 
-        // DEBUG: uncomment to test install flow even when packs are installed
-        // LanguagePackService.ForceUninstalled = true;
-
         var onboarding = new OnboardingWindow(
             _userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey,
             _userSettings.InputHotkeyModifiers,   _userSettings.InputHotkeyVKey);
