@@ -159,16 +159,16 @@
                         Width="240" Click="OnStep0Start"/>
             </StackPanel>
 
-            <!-- ═══════════════════ Step 1: 채팅창 번역 소개 ═══════════════════ -->
+            <!-- ═══════════════════ Step 1: 텍스트 번역 소개 ═══════════════════ -->
             <StackPanel x:Name="StepChatPanel" Grid.Row="0"
                         Visibility="Collapsed" Margin="36,0,36,0" VerticalAlignment="Center">
                 <TextBlock Text="1 / 3 · 기능 소개"
                            Foreground="{StaticResource TextMutedBrush}"
                            FontSize="11" Margin="0,0,0,10"/>
-                <TextBlock Text="💬 채팅창 번역"
+                <TextBlock Text="💬 텍스트 번역"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="상대방의 채팅을 한국어로 화면에 띄워줘요."
+                <TextBlock Text="텍스트를 번역해 한국어로 화면에 띄워줘요."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
@@ -232,7 +232,7 @@
                 <TextBlock Text="⌨️ 입력창 번역"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            FontSize="17" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="내가 쓴 채팅을 상대 언어로 번역해요."
+                <TextBlock Text="내가 쓴 텍스트를 상대 언어로 번역해요."
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
@@ -266,7 +266,7 @@
                         Padding="{StaticResource CardPadding}">
                     <StackPanel>
                         <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3">
-                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">①</Run> 채팅을 복사해요.
+                            <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">①</Run> 텍스트를 복사해요.
                         </TextBlock>
                         <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,3">
                             <Run Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold">②</Run> 단축키를 눌러요.
@@ -296,14 +296,14 @@
                            Foreground="{StaticResource TextMutedBrush}"
                            FontSize="11" Margin="0,0,0,10"/>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="🎙️ 실시간 음성 채팅 번역"
+                    <TextBlock Text="🎙️ 실시간 음성 번역"
                                Foreground="{StaticResource TextPrimaryBrush}"
                                FontSize="17" FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="13" TextWrapping="Wrap" Margin="0,0,0,14">
-                    음성 채팅을 실시간으로 번역해요. 음성이 감지되면 자동으로 자막이 생겨요.<Run Foreground="{StaticResource TextMutedBrush}"></Run>
+                    음성을 실시간으로 번역해요. 음성이 감지되면 자동으로 자막이 생겨요.<Run Foreground="{StaticResource TextMutedBrush}"></Run>
                 </TextBlock>
 
                 <Border Background="{StaticResource CardBgBrush}"
