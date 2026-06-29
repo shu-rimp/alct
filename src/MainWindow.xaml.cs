@@ -205,12 +205,4 @@ public partial class MainWindow : Window
         if (info is null) return;
         new UpdateModal(info) { Owner = _settings }.ShowDialog();
     }
-
-    private static void SaveDebugCapture(byte[] imageBytes) // 화면캡쳐 확인용
-    {
-        var dir = Path.Combine(AppContext.BaseDirectory, "capture_debug");
-        Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, $"capture_{DateTime.Now:yyyyMMdd_HHmmss_fff}.png");
-        File.WriteAllBytes(path, imageBytes);
-    }
 }

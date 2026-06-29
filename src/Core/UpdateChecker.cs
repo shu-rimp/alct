@@ -31,6 +31,9 @@ internal static class UpdateChecker
             var downloadUrl   = u.GetString();
             if (string.IsNullOrEmpty(latestVersion) || string.IsNullOrEmpty(downloadUrl)) return null;
 
+            if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsed)
+                || parsed.Scheme != Uri.UriSchemeHttps) return null;
+
             if (!IsNewer(latestVersion)) return null;
             return new UpdateInfo(latestVersion, downloadUrl, n.GetString() ?? string.Empty);
         }

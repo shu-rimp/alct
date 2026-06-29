@@ -4,11 +4,8 @@ namespace AlctClient.Core;
 
 public static class LanguagePackService
 {
-    // DEBUG: set to true to force all packs as uninstalled (remove after testing)
-    public static bool ForceUninstalled { get; set; } = false;
-
     public static Task<bool> IsInstalledAsync(string bcp47) =>
-        ForceUninstalled ? Task.FromResult(false) : Task.Run(() => CheckAll(bcp47));
+        Task.Run(() => CheckAll(bcp47));
 
     private static bool CheckAll(string bcp47)
     {
