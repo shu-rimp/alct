@@ -39,14 +39,14 @@ public partial class MainWindow
     }
 
     internal void RebindCaptureHotkey() => RebindHotkey(
-        "채팅창 번역",
+        "텍스트 번역",
         _userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey,
         _userSettings.InputHotkeyModifiers,   _userSettings.InputHotkeyVKey,
         (mods, vkey) => { _userSettings.CaptureHotkeyModifiers = mods; _userSettings.CaptureHotkeyVKey = vkey; },
         _settings.SetCaptureHotkeyLabel);
 
     internal void RebindInputHotkey() => RebindHotkey(
-        "입력창 번역",
+        "입력 번역",
         _userSettings.InputHotkeyModifiers,   _userSettings.InputHotkeyVKey,
         _userSettings.CaptureHotkeyModifiers, _userSettings.CaptureHotkeyVKey,
         (mods, vkey) => { _userSettings.InputHotkeyModifiers = mods; _userSettings.InputHotkeyVKey = vkey; },
@@ -112,7 +112,7 @@ public partial class MainWindow
                 // 캡처 실패(GDI 미지원) 또는 OCR 추론/모델 로드 실패 — 안내만, 상세는 로그로.
                 if (!_screenCaptureLogged) { _screenCaptureLogged = true; Logger.Info("Preflight", "Screen capture: GDI unavailable"); }
                 Logger.Error("OcrCapture", ex);
-                _overlay.ShowNotice("채팅 번역 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
+                _overlay.ShowNotice("텍스트 번역 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
             }
             finally { _ocrLock.Release(); }
         });

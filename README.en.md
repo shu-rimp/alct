@@ -14,8 +14,8 @@
 </p>
 
 <p align="center">
-  ALCT is a <b>real-time translation overlay</b> that translates foreign text and speech into Korean and displays it over your screen.<br/> It's optimized in particular for online gaming, and is currently tuned around 'Apex Legends'.<br/>
-  Without any tedious steps, it translates your teammates' voice and chat, plus your own chat, quickly and easily.
+  ALCT is a <b>real-time translation overlay</b> that translates foreign text and speech into Korean and displays it over your screen.<br/>
+  Without any tedious steps, it translates voice, text, and input quickly and easily — and works just as well in special environments like online gaming.
 </p>
 
 
@@ -26,18 +26,18 @@
 
 ## Overview
 
-ALCT reads the text (or speech) on your screen and shows a Korean translation as a transparent overlay on top of the game. It **never interferes with the game process** — it works the same way as plain utility overlays like Discord or OBS.
+ALCT reads the text (or speech) on your screen and shows a Korean translation as a transparent overlay.
 
-**1. Lightweight** — For gamers who are sensitive down to a single frame, load is kept to a minimum: translation is handled by external translation-service APIs, and chat OCR is designed to run lightly on-device only at the moment you press the hotkey.
+**1. Lightweight** — Translation is handled by external translation-service APIs, and text OCR is designed to run lightly on-device only at the moment you press the hotkey, keeping load to a minimum.
 
 <details>
 <summary>Resource usage measurements (expand)</summary>
 Test environment: AMD Ryzen 7 9800X3D 8-Core Processor (8C/16T) · RAM 32GB · NVIDIA GeForce RTX 4070 Ti · Windows 11 Pro 25H2
 <br/>
 
-Recorded over 60 minutes of continuous speech, triggering chat every 15 s and input every 30 s. GPU usage is about 0% in both cases.
+Recorded over 60 minutes of continuous speech, triggering text translation every 15 s and input every 30 s. GPU usage is about 0% in both cases.
 
-- **All features on (ALCT + Live Captions)** — continuous-speech voice translation + chat translation + input translation: CPU ≈2% avg, memory ≈720 MB
+- **All features on (ALCT + Live Captions)** — continuous-speech voice translation + text translation + input translation: CPU ≈2% avg, memory ≈720 MB
 - **Voice translation off (ALCT alone)** — drops further to CPU ≈0.2% avg, memory ≈320 MB.
 
 <p align="center">
@@ -49,7 +49,7 @@ Recorded over 60 minutes of continuous speech, triggering chat every 15 s and in
 > *CPU/memory figures may vary depending on the measuring PC's specifications.
 </details><br/>
 
-**2. Easy** — To keep you as immersed in the game as possible, tedious steps and UI are kept to a minimum, with a range of customization options for convenience. A guided onboarding on first launch helps you learn how to use it naturally.
+**2. Easy** — So as not to interrupt your existing workflow, tedious steps and UI are kept to a minimum, with a range of customization options for convenience. A guided onboarding on first launch helps you learn how to use it naturally.
 
 <details>
 <summary>Example screens (expand)</summary>
@@ -67,7 +67,7 @@ A user-flow–based onboarding, plus an intuitive UI for translation language/en
 
 </details><br/>
 
-**3. Accurate** — A built-in game glossary pre-translates frequently used terms, applied identically across all translation engines. The glossary is kept up to date automatically with no separate app update. With the Gemini or DeepL engine, even tricky inputs — slang or romanized Japanese (e.g. `yorosiku`) — are translated at high quality.
+**3. Accurate** — A built-in glossary pre-translates specific terms (e.g. game character names) that standard translators miss, applied identically across all translation engines. The glossary is kept up to date automatically with no separate app update. With the Gemini or DeepL engine, even tricky inputs — slang or romanized Japanese (e.g. `yorosiku`) — are translated at high quality.
 
 <details>
 <summary>Translation output example by engine (expand)</summary>
@@ -95,18 +95,18 @@ Enable the `Real-time voice translation` toggle and it automatically generates K
 
 <img src="https://github.com/user-attachments/assets/ca5178f4-59cf-4c02-af7e-37e74c02474d" alt="Voice translation demo" width="640" />
 
-### 💬 Chat translation `default: Ctrl+T`
+### 💬 Text translation `default: Ctrl+T`
 
-Press the hotkey to capture the chat region, and the translation is shown as an overlay.
+Press the hotkey to capture the text region, and the translation is shown as an overlay.
 
 - **Short press** — translates the saved (or automatic) region.
 - **Long press** — drag to pick the region to translate. (one-time)
 
-<img src="https://github.com/user-attachments/assets/614161be-6748-4396-8c8e-cfb48583763d" alt="채팅 번역 데모" width="640" />
+<img src="https://github.com/user-attachments/assets/614161be-6748-4396-8c8e-cfb48583763d" alt="text translation demo" width="640" />
 
 ### ⌨️ Input translation `default: Ctrl+G`
 
-Copy the chat you've typed, then press the hotkey and ALCT translates it into the target language and places it on your clipboard. Paste it with `Ctrl+V`.
+Copy the text you've typed, then press the hotkey and ALCT translates it into the target language and places it on your clipboard. Paste it with `Ctrl+V`.
 
 > Translation runs only when you press the hotkey, so it doesn't affect your normal copy/paste.
 
@@ -128,7 +128,7 @@ Download the latest **`ALCT.exe`** from the [Releases page](https://github.com/s
 
 ```
 Voice:  Windows Live Captions → UI Automation polling → translation API → subtitle overlay
-Chat:   hotkey → screen capture → on-device OCR → translation API → overlay
+text:   hotkey → screen capture → on-device OCR → translation API → overlay
 Input:  clipboard (Korean) → translation API → clipboard (translated) → you paste
 ```
 
@@ -174,6 +174,8 @@ Bug reports, feature ideas, and glossary/code contributions are all welcome — 
 ## Terms of Use & Disclaimer
 
 ALCT is a non-commercial, open-source personal project provided **"as is"** without any warranty. By installing and using it you are deemed to agree to the terms below.
+
+If you plan to use ALCT in a online gaming context, please review the anti-cheat section below.
 
 ### Anti-cheat & game terms of service
 

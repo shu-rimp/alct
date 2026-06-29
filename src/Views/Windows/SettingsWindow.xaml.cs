@@ -146,7 +146,7 @@ public partial class SettingsWindow : Window
         if (!supported)
         {
             CaptionMonitorToggle.IsChecked = false;
-            VoiceHintText.Text = "실시간 음성 채팅 번역 기능은 Windows 11 22H2 이상 버전에서 지원돼요";
+            VoiceHintText.Text = "실시간 음성 번역 기능은 Windows 11 22H2 이상 버전에서 지원돼요";
             VoiceHintText.Foreground = (System.Windows.Media.SolidColorBrush)FindResource("TextWarnBrush");
         }
     }

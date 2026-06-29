@@ -374,7 +374,7 @@
                         <!-- 채팅 번역 카드 -->
                         <Border Style="{StaticResource SettingsCard}" Margin="0,0,0,14">
                             <StackPanel>
-                                <TextBlock Text="💬 채팅 번역" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="💬 텍스트 번역" Style="{StaticResource CardTitle}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -542,8 +542,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="채팅창 번역" Style="{StaticResource CardTitle}" Margin="0"/>
-                                    <TextBlock Text="채팅창을 한국어로 번역해요."
+                                    <TextBlock Text="텍스트 번역" Style="{StaticResource CardTitle}" Margin="0"/>
+                                    <TextBlock Text="텍스트를 한국어로 번역해요."
                                                Foreground="{StaticResource TextMutedBrush}"
                                                FontSize="11" TextWrapping="Wrap"
                                                Margin="0,3,0,0"/>
@@ -591,8 +591,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="입력창 번역" Style="{StaticResource CardTitle}" Margin="0"/>
-                                    <TextBlock Text="복사한 채팅을 번역해요. 번역문은 붙여넣기로 바로 입력할 수 있어요."
+                                    <TextBlock Text="입력 번역" Style="{StaticResource CardTitle}" Margin="0"/>
+                                    <TextBlock Text="복사한 텍스트를 번역해요. 번역문은 붙여넣기로 바로 입력할 수 있어요."
                                                Foreground="{StaticResource TextMutedBrush}"
                                                FontSize="11" TextWrapping="Wrap"
                                                Margin="0,3,0,0"/>
@@ -614,7 +614,7 @@
                     <StackPanel x:Name="PanelScreen" Visibility="Collapsed">
 
                         <!-- ── 채팅창 영역 ── -->
-                        <TextBlock Text="채팅창 영역"
+                        <TextBlock Text="텍스트 캡처 영역"
                                    Foreground="{StaticResource TextPrimaryBrush}"
                                    FontSize="13" FontWeight="SemiBold"
                                    Margin="0,0,0,10"/>
@@ -665,7 +665,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
-                                        <TextBlock Text="채팅 번역 표시 시간" FontSize="13"
+                                        <TextBlock Text="텍스트 번역 표시 시간" FontSize="13"
                                                    Foreground="{StaticResource TextPrimaryBrush}"/>
                                         <TextBlock Text="ESC로 즉시 숨길 수 있어요." FontSize="11"
                                                    Foreground="{StaticResource TextMutedBrush}" Margin="0,3,0,0"/>
