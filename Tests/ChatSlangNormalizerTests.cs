@@ -2,39 +2,37 @@ using AlctClient.Core;
 
 namespace AlctClient.Tests;
 
-// 서버 text_normalizer.normalizeText 와 동일하게 동작하는지 검증.
 public class ChatSlangNormalizerTests
 {
     [Fact]
     public void Normalize_SingleAlias_Wrapped()
     {
-        Assert.Equal("<x>gg</x>", ChatSlangNormalizer.Normalize("gg"));
+        Assert.Equal("<x>괜찮아</x>", ChatSlangNormalizer.Normalize("np"));
     }
 
     [Fact]
-    public void Normalize_LongerAliasWins_NoDoubleSubstitution()
+    public void Normalize_MultipleAliasesInText()
     {
-        // 핵심: "gg ez"는 "gg 쉽네"로 한 번만 치환돼야 함. 순차 다중치환이면 결과 안의 "gg"가
-        // 재매칭돼 "<x><x>gg</x> 쉽네</x>"로 깨지는데, 단일패스라 그러지 않아야 한다.
-        Assert.Equal("<x>gg 쉽네</x>", ChatSlangNormalizer.Normalize("gg ez"));
+        Assert.Equal("<x>ㅋㅋ</x> <x>헐</x>", ChatSlangNormalizer.Normalize("lol omg"));
     }
 
     [Fact]
-    public void Normalize_MultiWordAlias()
+    public void Normalize_SpecialCharAlias()
     {
-        Assert.Equal("<x>화이팅 즐겜</x>", ChatSlangNormalizer.Normalize("gl hf"));
+        // tl;dr처럼 비단어 문자를 포함한 alias도 통째로 매칭돼야 함
+        Assert.Equal("<x>요약하면</x>", ChatSlangNormalizer.Normalize("tl;dr"));
     }
 
     [Fact]
-    public void Normalize_JapaneseRomaji()
+    public void Normalize_NonAsciiAlias()
     {
-        Assert.Equal("<x>잘 부탁해</x>", ChatSlangNormalizer.Normalize("yoroshiku"));
+        Assert.Equal("<x>ㅋㅋ</x>", ChatSlangNormalizer.Normalize("草"));
     }
 
     [Fact]
     public void Normalize_CaseInsensitive()
     {
-        Assert.Equal("<x>gg</x>", ChatSlangNormalizer.Normalize("GG"));
+        Assert.Equal("<x>ㅋㅋ</x>", ChatSlangNormalizer.Normalize("LOL"));
     }
 
     [Fact]
@@ -52,6 +50,13 @@ public class ChatSlangNormalizerTests
     [Fact]
     public void Normalize_AliasWithinSentence()
     {
-        Assert.Equal("ok <x>gg</x> guys", ChatSlangNormalizer.Normalize("ok gg guys"));
+        Assert.Equal("ok <x>잠깐만</x> guys", ChatSlangNormalizer.Normalize("ok brb guys"));
+    }
+
+    [Fact]
+    public void Normalize_NoPartialWordMatch()
+    {
+        // "omg"가 더 긴 단어 안에 포함될 때 매칭되지 않아야 함 (수정된 \b 경계 검증)
+        Assert.Equal("omgosh", ChatSlangNormalizer.Normalize("omgosh"));
     }
 }
