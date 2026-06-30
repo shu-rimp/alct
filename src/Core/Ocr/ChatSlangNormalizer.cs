@@ -39,10 +39,9 @@ internal static class ChatSlangNormalizer
         });
     }
 
-    // 서버 _buildAliasEntry: ascii는 (?:\b|(?<=[a-z]))..(?:\b|(?=[a-z])), 그 외(비ascii)는 escape만
     private static string BuildAliasEntry(string alias) =>
         IsAscii(alias)
-            ? @"(?:\b|(?<=[a-z]))" + Regex.Escape(alias) + @"(?:\b|(?=[a-z]))"
+            ? @"\b" + Regex.Escape(alias) + @"\b"
             : Regex.Escape(alias);
 
     private static string EscapeXml(string text) =>
